@@ -14,11 +14,15 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private static final String TOKEN_TYPE = "Bearer";
     private final AuthenticationManager authenticationManager;
@@ -27,7 +31,11 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody User user) {
+        logger.info("request body - -- - {}",user.toString());
         User result = userService.createUser(user);
+
+
+
         return ResponseEntity.ok(result);
     }
 
