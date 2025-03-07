@@ -113,7 +113,7 @@ class StatusService {
    */
   async updateStatus(status: UserStatus): Promise<void> {
     const update: StatusUpdate = { status };
-    await api.put('/api/users/status', update);
+    await api.put('/users/status', update);
     
     // Also send via WebSocket for real-time updates
     this.sendStatusUpdateViaWebSocket(update);
@@ -124,7 +124,7 @@ class StatusService {
    */
   async updateCustomStatus(status: UserStatus, customStatus: CustomStatus): Promise<void> {
     const update: StatusUpdate = { status, customStatus };
-    await api.put('/api/users/status', update);
+    await api.put('/users/status', update);
     
     // Also send via WebSocket for real-time updates
     this.sendStatusUpdateViaWebSocket(update);
@@ -155,7 +155,7 @@ class StatusService {
    * Get a user's current status
    */
   async getUserStatus(userId: number): Promise<StatusUpdate> {
-    const response = await api.get(`/api/users/${userId}/status`);
+    const response = await api.get(`/users/${userId}/status`);
     return response.data;
   }
 
@@ -163,7 +163,7 @@ class StatusService {
    * Clear the custom status
    */
   async clearCustomStatus(): Promise<void> {
-    await api.delete('/api/users/status/custom');
+    await api.delete('/users/status/custom');
     
     // Update WebSocket with status without custom status
     const currentStatus = await this.getCurrentUserStatus();
@@ -174,7 +174,7 @@ class StatusService {
    * Get current user's status
    */
   private async getCurrentUserStatus(): Promise<StatusUpdate> {
-    const response = await api.get('/api/users/me/status');
+    const response = await api.get('/users/me/status');
     return response.data;
   }
 

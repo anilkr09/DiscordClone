@@ -11,26 +11,27 @@ class MessageService {
     }
 
     private initializeWebSocketConnection() {
-        let socket = new WebSocket(`ws://localhost:8082/ws?token=${`Bearer ${localStorage.getItem('accessToken')}`}`);
+        // let socket = new WebSocket(`ws://localhost:8082/ws?token=${`Bearer ${localStorage.getItem('accessToken')}`}`);
 
-        socket.onopen = function () {
-            console.log("Connected to WebSocket server.");
-            console.log("Connected to server.");
-        };
-        // this.stompClient = new Client({
-        //     brokerURL: 'ws://localhost:8082/ws',
-        //     connectHeaders: {
-        //         Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-        //     },
-        //     onConnect: () => {
-        //         console.log('Connected to WebSocket');
-        //     },
-        //     onStompError: (frame) => {
-        //         console.error('STOMP error', frame);
-        //     }
-        // });
+        // socket.onopen = function () {
+        //     console.log("Connected to WebSocket server.");
+        //     console.log("Connected to server.");
+        // };
+        this.stompClient = new Client({
+            brokerURL: 'ws://localhost:8082/ws',
+            connectHeaders: {
+                Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+            },
+            onConnect: () => {
+                window.alert('Connected to WebSocket');
+            },
+            onStompError: (frame) => {
+                console.error('STOMP error', frame);
+            }
+        });
 
-        // this.stompClient.activate();
+        this.stompClient.activate();
+        
     }
 
     async sendMessage(message: MessageRequest): Promise<Message> {
@@ -44,12 +45,12 @@ class MessageService {
     }
 
     async editMessage(channelId: string, messageId: string, content: string): Promise<Message> {
-        const response = await api.put(`/api/channels/${channelId}/messages/${messageId}`, { content });
+        const response = await api.put(`/channels/${channelId}/messages/${messageId}`, { content });
         return response.data;
     }
 
     async deleteMessage(channelId: string, messageId: string): Promise<void> {
-        await api.delete(`/api/channels/${channelId}/messages/${messageId}`);
+        await api.delete(`/channels/${channelId}/messages/${messageId}`);
     }
 
     subscribeToChannel(channelId: number, callback: (message: Message) => void) {

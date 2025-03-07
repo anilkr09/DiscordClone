@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -7,7 +7,8 @@ import {
   Tabs, 
   Tab, 
   CircularProgress,
-  Divider
+  Divider,
+  Badge
 } from '@mui/material';
 import ChatIcon from '@mui/icons-material/Chat';
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
@@ -33,11 +34,7 @@ export default function FriendsList() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, [activeTab]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -69,27 +66,59 @@ export default function FriendsList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadData();
+    
+    // Set up polling for friend requests
+    const interval = setInterval(() => {
+      if (activeTab === FriendTab.PENDING) {
+        friendService.getFriendRequests()
+          .then(requests => setFriendRequests(requests))
+          .catch(error => console.error('Error polling friend requests:', error));
+      }
+    }, 30000); // Poll every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [activeTab, loadData]);
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: FriendTab) => {
     setActiveTab(newValue);
   };
 
-  const handleAcceptFriendRequest = (friendId: number) => {
-    // Remove the request from the list
-    setFriendRequests(prev => prev.filter(request => 
-      !(request.senderId === friendId || request.receiverId === friendId)
-    ));
-    
-    // Reload friends if on the friends tab
-    if (activeTab !== FriendTab.PENDING) {
-      loadData();
+  const handleAcceptFriendRequest = async (requestId: number) => {
+    try {
+      await friendService.acceptFriendRequest(requestId);
+      // Remove the request from the list
+      setFriendRequests(prev => prev.filter(request => request.id !== requestId));
+      // Reload friends if on the friends tab
+      if (activeTab !== FriendTab.PENDING) {
+        loadData();
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
     }
   };
 
-  const handleRejectFriendRequest = (requestId: number) => {
-    // Remove the request from the list
-    setFriendRequests(prev => prev.filter(request => request.id !== requestId));
+  const handleRejectFriendRequest = async (requestId: number) => {
+    try {
+      await friendService.rejectFriendRequest(requestId);
+      // Remove the request from the list
+      setFriendRequests(prev => prev.filter(request => request.id !== requestId));
+    } catch (error) {
+      console.error('Error rejecting friend request:', error);
+    }
+  };
+
+  const handleRemoveFriend = async (friendId: number) => {
+    try {
+      await friendService.removeFriend(friendId);
+      // Remove the friend from the list
+      setFriends(prev => prev.filter(friend => friend.id !== friendId));
+    } catch (error) {
+      console.error('Error removing friend:', error);
+    }
   };
 
   const renderContent = () => {
@@ -139,8 +168,8 @@ export default function FriendsList() {
             <FriendRequest 
               key={request.id}
               request={request}
-              onAccept={handleAcceptFriendRequest}
-              onReject={handleRejectFriendRequest}
+              onAccept={() => handleAcceptFriendRequest(request.id)}
+              onReject={() => handleRejectFriendRequest(request.id)}
             />
           ))}
         </Box>
@@ -221,7 +250,14 @@ export default function FriendsList() {
                 <ChatIcon fontSize="small" />
               </IconButton>
               
-              <IconButton size="small" sx={{ color: '#b9bbbe' }}>
+              <IconButton 
+                size="small" 
+                sx={{ color: '#b9bbbe' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveFriend(friend.id);
+                }}
+              >
                 <MoreHorizIcon fontSize="small" />
               </IconButton>
             </Box>
@@ -230,6 +266,9 @@ export default function FriendsList() {
       </Box>
     );
   };
+
+  // Count pending requests for badge
+  const pendingCount = friendRequests.length;
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -287,7 +326,13 @@ export default function FriendsList() {
             }}
           />
           <Tab 
-            label="Pending" 
+            icon={
+              pendingCount > 0 ? (
+                <Badge badgeContent={pendingCount} color="error">
+                  <span>Pending</span>
+                </Badge>
+              ) : 'Pending'
+            }
             value={FriendTab.PENDING} 
             sx={{ 
               minHeight: '48px',

@@ -4,15 +4,17 @@ import {
   Typography, 
   Avatar, 
   Button, 
-  CircularProgress 
+  CircularProgress,
+  Tooltip
 } from '@mui/material';
 import { FriendRequest as FriendRequestType } from '../../types/friend';
-import friendService from '../../services/friend.service';
+import StatusIndicator from '../user/StatusIndicator';
+import { UserStatus } from '../../types/status';
 
 interface FriendRequestProps {
   request: FriendRequestType;
-  onAccept: (friendId: number) => void;
-  onReject: (requestId: number) => void;
+  onAccept: () => void;
+  onReject: () => void;
 }
 
 export default function FriendRequest({ request, onAccept, onReject }: FriendRequestProps) {
@@ -27,10 +29,11 @@ export default function FriendRequest({ request, onAccept, onReject }: FriendReq
   const avatarText = username.charAt(0).toUpperCase();
   
   const handleAccept = async () => {
+    if (isAccepting || isRejecting) return;
+    
     setIsAccepting(true);
     try {
-      await friendService.acceptFriendRequest(request.id);
-      onAccept(isIncoming ? request.senderId : request.receiverId);
+      await onAccept();
     } catch (error) {
       console.error('Error accepting friend request:', error);
     } finally {
@@ -39,15 +42,26 @@ export default function FriendRequest({ request, onAccept, onReject }: FriendReq
   };
   
   const handleReject = async () => {
+    if (isAccepting || isRejecting) return;
+    
     setIsRejecting(true);
     try {
-      await friendService.rejectFriendRequest(request.id);
-      onReject(request.id);
+      await onReject();
     } catch (error) {
       console.error('Error rejecting friend request:', error);
     } finally {
       setIsRejecting(false);
     }
+  };
+
+  // Format the date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString(undefined, { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   return (
@@ -58,18 +72,25 @@ export default function FriendRequest({ request, onAccept, onReject }: FriendReq
       borderRadius: '8px',
       '&:hover': { bgcolor: '#32353b' }
     }}>
-      <Avatar 
-        src={avatarUrl}
-        sx={{ 
-          width: 40, 
-          height: 40, 
-          bgcolor: '#ed4245',
-          fontSize: '16px',
-          mr: 2
-        }}
-      >
-        {avatarText}
-      </Avatar>
+      <Box sx={{ position: 'relative' }}>
+        <Avatar 
+          src={avatarUrl}
+          sx={{ 
+            width: 40, 
+            height: 40, 
+            bgcolor: '#ed4245',
+            fontSize: '16px',
+            mr: 2
+          }}
+        >
+          {avatarText}
+        </Avatar>
+        <StatusIndicator 
+          status={UserStatus.ONLINE} // Default to online for now
+          borderColor="#36393f"
+          size={12}
+        />
+      </Box>
       
       <Box sx={{ flexGrow: 1 }}>
         <Typography sx={{ fontWeight: 'bold', fontSize: '16px' }}>
@@ -77,6 +98,13 @@ export default function FriendRequest({ request, onAccept, onReject }: FriendReq
         </Typography>
         <Typography sx={{ color: '#96989d', fontSize: '14px' }}>
           {isIncoming ? 'Incoming Friend Request' : 'Outgoing Friend Request'}
+          {request.createdAt && (
+            <Tooltip title={formatDate(request.createdAt)}>
+              <span style={{ marginLeft: '8px', fontSize: '12px' }}>
+                • {formatDate(request.createdAt)}
+              </span>
+            </Tooltip>
+          )}
         </Typography>
       </Box>
       

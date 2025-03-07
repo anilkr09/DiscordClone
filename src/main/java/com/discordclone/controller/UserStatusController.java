@@ -3,11 +3,14 @@ package com.discordclone.controller;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
 import com.discordclone.payload.StatusUpdatePayload;
+import com.discordclone.security.CurrentUser;
+import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.UserService;
 import com.discordclone.service.UserStatusService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,12 +26,10 @@ public class UserStatusController {
         this.userStatusService = userStatusService;
     }
 
-    @PutMapping("/{userId}/status")
-    @PreAuthorize("authentication.principal.id == #userId")
-    public ResponseEntity<?> updateStatus(
-            @PathVariable Long userId,
-            @RequestBody StatusUpdatePayload statusUpdate) {
-        User user = userStatusService.updateUserStatus(userId, statusUpdate.getStatus());
+    @PutMapping("/status")
+    public ResponseEntity<?> updateStatus(@RequestBody StatusUpdatePayload statusUpdate) {
+        UserPrincipal currentUser = getCurrentUser();
+        User user = userStatusService.updateUserStatus(currentUser.getId(), statusUpdate.getStatus());
         return ResponseEntity.ok(user);
     }
 
@@ -39,15 +40,24 @@ public class UserStatusController {
     }
 
     @GetMapping("/me/status")
-    public ResponseEntity<?> getCurrentUserStatus(@RequestParam Long userId) {
-        UserStatus status = userStatusService.getUserStatus(userId);
+    public ResponseEntity<?> getCurrentUserStatus() {
+        UserPrincipal currentUser = getCurrentUser();
+        UserStatus status = userStatusService.getUserStatus(currentUser.getId());
         return ResponseEntity.ok(new StatusUpdatePayload(status));
     }
 
-    @DeleteMapping("/{userId}/status/custom")
-    @PreAuthorize("authentication.principal.id == #userId")
-    public ResponseEntity<?> clearCustomStatus(@PathVariable Long userId) {
-        User user = userStatusService.clearCustomStatus(userId);
+    @DeleteMapping("/status/custom")
+    public ResponseEntity<?> clearCustomStatus() {
+        UserPrincipal currentUser = getCurrentUser();
+        User user = userStatusService.clearCustomStatus(currentUser.getId());
         return ResponseEntity.ok(user);
+    }
+    
+    private UserPrincipal getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
+            throw new IllegalStateException("User not authenticated");
+        }
+        return (UserPrincipal) authentication.getPrincipal();
     }
 } 

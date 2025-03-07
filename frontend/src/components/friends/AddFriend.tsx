@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -6,7 +6,8 @@ import {
   Button, 
   Alert, 
   InputAdornment,
-  CircularProgress
+  CircularProgress,
+  Snackbar
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import friendService from '../../services/friend.service';
@@ -16,14 +17,39 @@ export default function AddFriend() {
   const [username, setUsername] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [response, setResponse] = useState<AddFriendResponse | null>(null);
+  const [showSnackbar, setShowSnackbar] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Clear response after 5 seconds
+  useEffect(() => {
+    if (response) {
+      setShowSnackbar(true);
+      const timer = setTimeout(() => {
+        setShowSnackbar(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [response]);
+
+  const validateUsername = (username: string): boolean => {
+    // Username should be at least 3 characters and not more than 32 characters
+    return username.length >= 3 && username.length <= 32;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!username.trim()) {
+      setError('Username cannot be empty');
       return;
     }
 
+    if (!validateUsername(username.trim())) {
+      setError('Username must be between 3 and 32 characters');
+      return;
+    }
+
+    setError(null);
     setIsSubmitting(true);
     try {
       const result = await friendService.addFriend(username.trim());
@@ -43,6 +69,10 @@ export default function AddFriend() {
     }
   };
 
+  const handleCloseSnackbar = () => {
+    setShowSnackbar(false);
+  };
+
   return (
     <Box sx={{ p: 3, maxWidth: '100%' }}>
       <Typography variant="h6" sx={{ mb: 1, fontWeight: 'bold' }}>
@@ -58,7 +88,12 @@ export default function AddFriend() {
           fullWidth
           placeholder="Enter a username"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => {
+            setUsername(e.target.value);
+            setError(null);
+          }}
+          error={!!error}
+          helperText={error}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -75,15 +110,21 @@ export default function AddFriend() {
               color: 'white',
               borderRadius: '8px',
               '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'transparent'
+                borderColor: error ? '#ed4245' : 'transparent'
               },
               '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'transparent'
+                borderColor: error ? '#ed4245' : 'transparent'
               },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#5865f2'
+                borderColor: error ? '#ed4245' : '#5865f2'
               },
               p: 1
+            }
+          }}
+          FormHelperTextProps={{
+            sx: {
+              color: '#ed4245',
+              ml: 1
             }
           }}
           disabled={isSubmitting}
@@ -104,14 +145,27 @@ export default function AddFriend() {
         </Button>
       </form>
       
-      {response && (
+      <Snackbar 
+        open={showSnackbar} 
+        autoHideDuration={5000} 
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
         <Alert 
-          severity={response.success ? 'success' : 'error'} 
-          sx={{ mt: 2, bgcolor: response.success ? 'rgba(59, 165, 93, 0.1)' : 'rgba(237, 66, 69, 0.1)' }}
+          onClose={handleCloseSnackbar}
+          severity={response?.success ? 'success' : 'error'} 
+          sx={{ 
+            width: '100%',
+            bgcolor: response?.success ? 'rgba(59, 165, 93, 0.1)' : 'rgba(237, 66, 69, 0.1)',
+            color: response?.success ? '#3ba55d' : '#ed4245',
+            '& .MuiAlert-icon': {
+              color: response?.success ? '#3ba55d' : '#ed4245'
+            }
+          }}
         >
-          {response.message}
+          {response?.message}
         </Alert>
-      )}
+      </Snackbar>
     </Box>
   );
 } 
