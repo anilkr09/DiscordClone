@@ -1,14 +1,176 @@
-import { Box } from '@mui/material';
-import { Outlet } from 'react-router-dom';
-import ServerList from '../servers/ServerList';
+import { useState, useEffect } from 'react';
+import { Box, Typography, Avatar, InputBase, IconButton } from '@mui/material';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import ChatIcon from '@mui/icons-material/Chat';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
+import DirectMessageList from '../friends/DirectMessageList';
+import FriendsList from '../friends/FriendsList';
+import UserProfile from '../user/UserProfile';
+import StatusIndicator from '../user/StatusIndicator';
+import { UserStatus } from '../../types/status';
+import { User } from '../../types/auth';
+
+// Dummy data for the layout
+const dummyServers = [
+  { id: 1, name: 'Discord', initial: 'D' },
+  { id: 2, name: 'Awesome Server', initial: 'AS' },
+  { id: 3, name: 'Cool Group', initial: 'CG' },
+];
+
+// Mock current user - this would come from auth context in a real app
+const currentUser: User = {
+  id: 0,
+  username: 'aaaa',
+  email: 'user@example.com',
+  avatarUrl: ''
+};
 
 export default function MainLayout() {
-    return (
-        <Box sx={{ display: 'flex', height: '100vh' }}>
-            <ServerList />
-            <Box sx={{ flexGrow: 1, display: 'flex' }}>
-                <Outlet />
-            </Box>
+  const [currentStatus, setCurrentStatus] = useState<UserStatus>(UserStatus.ONLINE);
+  const [customStatus, setCustomStatus] = useState<string | undefined>(undefined);
+  const [showFriendsList, setShowFriendsList] = useState<boolean>(true);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if we're on the friends route
+    const isFriendsRoute = location.pathname === '/app' || location.pathname === '/app/friends';
+    setShowFriendsList(isFriendsRoute);
+  }, [location]);
+
+  const handleServerClick = (serverId: number) => {
+    navigate(`/app/servers/${serverId}`);
+  };
+
+  const handleAddServer = () => {
+    navigate('/app/servers/new');
+  };
+
+  const handleFriendsClick = () => {
+    navigate('/app/friends');
+  };
+
+  const handleAddDM = () => {
+    // This would open a dialog to select a friend to DM
+    console.log('Add DM clicked');
+  };
+
+  return (
+    <Box sx={{ display: 'flex', height: '100vh', bgcolor: '#36393f', color: '#dcddde', fontFamily: 'Arial, sans-serif' }}>
+      {/* Left sidebar with server icons */}
+      <Box sx={{
+        width: '72px',
+        bgcolor: '#202225',
+        py: 1.5,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        {dummyServers.map(server => (
+          <Box
+            key={server.id}
+            onClick={() => handleServerClick(server.id)}
+            sx={{
+              width: '48px',
+              height: '48px',
+              bgcolor: '#5865f2',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            {server.initial}
+          </Box>
+        ))}
+        <Box
+          onClick={handleAddServer}
+          sx={{
+            width: '48px',
+            height: '48px',
+            bgcolor: '#36393f',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#3ba55d',
+            cursor: 'pointer',
+            fontSize: '24px'
+          }}
+        >
+          <AddIcon />
         </Box>
-    );
+      </Box>
+
+      {/* Channel sidebar */}
+      <Box sx={{
+        width: '240px',
+        bgcolor: '#2f3136',
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative'
+      }}>
+        <Box 
+          sx={{ 
+            p: 2, 
+            fontWeight: 'bold', 
+            borderBottom: '1px solid #26282c',
+            cursor: 'pointer'
+          }}
+          onClick={handleFriendsClick}
+        >
+          Friends
+        </Box>
+        
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          <DirectMessageList onAddDM={handleAddDM} />
+        </Box>
+        
+        {/* Bottom user profile */}
+        <UserProfile 
+          user={currentUser}
+          status={currentStatus}
+          customStatus={customStatus}
+        />
+      </Box>
+
+      {/* Main content area */}
+      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        {showFriendsList ? (
+          <FriendsList />
+        ) : (
+          <Outlet />
+        )}
+      </Box>
+
+      {/* Right sidebar - Active Now */}
+      <Box sx={{ 
+        width: '340px', 
+        bgcolor: '#2f3136', 
+        p: 2, 
+        borderLeft: '1px solid #26282c' 
+      }}>
+        <Typography sx={{ fontSize: '20px', fontWeight: 'bold', mb: 3 }}>
+          Active Now
+        </Typography>
+        
+        <Box sx={{ textAlign: 'center', mt: 6 }}>
+          <Typography sx={{ fontSize: '16px', fontWeight: 'bold', mb: 1 }}>
+            It's quiet for now...
+          </Typography>
+          <Typography sx={{ color: '#96989d', fontSize: '14px', lineHeight: 1.4 }}>
+            When a friend starts an activity - like playing a game or hanging out on voice - we'll show it here!
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
 }

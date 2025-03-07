@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord UI Clone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: #36393f;
+            color: #dcddde;
+        }
+
+        /* Left sidebar with server icons */
+        .servers-sidebar {
+            width: 72px;
+            background-color: #202225;
+            padding: 12px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .server-icon {
+            width: 48px;
+            height: 48px;
+            background-color: #5865f2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .server-icon.add {
+            background-color: #36393f;
+            color: #3ba55d;
+            font-size: 24px;
+        }
+
+        /* Channel sidebar */
+        .channel-sidebar {
+            width: 240px;
+            background-color: #2f3136;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            font-weight: bold;
+            border-bottom: 1px solid #26282c;
+        }
+
+        .direct-messages {
+            padding: 8px 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #96989d;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .add-dm {
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .message-list {
+            margin-top: 8px;
+        }
+
+        .message-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            gap: 12px;
+        }
+
+        .message-item:hover {
+            background-color: #36393f;
+        }
+
+        .message-item.active {
+            background-color: #42464d;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background-color: #ed4245;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            position: relative;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            background-color: #3ba55d;
+            border-radius: 50%;
+            border: 2px solid #2f3136;
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+        }
+
+        .friend-username {
+            flex-grow: 1;
+            font-size: 14px;
+        }
+
+        /* Main content area */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            height: 48px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #26282c;
+            gap: 16px;
+        }
+
+        .friends-icon {
+            font-size: 20px;
+        }
+
+        .toolbar-title {
+            font-weight: bold;
+        }
+
+        .toolbar-tabs {
+            display: flex;
+            height: 100%;
+            align-items: center;
+            margin-left: 16px;
+        }
+
+        .tab {
+            padding: 2px 8px;
+            margin: 0 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .tab.active {
+            background-color: #4f545c;
+            color: white;
+        }
+
+        .add-friend-button {
+            background-color: #3ba55d;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-left: auto;
+            cursor: pointer;
+        }
+
+        .search-container {
+            padding: 16px;
+            border-bottom: 1px solid #26282c;
+        }
+
+        .search-bar {
+            background-color: #202225;
+            border-radius: 4px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-placeholder {
+            color: #72767d;
+            font-size: 14px;
+        }
+
+        .search-icon {
+            color: #72767d;
+            font-size: 18px;
+        }
+
+        .online-section {
+            padding: 16px;
+        }
+
+        .online-header {
+            color: #96989d;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .online-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .online-user {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            gap: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .online-user:hover {
+            background-color: #32353b;
+        }
+
+        .message-button {
+            color: #b9bbbe;
+            margin-left: auto;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .options-button {
+            color: #b9bbbe;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Right sidebar */
+        .active-now {
+            width: 340px;
+            background-color: #2f3136;
+            padding: 16px;
+            border-left: 1px solid #26282c;
+        }
+
+        .active-now-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 24px;
+        }
+
+        .quiet-message {
+            text-align: center;
+            margin-top: 48px;
+        }
+
+        .quiet-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .quiet-description {
+            color: #96989d;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .bottom-user {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 240px;
+            padding: 8px;
+            background-color: #292b2f;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .user-details {
+            flex-grow: 1;
+        }
+
+        .username {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .user-tag {
+            font-size: 12px;
+            color: #96989d;
+        }
+    </style>
+</head>
+<body>
+    <!-- Left sidebar with server icons -->
+    <div class="servers-sidebar">
+        <div class="server-icon">D</div>
+        <div class="server-icon">as</div>
+        <div class="server-icon">as</div>
+        <div class="server-icon add">+</div>
+    </div>
+
+    <!-- Channel sidebar -->
+    <div class="channel-sidebar">
+        <div class="sidebar-header">Friends</div>
+        
+        <div class="message-list">
+            <div class="direct-messages">
+                <span>Direct Messages</span>
+                <span class="add-dm">+</span>
+            </div>
+            
+            <div class="message-item">
+                <div class="user-avatar">
+                    a
+                    <div class="status-indicator"></div>
+                </div>
+                <div class="friend-username">anilkr03</div>
+            </div>
+        </div>
+        
+        <div class="bottom-user">
+            <div class="user-avatar">
+                a
+                <div class="status-indicator"></div>
+            </div>
+            <div class="user-details">
+                <div class="username">aaaa</div>
+                <div class="user-tag">Online</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content area -->
+    <div class="main-content">
+        <div class="toolbar">
+            <span class="friends-icon">👥</span>
+            <span class="toolbar-title">Friends</span>
+            
+            <div class="toolbar-tabs">
+                <div class="tab">Online</div>
+                <div class="tab active">All</div>
+                <div class="tab">Pending</div>
+            </div>
+            
+            <div class="add-friend-button">Add Friend</div>
+        </div>
+        
+        <div class="search-container">
+            <div class="search-bar">
+                <input type="text" class="search-input" placeholder="Search"></input>
+                <div class="search-icon">🔍</div>
+            </div>
+        </div>
+        
+        <div class="online-section">
+            <div class="online-header">ONLINE — 1</div>
+            
+            <div class="online-list">
+                <div class="online-user">
+                    <div class="user-avatar">
+                        a
+                        <div class="status-indicator"></div>
+                    </div>
+                    <div class="friend-username">anilkr03</div>
+                    <span class="online-tag">Online</span>
+                    <div class="message-button">💬</div>
+                    <div class="options-button">⋯</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="active-now">
+        <div class="active-now-header">Active Now</div>
+        
+        <div class="quiet-message">
+            <div class="quiet-title">It's quiet for now...</div>
+            <div class="quiet-description">When a friend starts an activity - like playing a game or hanging out on voice - we'll show it here!</div>
+        </div>
+    </div>
+</body>
+</html>

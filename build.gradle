@@ -30,6 +30,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'org.springframework.kafka:spring-kafka'
+	//webcocket security
+	implementation 'org.springframework.security:spring-security-messaging'
+
+	implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+
 	
 	// JWT Dependencies
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'

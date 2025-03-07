@@ -11,20 +11,26 @@ class MessageService {
     }
 
     private initializeWebSocketConnection() {
-        this.stompClient = new Client({
-            brokerURL: 'ws://localhost:8080/ws',
-            connectHeaders: {
-                Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-            },
-            onConnect: () => {
-                console.log('Connected to WebSocket');
-            },
-            onStompError: (frame) => {
-                console.error('STOMP error', frame);
-            }
-        });
+        let socket = new WebSocket(`ws://localhost:8082/ws?token=${`Bearer ${localStorage.getItem('accessToken')}`}`);
 
-        this.stompClient.activate();
+        socket.onopen = function () {
+            console.log("Connected to WebSocket server.");
+            console.log("Connected to server.");
+        };
+        // this.stompClient = new Client({
+        //     brokerURL: 'ws://localhost:8082/ws',
+        //     connectHeaders: {
+        //         Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        //     },
+        //     onConnect: () => {
+        //         console.log('Connected to WebSocket');
+        //     },
+        //     onStompError: (frame) => {
+        //         console.error('STOMP error', frame);
+        //     }
+        // });
+
+        // this.stompClient.activate();
     }
 
     async sendMessage(message: MessageRequest): Promise<Message> {
