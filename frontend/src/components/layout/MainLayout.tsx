@@ -12,6 +12,7 @@ import UserProfile from '../user/UserProfile';
 import StatusIndicator from '../user/StatusIndicator';
 import { UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
+import authService from '../../services/auth.service';
 
 // Dummy data for the layout
 const dummyServers = [
@@ -20,20 +21,18 @@ const dummyServers = [
   { id: 3, name: 'Cool Group', initial: 'CG' },
 ];
 
-// Mock current user - this would come from auth context in a real app
-const currentUser: User = {
-  id: 0,
-  username: 'aaaa',
-  email: 'user@example.com',
-  avatarUrl: ''
-};
-
 export default function MainLayout() {
   const [currentStatus, setCurrentStatus] = useState<UserStatus>(UserStatus.ONLINE);
   const [customStatus, setCustomStatus] = useState<string | undefined>(undefined);
   const [showFriendsList, setShowFriendsList] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect( () => {
+    setCurrentUser(authService.getCurrentUser());
+  
+  }, [navigate]);
 
   useEffect(() => {
     // Check if we're on the friends route
@@ -58,59 +57,65 @@ export default function MainLayout() {
     console.log('Add DM clicked');
   };
 
+  if (!currentUser) {
+    return null; // Or a loading spinner
+  }
+
   return (
-    <Box sx={{ display: 'flex', height: '100vh', bgcolor: '#36393f', color: '#dcddde', fontFamily: 'Arial, sans-serif' }}>
-      {/* Left sidebar with server icons */}
-      <Box sx={{
-        width: '72px',
-        bgcolor: '#202225',
-        py: 1.5,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 1
+    <Box sx={{ 
+      height: '100vh', 
+      display: 'flex', 
+      bgcolor: '#36393f', 
+      color: '#dcddde' 
+    }}>
+      {/* Server list sidebar */}
+      <Box sx={{ 
+        width: '72px', 
+        bgcolor: '#202225', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        py: 2, 
+        gap: 2 
       }}>
         {dummyServers.map(server => (
-          <Box
+          <Avatar 
             key={server.id}
             onClick={() => handleServerClick(server.id)}
-            sx={{
-              width: '48px',
-              height: '48px',
-              bgcolor: '#5865f2',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 'bold',
+            sx={{ 
+              width: 48, 
+              height: 48, 
+              bgcolor: '#36393f',
               cursor: 'pointer',
-              fontSize: '14px'
+              transition: 'all 0.2s',
+              '&:hover': {
+                bgcolor: '#5865f2',
+                borderRadius: '16px'
+              }
             }}
           >
             {server.initial}
-          </Box>
+          </Avatar>
         ))}
-        <Box
+        
+        <Avatar 
           onClick={handleAddServer}
-          sx={{
-            width: '48px',
-            height: '48px',
+          sx={{ 
+            width: 48, 
+            height: 48, 
             bgcolor: '#36393f',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#3ba55d',
             cursor: 'pointer',
-            fontSize: '24px'
+            '&:hover': {
+              bgcolor: '#3ba55d',
+              borderRadius: '16px'
+            }
           }}
         >
           <AddIcon />
-        </Box>
+        </Avatar>
       </Box>
 
-      {/* Channel sidebar */}
+      {/* Channel/DM list sidebar */}
       <Box sx={{
         width: '240px',
         bgcolor: '#2f3136',

@@ -7,11 +7,19 @@ import {
   Alert, 
   InputAdornment,
   CircularProgress,
-  Snackbar
+  Snackbar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import friendService from '../../services/friend.service';
+import userService from '../../services/user.service';
 import { AddFriendResponse } from '../../types/friend';
+import { User } from '../../types/auth';
+import { debounce } from 'lodash';
 
 export default function AddFriend() {
   const [username, setUsername] = useState<string>('');
@@ -19,6 +27,8 @@ export default function AddFriend() {
   const [response, setResponse] = useState<AddFriendResponse | null>(null);
   const [showSnackbar, setShowSnackbar] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
 
   // Clear response after 5 seconds
   useEffect(() => {
@@ -34,6 +44,36 @@ export default function AddFriend() {
   const validateUsername = (username: string): boolean => {
     // Username should be at least 3 characters and not more than 32 characters
     return username.length >= 3 && username.length <= 32;
+  };
+
+  // Debounced search function
+  const searchUsers = debounce(async (query: string) => {
+    if (query.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const users = await userService.searchUsers(query);
+      setSuggestions(users);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, 300);
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUsername(value);
+    setError(null);
+    searchUsers(value);
+  };
+
+  const handleSuggestionClick = (selectedUsername: string) => {
+    setUsername(selectedUsername);
+    setSuggestions([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,6 +97,7 @@ export default function AddFriend() {
       
       if (result.success) {
         setUsername('');
+        setSuggestions([]);
       }
     } catch (error) {
       console.error('Error adding friend:', error);
@@ -84,52 +125,102 @@ export default function AddFriend() {
       </Typography>
       
       <form onSubmit={handleSubmit}>
-        <TextField
-          fullWidth
-          placeholder="Enter a username"
-          value={username}
-          onChange={(e) => {
-            setUsername(e.target.value);
-            setError(null);
-          }}
-          error={!!error}
-          helperText={error}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <PersonAddIcon sx={{ color: '#b9bbbe' }} />
-              </InputAdornment>
-            ),
-            endAdornment: isSubmitting && (
-              <InputAdornment position="end">
-                <CircularProgress size={20} color="inherit" />
-              </InputAdornment>
-            ),
-            sx: {
-              bgcolor: '#202225',
-              color: 'white',
-              borderRadius: '8px',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? '#ed4245' : 'transparent'
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? '#ed4245' : 'transparent'
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: error ? '#ed4245' : '#5865f2'
-              },
-              p: 1
-            }
-          }}
-          FormHelperTextProps={{
-            sx: {
-              color: '#ed4245',
-              ml: 1
-            }
-          }}
-          disabled={isSubmitting}
-          sx={{ mb: 2 }}
-        />
+        <Box sx={{ position: 'relative' }}>
+          <TextField
+            fullWidth
+            placeholder="Enter a username"
+            value={username}
+            onChange={handleUsernameChange}
+            error={!!error}
+            helperText={error}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonAddIcon sx={{ color: '#b9bbbe' }} />
+                </InputAdornment>
+              ),
+              endAdornment: (isSubmitting || isSearching) && (
+                <InputAdornment position="end">
+                  <CircularProgress size={20} color="inherit" />
+                </InputAdornment>
+              ),
+              sx: {
+                bgcolor: '#202225',
+                color: 'white',
+                borderRadius: '8px',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: error ? '#ed4245' : 'transparent'
+                },
+                '&:hover .MuiOutlinedInput-notchedOutline': {
+                  borderColor: error ? '#ed4245' : 'transparent'
+                },
+                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                  borderColor: error ? '#ed4245' : '#5865f2'
+                },
+                p: 1
+              }
+            }}
+            FormHelperTextProps={{
+              sx: {
+                color: '#ed4245',
+                ml: 1
+              }
+            }}
+            disabled={isSubmitting}
+            sx={{ mb: 2 }}
+          />
+
+          {suggestions.length > 0 && (
+            <List
+              sx={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                bgcolor: '#2f3136',
+                borderRadius: '8px',
+                mt: 1,
+                maxHeight: '200px',
+                overflowY: 'auto',
+                zIndex: 1000,
+                boxShadow: '0 8px 16px rgba(0,0,0,0.24)'
+              }}
+            >
+              {suggestions.map((user) => (
+                <ListItem
+                  key={user.id}
+                  onClick={() => handleSuggestionClick(user.username)}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                      bgcolor: '#36393f'
+                    }
+                  }}
+                >
+                  <ListItemAvatar>
+                    <Avatar
+                      src={user.avatarUrl}
+                      sx={{
+                        bgcolor: '#ed4245',
+                        width: 32,
+                        height: 32,
+                        fontSize: '14px'
+                      }}
+                    >
+                      {user.username.charAt(0).toUpperCase()}
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={user.username}
+                    primaryTypographyProps={{
+                      sx: { color: '#dcddde' }
+                    }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
         
         <Button
           type="submit"

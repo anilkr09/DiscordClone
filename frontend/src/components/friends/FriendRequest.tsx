@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -10,6 +10,7 @@ import {
 import { FriendRequest as FriendRequestType } from '../../types/friend';
 import StatusIndicator from '../user/StatusIndicator';
 import { UserStatus } from '../../types/status';
+import userService from '../../services/user.service';
 
 interface FriendRequestProps {
   request: FriendRequestType;
@@ -20,9 +21,16 @@ interface FriendRequestProps {
 export default function FriendRequest({ request, onAccept, onReject }: FriendRequestProps) {
   const [isAccepting, setIsAccepting] = useState<boolean>(false);
   const [isRejecting, setIsRejecting] = useState<boolean>(false);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   
-  // Determine if the current user is the sender or receiver
-  const isIncoming = request.receiverId === 0; // Replace with actual current user ID check
+  useEffect(() => {
+   try{ setCurrentUserId(userService.getCurrentUser().id); }
+      
+      catch(error){ console.error('Error getting current user:', error);}
+  }, []);
+    
+  // Determine if the current user is the receiver
+  const isIncoming = currentUserId === request.receiverId;
   
   const username = isIncoming ? request.senderUsername : request.receiverUsername;
   const avatarUrl = isIncoming ? request.senderAvatarUrl : request.receiverAvatarUrl;
@@ -63,6 +71,10 @@ export default function FriendRequest({ request, onAccept, onReject }: FriendReq
       day: 'numeric' 
     });
   };
+
+  if (currentUserId === null) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <Box sx={{ 

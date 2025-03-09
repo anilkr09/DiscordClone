@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.discordclone.security.UserPrincipal;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
-    
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -57,7 +59,7 @@ public class UserService {
     public User findById(Long id) {
         return getUserById(id);
     }
-    
+
     /**
      * Find a user by username
      * @param username Username
@@ -66,7 +68,7 @@ public class UserService {
     public User findByUsername(String username) {
         return getUserByUsername(username);
     }
-    
+
     /**
      * Load user by ID for authentication
      * @param id User ID
@@ -76,4 +78,18 @@ public class UserService {
         User user = getUserById(id);
         return UserPrincipal.create(user);
     }
-} 
+
+    /**
+     * Get all users
+     * @return List of users
+     */
+    @Transactional(readOnly = true)
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
+    }
+    @Transactional(readOnly = true)
+    public List<User> getUsersByPrefix(String prefix) {
+        return userRepository.findByUsernameStartingWith(prefix);
+    }
+
+}

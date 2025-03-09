@@ -1,5 +1,5 @@
 import api from './api';
-import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest } from '../types/auth';
+import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest, User } from '../types/auth';
 
 class AuthService {
     async login(credentials: LoginRequest): Promise<AuthResponse> {
@@ -22,19 +22,30 @@ class AuthService {
         return response.data;
     }
 
-    logout(): void {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+    private setTokens(authResponse: AuthResponse) {
+        localStorage.setItem("accessToken", authResponse.accessToken);
+        localStorage.setItem("refreshToken", authResponse.refreshToken);
+
+        // Save the current user details
+        const user = {
+            userId: authResponse.userId, // Ensure the response contains this
+            username: authResponse.username,
+            profilePicture: (authResponse ?.profilePicture || null),
+            status: "online"
+        };
+        localStorage.setItem("currentUser", JSON.stringify(user));
     }
 
-    private setTokens(auth: AuthResponse): void {
-        localStorage.setItem('accessToken', auth.accessToken);
-        localStorage.setItem('refreshToken', auth.refreshToken);
+    logout() {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("currentUser");
     }
 
-    isAuthenticated(): boolean {
-        return !!localStorage.getItem('accessToken');
+    getCurrentUser(): User {
+        return JSON.parse(localStorage.getItem("currentUser") || "{}");
     }
 }
+
 
 export default new AuthService();
