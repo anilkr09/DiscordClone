@@ -164,14 +164,19 @@ export default function FriendsList() {
             PENDING — {friendRequests.length}
           </Typography>
           
-          {friendRequests.map(request => (
-            <FriendRequest 
-              key={request.id}
-              request={request}
-              onAccept={() => handleAcceptFriendRequest(request.id)}
-              onReject={() => handleRejectFriendRequest(request.id)}
-            />
-          ))}
+          {friendRequests.map(request => {
+            console.log(JSON.stringify(request)); // Log request
+
+            return ( // Explicitly return JSX
+              <FriendRequest
+                key={request.id}
+                request={request}
+                onAccept={() => handleAcceptFriendRequest(request.id)}
+                onReject={() => handleRejectFriendRequest(request.id)}
+              />
+            );
+          })}
+
         </Box>
       );
     }

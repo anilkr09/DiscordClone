@@ -24,12 +24,17 @@ export default function FriendRequest({ request, onAccept, onReject }: FriendReq
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   
   useEffect(() => {
-   try{ setCurrentUserId(userService.getCurrentUser().id); }
+   try{
+    
+    setCurrentUserId(userService.getCurrentUser().id);
+       }
       
       catch(error){ console.error('Error getting current user:', error);}
   }, []);
     
   // Determine if the current user is the receiver
+  console.log("current user id dd ---- "+ currentUserId+"requwst id dd ---- "+ request.receiverId);
+
   const isIncoming = currentUserId === request.receiverId;
   
   const username = isIncoming ? request.senderUsername : request.receiverUsername;

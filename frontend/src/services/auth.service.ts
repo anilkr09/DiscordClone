@@ -28,10 +28,10 @@ class AuthService {
 
         // Save the current user details
         const user = {
-            userId: authResponse.userId, // Ensure the response contains this
+            id: authResponse.userId, // Ensure the response contains this
             username: authResponse.username,
-            profilePicture: (authResponse ?.profilePicture || null),
-            status: "online"
+            email: "",
+            avatarUrl: ""
         };
         localStorage.setItem("currentUser", JSON.stringify(user));
     }
