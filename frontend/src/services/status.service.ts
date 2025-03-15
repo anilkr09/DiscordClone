@@ -2,7 +2,7 @@ import api from './api';
 import { UserStatus, CustomStatus, StatusUpdate } from '../types/status';
 
 // WebSocket connection constants
-const WS_ENDPOINT = 'ws://localhost:8080/ws';
+const WS_ENDPOINT = 'http://localhost:8082/ws';
 const STATUS_TOPIC = '/topic/status';
 const STATUS_DESTINATION = '/app/status';
 

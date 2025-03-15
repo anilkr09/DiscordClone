@@ -15,22 +15,22 @@ class MessageService {
 
         // socket.onopen = function () {
         //     console.log("Connected to WebSocket server.");
-        //     console.log("Connected to server.");
-        // };
-        this.stompClient = new Client({
-            brokerURL: 'ws://localhost:8082/ws',
-            connectHeaders: {
-                Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
-            },
-            onConnect: () => {
-                window.alert('Connected to WebSocket');
-            },
-            onStompError: (frame) => {
-                console.error('STOMP error', frame);
-            }
-        });
+        // //     console.log("Connected to server.");
+        // // };
+        // this.stompClient = new Client({
+        //     brokerURL: 'http://localhost:8082/ws',
+        //     connectHeaders: {
+        //         Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+        //     },
+        //     onConnect: () => {
+        //         window.alert('Connected to WebSocket');
+        //     },
+        //     onStompError: (frame) => {
+        //         console.error('STOMP error', frame);
+        //     }
+        // });
 
-        this.stompClient.activate();
+        // this.stompClient.activate();
         
     }
 

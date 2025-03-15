@@ -2,46 +2,46 @@ package com.discordclone.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.simp.SimpMessageType;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
 import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.socket.EnableWebSocketSecurity;
-import org.springframework.security.messaging.access.intercept.ChannelSecurityInterceptor;
+import org.springframework.security.messaging.access.intercept.AuthorizationChannelInterceptor;
 import org.springframework.security.messaging.access.intercept.MessageMatcherDelegatingAuthorizationManager;
 import org.springframework.security.messaging.context.SecurityContextChannelInterceptor;
-import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
-import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
-import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 @Configuration
-@EnableWebSocketSecurity
-@EnableWebSocketMessageBroker
-public class WebSocketSecurityConfig implements WebSocketMessageBrokerConfigurer {
+public class WebSocketSecurityConfig {
 
-    // ✅ Use the default Spring Security-provided bean (DO NOT redefine the builder)
     @Bean
-    AuthorizationManager<org.springframework.messaging.Message<?>> messageAuthorizationManager(
-            MessageMatcherDelegatingAuthorizationManager.Builder messages) {
-        return messages
-                .simpDestMatchers("/app/**").authenticated()
-                .simpSubscribeDestMatchers("/topic/**").authenticated()
-                .anyMessage().authenticated()
-                .build();
+    public AuthorizationManager<Message<?>> messageAuthorizationManager() {
+        MessageMatcherDelegatingAuthorizationManager.Builder builder =
+                new MessageMatcherDelegatingAuthorizationManager.Builder();
+
+        builder.simpTypeMatchers(SimpMessageType.CONNECT, SimpMessageType.HEARTBEAT).permitAll();
+        builder.simpDestMatchers("/app/**").authenticated();
+        builder.simpSubscribeDestMatchers("/topic/**").authenticated(); // Secure subscription destinations
+
+        builder.simpSubscribeDestMatchers("/topic/admin").access(AuthorityAuthorizationManager.hasRole("ADMIN"));
+        builder.anyMessage().permitAll();
+//        builder.anyMessage().denyAll();
+
+        return builder.build();
+    }
+//    @Override
+//    public boolean sameOriginDisabled() {
+//        // Disable CSRF for WebSockets
+//        return true;
+//    }
+    @Bean
+    public AuthorizationChannelInterceptor authorizationChannelInterceptor(
+            AuthorizationManager<Message<?>> messageAuthorizationManager) {
+        return new AuthorizationChannelInterceptor(messageAuthorizationManager);
     }
 
-
-
-
-
-
-
-
-    // ✅ Security Context Interceptor (to preserve security context in WebSockets)
     @Bean
-    SecurityContextChannelInterceptor securityContextChannelInterceptor() {
+    public SecurityContextChannelInterceptor securityContextChannelInterceptor() {
         return new SecurityContextChannelInterceptor();
     }
-
-
-
 }

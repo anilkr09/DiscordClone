@@ -1,10 +1,13 @@
 package com.discordclone.service.impl;
 
+import com.discordclone.controller.StatusWebSocketController;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
 import com.discordclone.repository.UserRepository;
 import com.discordclone.service.UserStatusService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,7 @@ public class UserStatusServiceImpl implements UserStatusService {
 
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private static final Logger logger = LoggerFactory.getLogger(UserStatusServiceImpl.class);
 
     @Autowired
     public UserStatusServiceImpl(UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
@@ -28,6 +32,7 @@ public class UserStatusServiceImpl implements UserStatusService {
     @Override
     @Transactional
     public User updateUserStatus(Long userId, UserStatus status) {
+        logger.info("status updata -"+status);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         

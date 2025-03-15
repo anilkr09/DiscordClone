@@ -24,8 +24,7 @@ public class FriendController {
     public FriendController(FriendshipService friendshipService) {
         this.friendshipService = friendshipService;
     }
-
-    @GetMapping
+    @GetMapping("")
     public List<FriendResponsePayload> getFriends() {
         UserPrincipal currentUser = getCurrentUser();
         return friendshipService.getFriends(currentUser.getId());

@@ -5,13 +5,16 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
+    private final CustomUserDetailsService customUserDetailsService;
 
     @Value("${app.jwt.secret}")
     private String jwtSecret;
@@ -23,6 +26,10 @@ public class JwtTokenProvider {
     private int refreshExpirationInMs;
 
     private Key key;
+
+    public JwtTokenProvider(CustomUserDetailsService customUserDetailsService) {
+        this.customUserDetailsService = customUserDetailsService;
+    }
 
     @PostConstruct
     public void init() {
@@ -101,4 +108,11 @@ public class JwtTokenProvider {
             return true;
         }
     }
-} 
+
+   public Authentication getAuthentication(String token) {
+        Long userId = getUserIdFromJWT(token);
+        UserDetails userDetails = customUserDetailsService.loadUserById(userId);
+        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+    }
+}
