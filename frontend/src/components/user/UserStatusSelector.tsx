@@ -11,12 +11,12 @@ import {
   Divider
 } from '@mui/material';
 import { UserStatus, STATUS_COLORS, CustomStatus } from '../../types/status';
-import statusService from '../../services/status.service';
 import CircleIcon from '@mui/icons-material/Circle';
 import NightsStayIcon from '@mui/icons-material/NightsStay';
 import DoNotDisturbOnIcon from '@mui/icons-material/DoNotDisturbOn';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-
+// import { useAuth } from '../../hooks/useAuth';
+import { useStatusService } from '../../services/status.service';
 interface UserStatusSelectorProps {
   currentStatus: UserStatus;
   anchorEl: HTMLElement | null;
@@ -30,10 +30,14 @@ export default function UserStatusSelector({
 }: UserStatusSelectorProps) {
   const [customStatus, setCustomStatus] = useState<string>('');
   const [showCustomInput, setShowCustomInput] = useState<boolean>(false);
+  const {  getStatus, updateCustomStatus } = useStatusService();
 
-  const handleStatusChange = async (status: UserStatus) => {
+  const handleStatusChange =  (status: UserStatus) => {
+    console.log("status click", status);
     try {
-      await statusService.updateStatus(status);
+
+       updateCustomStatus(status);
+
       onClose();
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -50,7 +54,7 @@ export default function UserStatusSelector({
       const customStatusObj: CustomStatus = {
         text: customStatus.trim()
       };
-      await statusService.updateCustomStatus(currentStatus, customStatusObj);
+          // await useStatusService.updateCustomStatus(currentStatus, customStatusObj);
       setShowCustomInput(false);
       onClose();
     } catch (error) {
@@ -60,7 +64,7 @@ export default function UserStatusSelector({
 
   const handleClearCustomStatus = async () => {
     try {
-      await statusService.clearCustomStatus();
+      // await useStatusService.clearCustomStatus();
       setCustomStatus('');
       setShowCustomInput(false);
     } catch (error) {

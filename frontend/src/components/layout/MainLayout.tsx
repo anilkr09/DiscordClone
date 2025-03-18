@@ -10,11 +10,13 @@ import DirectMessageList from '../friends/DirectMessageList';
 import FriendsList from '../friends/FriendsList';
 import UserProfile from '../user/UserProfile';
 import StatusIndicator from '../user/StatusIndicator';
-import { UserStatus } from '../../types/status';
+import { StatusUpdate, UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
 import authService from '../../services/auth.service';
-
+import { useStatusService } from '../../services/status.service';
 // Dummy data for the layout
+import { useWebSocket } from '../../services/WebSocketProvider';
+
 const dummyServers = [
   { id: 1, name: 'Discord', initial: 'D' },
   { id: 2, name: 'Awesome Server', initial: 'AS' },
@@ -26,8 +28,62 @@ export default function MainLayout() {
   const [customStatus, setCustomStatus] = useState<string | undefined>(undefined);
   const [showFriendsList, setShowFriendsList] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [connected, setConnected] = useState<boolean>(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { getStatus, updateCustomStatus } = useStatusService();
+  const [statuses, setStatuses] = useState<Map<number, UserStatus>>(new Map());
+  const {stompClient, isConnected} = useWebSocket();
+  const getUserStatus = (id: number) => statuses.get(id);
+
+useEffect(() => {
+  const fetchStatuses = async () => {
+    try {
+      const response = await getStatus(); // Assume getStatuses() returns a Promise<UserStatus[]>
+      const statusMap = new Map<number, UserStatus>();
+  
+      response.forEach((st:StatusUpdate) => {
+        statusMap.set(st.id,st.status);
+      });
+  
+      setStatuses(statusMap);
+    } catch (error) {
+      console.error("Error fetching statuses:", error);
+    }
+  };
+  fetchStatuses();
+  
+}, []);
+
+  useEffect(() => {
+    setTimeout(() => {
+      if (stompClient?.connected) {
+          setConnected(stompClient.connected);
+      }
+  }, 1000);
+  
+  }, [stompClient]);
+
+  useEffect(() => {
+    if (!stompClient || !isConnected || !connected) return;
+        console.log("subscribing to topic "+ connected);
+        // Subscribe to a topic
+        const subscription = stompClient.subscribe("/topic/status", (status) => {
+          setStatuses((prevStatuses) => {
+            console.log("new status --  ", status.body);
+            const updatedMap = new Map(prevStatuses);
+            const statusMsg = JSON.parse(status.body);
+              updatedMap.set(  statusMsg.userId,statusMsg.status);
+            return updatedMap;
+          });
+        });
+        console.log("subscribed to topic "+ connected);
+
+        return () => {
+            subscription.unsubscribe();
+        };
+  }, [stompClient, isConnected, connected]);
+
 
   useEffect( () => {
     setCurrentUser(authService.getCurrentUser());
@@ -142,8 +198,8 @@ export default function MainLayout() {
         {/* Bottom user profile */}
         <UserProfile 
           user={currentUser}
-          status={currentStatus}
-          customStatus={customStatus}
+          status={getUserStatus(currentUser.id)||UserStatus.ONLINE}
+          customStatus={getUserStatus(currentUser.id)||UserStatus.ONLINE}
         />
       </Box>
 

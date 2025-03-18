@@ -237,7 +237,6 @@ public class FriendshipServiceImpl implements FriendshipService {
                     response.setId(friend.getId());
                     response.setUsername(friend.getUsername());
                     response.setEmail(friend.getEmail());
-                    response.setStatus(friend.getStatus());
                     response.setFriendshipId(friendship.getId());
                     response.setFriendshipStatus(friendship.getStatus());
                     response.setLastInteraction(friendship.getUpdatedAt());

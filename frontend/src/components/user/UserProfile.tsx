@@ -11,7 +11,7 @@ import { User } from '../../types/auth';
 interface UserProfileProps {
   user: User;
   status: UserStatus;
-  customStatus?: string;
+  customStatus: string;
 }
 
 export default function UserProfile({ user, status, customStatus }: UserProfileProps) {
@@ -50,7 +50,7 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
           {avatarText}
         </Avatar>
         <StatusIndicator 
-          status={status} 
+          status={customStatus} 
           borderColor="#292b2f"
         />
       </Box>
@@ -85,7 +85,7 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
       </IconButton>
 
       <UserStatusSelector 
-        currentStatus={status}
+        currentStatus={customStatus}
         anchorEl={statusAnchorEl}
         onClose={handleStatusClose}
       />

@@ -7,8 +7,8 @@ import { on } from 'events';
 import { useAuth } from '../../services/AuthProvider.tsx';
 export default function Login() {
 
-    const { username, jwt , isLoggedIn , setJwt, setUsername} = useAuth();
-        setUsername(localStorage.getItem("username"));
+    const { login,signup } = useAuth();
+    
     // useEffect(() => {
     //     authService.getConnection();
     // }, []);
@@ -55,8 +55,8 @@ export default function Login() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await authService.login(formData);
-            setUsername(formData.username);
+            await login(formData.username, formData.password);
+            // setUsername(formData.username);
             navigate('/app');
         } catch (err) {
             setError('Invalid username or password');

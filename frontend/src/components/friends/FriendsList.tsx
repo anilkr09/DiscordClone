@@ -21,9 +21,11 @@
   import friendService from '../../services/friend.service';
   import { useWebSocket } from '../../services/WebSocketProvider';
   import { useAuth } from '../../services/AuthProvider.tsx';
+import { StatusUpdate } from '../../types/status';
+import { useUserStatus } from '../../hooks/useUserStatus';
 
-
-
+// import { useStatus } from '../../services/statusProvider';
+import { useStatusService } from '../../services/status.service';
 
 
   enum FriendTab {
@@ -34,32 +36,83 @@
   }
 
   export default function FriendsList() {
+
+
+    const { getStatus, updateCustomStatus } = useStatusService();
+    // console.log("statusService", getStatus());
+
+
     const [activeTab, setActiveTab] = useState<FriendTab>(FriendTab.ONLINE);
     const [friends, setFriends] = useState<Friend[]>([]);
     const [friendRequests, setFriendRequests] = useState<FriendRequestType[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const { username, jwt , isLoggedIn , setJwt, setUsername} = useAuth();
+    const { username } = useAuth();
     // console.log("username", username);
     const { stompClient, isConnected } = useWebSocket();
 
     const [connected, setConnected] = useState<boolean>(false); // New state to track stompClient.connected
 
     const [status, setStatus] = useState<any[]>([]);
+    const [statuses, setStatuses] = useState<Map<number, UserStatus>>(new Map());
+
+useEffect(() => {
+  const fetchStatuses = async () => {
+    try {
+      const response = await getStatus(); // Assume getStatuses() returns a Promise<UserStatus[]>
+      const statusMap = new Map<number, UserStatus>();
+  
+      response.forEach((st:StatusUpdate) => {
+        statusMap.set(st.id,st.status);
+      });
+  
+      setStatuses(statusMap);
+    } catch (error) {
+      console.error("Error fetching statuses:", error);
+    }
+  };
+  fetchStatuses();
+  
+}, []);
+
+const updateUserStatus = (id: number, newStatus: UserStatus) => {
+  setStatuses((prevStatuses) => {
+    const updatedMap = new Map(prevStatuses);
+    updatedMap.set(id, newStatus);
+    return updatedMap;
+  });
+};
+
+const getUserStatus = (id: number) => statuses.get(id);
+
+    useEffect(() => {
+      
+
+
+
+      console.log("status updated --  ", statuses);
+    }, [statuses]);
+
+
     useEffect(() => {
       if (!stompClient || !isConnected || !connected) return;
           console.log("subscribing to topic "+ connected);
           // Subscribe to a topic
           const subscription = stompClient.subscribe("/topic/status", (status) => {
-              setStatus((prev) => [...prev, JSON.parse(status.body)]);
-              console.log("status", status.body);
+            setStatuses((prevStatuses) => {
+              console.log("new status --  ", status.body);
+              const updatedMap = new Map(prevStatuses);
+              const statusMsg = JSON.parse(status.body);
+                updatedMap.set(  statusMsg.userId,statusMsg.status);
+              return updatedMap;
+            });
           });
           console.log("subscribed to topic "+ connected);
 
           return () => {
               subscription.unsubscribe();
           };
-    }, [stompClient, isConnected, connected]);
+    }, [connected]);
 
 
     useEffect(() => {
@@ -71,23 +124,7 @@
     
     }, [stompClient]); // Runs whenever stompClient updates
     
-    useEffect(() => {
-        if (!stompClient || !isConnected || !connected) return;
-    
-        console.log("WebSocket Fully Connected, publishing status...");
-    
-        try {
-          setInterval(() => {
-            stompClient.publish({
-                destination: "/topic/status",
-                body: JSON.stringify({ user: `${username}` ,status: "ONLINE" }),
-            });
-              console.log("published status");
-          }, 1000);
-        } catch (error) {
-            console.error("Error publishing message:", error);
-        }
-    }, [stompClient, isConnected, connected]); // Now also depends on `connected`
+ 
     
     const loadData = useCallback(async () => {
       setLoading(true);
@@ -103,9 +140,9 @@
           if (activeTab === FriendTab.ONLINE) {
             // Get all friends and filter by real-time status
             friendsData = await friendService.getFriends();
+            
             friendsData = friendsData.filter(friend => {
-              // const currentStatus = getStatus(friend.id);
-              const currentStatus=UserStatus.ONLINE;
+              const currentStatus= getUserStatus(friend.id);
               return currentStatus === UserStatus.ONLINE || 
                     currentStatus === UserStatus.IDLE || 
                     currentStatus === UserStatus.DO_NOT_DISTURB;
@@ -128,7 +165,7 @@
 
     useEffect(() => {
       loadData();
-        console.log("friend requests dd "+"friendRequests");
+        // console.log("friend requests dd "+"friendRequests");
       // Set up polling for friend requests
       const interval = setInterval(() => {
         if (activeTab === FriendTab.PENDING) {
@@ -270,6 +307,7 @@
               <FriendItem 
                 key={friend.id} 
                 friend={friend} 
+                status={getUserStatus(friend.id)}
                 onRemove={handleRemoveFriend} 
               />
             ))}
@@ -385,14 +423,14 @@
   // Helper function to render a friend item
   const FriendItem = ({ 
     friend, 
+    status,
     onRemove 
   }: { 
     friend: Friend;
+    status: UserStatus;
     onRemove: (friendId: number) => void;
   }) => {
-    // const { getStatus } = useFriendStatus();
-    // const currentStatus = getStatus(friend.id);
-    const currentStatus=UserStatus.ONLINE;
+    
     return (
       <Box 
         sx={{ 
@@ -420,7 +458,7 @@
             {friend.username.charAt(0).toUpperCase()}
           </Avatar>
           <StatusIndicator 
-            status={currentStatus}
+            status={status}
             borderColor="#36393f"
           />
         </Box>
@@ -430,9 +468,9 @@
         </Typography>
         
         <Typography sx={{ color: '#b9bbbe', fontSize: '14px' }}>
-          {currentStatus === UserStatus.ONLINE ? 'Online' : 
-          currentStatus === UserStatus.IDLE ? 'Idle' : 
-          currentStatus === UserStatus.DO_NOT_DISTURB ? 'Do Not Disturb' : 'Offline'}
+          {status === UserStatus.ONLINE ? 'Online' : 
+          status === UserStatus.IDLE ? 'Idle' : 
+          status === UserStatus.DO_NOT_DISTURB ? 'Do Not Disturb' : 'Offline'}
         </Typography>
         
         <IconButton size="small" sx={{ color: '#b9bbbe' }}>

@@ -23,6 +23,7 @@ export interface CustomStatus {
 }
 
 export interface StatusUpdate {
+  id: number;
   status: UserStatus;
   customStatus?: CustomStatus;
 } 

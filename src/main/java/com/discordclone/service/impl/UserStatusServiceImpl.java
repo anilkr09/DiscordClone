@@ -1,10 +1,11 @@
 package com.discordclone.service.impl;
 
-import com.discordclone.controller.StatusWebSocketController;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
+import com.discordclone.model.UserStatusEntity;
 import com.discordclone.repository.UserRepository;
+import com.discordclone.repository.UserStatusRepository;
 import com.discordclone.service.UserStatusService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,64 +14,89 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
 public class UserStatusServiceImpl implements UserStatusService {
 
     private final UserRepository userRepository;
+    private final UserStatusRepository userStatusRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private static final Logger logger = LoggerFactory.getLogger(UserStatusServiceImpl.class);
 
     @Autowired
-    public UserStatusServiceImpl(UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
+    public UserStatusServiceImpl(UserRepository userRepository, 
+                               UserStatusRepository userStatusRepository,
+                               SimpMessagingTemplate messagingTemplate) {
         this.userRepository = userRepository;
+        this.userStatusRepository = userStatusRepository;
         this.messagingTemplate = messagingTemplate;
     }
 
     @Override
     @Transactional
     public User updateUserStatus(Long userId, UserStatus status) {
-        logger.info("status updata -"+status);
+        logger.info("Updating status for user {} to {}", userId, status);
+        
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         
-        user.setStatus(status);
-        User updatedUser = userRepository.save(user);
+        UserStatusEntity statusEntity = userStatusRepository.findById(userId.toString())
+                .orElse(new UserStatusEntity());
+        
+//        statusEntity.setUserId(userId.toString());
+        statusEntity.setCurrentStatus(status);
+        userStatusRepository.save(statusEntity);
         
         // Broadcast status change
         broadcastStatusChange(userId, status);
         
-        return updatedUser;
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<UserStatusEntity> getAllUserStatus() {
+        return userStatusRepository.findAll();
     }
 
     @Override
     @Transactional
-    public User updateCustomStatus(Long userId, UserStatus status, String customStatusText, 
-                                  String customStatusEmoji, String expiresAt) {
+    public User updateCustomStatus(Long userId, UserStatus currentStatus, UserStatus customStatus, String expiresAt) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         
-        user.setStatus(status);
-        // In a real implementation, you would store custom status in a separate table
-        // or add fields to the User entity
+        UserStatusEntity statusEntity = userStatusRepository.findById(userId.toString())
+                .orElse(new UserStatusEntity());
         
-        User updatedUser = userRepository.save(user);
+//        statusEntity.setUserId(userId.toString());
+        statusEntity.setCurrentStatus(currentStatus);
+        statusEntity.setCustomStatus(customStatus);
+        
+        if (expiresAt != null && !expiresAt.isEmpty()) {
+            LocalDateTime expiryTime = LocalDateTime.parse(expiresAt, DateTimeFormatter.ISO_DATE_TIME);
+            statusEntity.setStatusExpiresAt(expiryTime);
+        }
+        
+        userStatusRepository.save(statusEntity);
         
         // Broadcast status change
-        broadcastStatusChange(userId, status);
+
+        broadcastStatusChange(userId, (customStatus!=null)?customStatus:currentStatus);
         
-        return updatedUser;
+        return user;
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserStatus getUserStatus(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        
-        return user.getStatus();
+        return userStatusRepository.findById(userId.toString())
+                .map(UserStatusEntity::getCurrentStatus)
+                .orElse(UserStatus.OFFLINE);
     }
 
     @Override
@@ -79,9 +105,14 @@ public class UserStatusServiceImpl implements UserStatusService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         
-        // In a real implementation, you would clear custom status fields
+        UserStatusEntity statusEntity = userStatusRepository.findById(userId.toString())
+                .orElse(new UserStatusEntity());
         
-        return userRepository.save(user);
+        statusEntity.setCustomStatus(null);
+        statusEntity.setStatusExpiresAt(null);
+        userStatusRepository.save(statusEntity);
+        
+        return user;
     }
 
     @Override

@@ -26,9 +26,6 @@ public class User {
     @Column(nullable = false)
     private String password;
     
-    @Enumerated(EnumType.STRING)
-    private UserStatus status = UserStatus.OFFLINE;
-    
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "user_servers",

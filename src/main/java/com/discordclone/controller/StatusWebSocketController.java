@@ -27,25 +27,28 @@ public class StatusWebSocketController {
     }
 
     @MessageMapping("/status")
-    @SendTo("/topic/status")
+//    @SendTo("/topic/status")
 
     public void handleStatusUpdate(@Payload StatusUpdatePayload statusUpdate, SimpMessageHeaderAccessor headerAccessor) {
         Authentication authentication = (Authentication) headerAccessor.getUser();
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
             UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-            logger.info("status update -- {}",statusUpdate.getStatus());
-            userStatusService.updateUserStatus(currentUser.getId(), statusUpdate.getStatus());
-            
+            logger.info("status update -- {}",statusUpdate.getCurrentStatus());
+
             // If custom status is provided
-            if (statusUpdate.getCustomStatusText() != null && !statusUpdate.getCustomStatusText().isEmpty()) {
+            if (statusUpdate.getCustomStatus() != null ) {
                 userStatusService.updateCustomStatus(
                     currentUser.getId(),
-                    statusUpdate.getStatus(),
-                    statusUpdate.getCustomStatusText(),
-                    statusUpdate.getCustomStatusEmoji(),
+                    statusUpdate.getCurrentStatus(),
+                    statusUpdate.getCustomStatus(),
                     statusUpdate.getExpiresAt()
                 );
             }
+            else
+                userStatusService.updateUserStatus(currentUser.getId(), statusUpdate.getCurrentStatus());
+
+
         }
     }
+
 } 

@@ -28,7 +28,7 @@ public class UserService {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setStatus(UserStatus.OFFLINE);
+//        user.setStatus(UserStatus.OFFLINE);
         return userRepository.save(user);
     }
 
@@ -41,7 +41,7 @@ public class UserService {
     @Transactional
     public User updateUserStatus(Long userId, UserStatus status) {
         User user = getUserById(userId);
-        user.setStatus(status);
+//        user.setStatus(status);
         return userRepository.save(user);
     }
 

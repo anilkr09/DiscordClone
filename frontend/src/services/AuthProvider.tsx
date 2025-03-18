@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import AuthService from "../services/auth.service"; // Import your authentication service
 
 // Define the authentication context type
 interface AuthContextType {
   isLoggedIn: boolean;
   jwt: string | null;
+  id: string | null;
   username: string | null;
-  setJwt: (token: string | null) => void;
-  setUsername: (name: string | null) => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (username: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
 }
 
 // Create the context
@@ -19,7 +22,7 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   const [jwt, setJwtState] = useState<string | null>(() => localStorage.getItem("accessToken"));
   const [username, setUsernameState] = useState<string | null>(() => localStorage.getItem("username"));
-
+    const [id, setId] = useState<string | null>(() => localStorage.getItem("id"));
   // Function to update JWT and sync it with localStorage
   const setJwt = useCallback((token: string | null) => {
     setJwtState(token);
@@ -40,15 +43,51 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
     }
   }, []);
 
+  // Login function
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const response = await AuthService.login({username: email, password: password});
+      setJwt(response.accessToken);
+      setUsername(response.username);
+      setId(response.userId.toString());
+      localStorage.setItem("refreshToken", response.refreshToken);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    }
+  }, [setJwt, setUsername]);
+
+  // Signup function
+  const signup = useCallback(async (username: string, email: string, password: string) => {
+    try {
+      const response = await AuthService.register({ username: username, email: email, password: password});
+      setJwt(response.accessToken);
+      setUsername(response.username);
+      localStorage.setItem("refreshToken", response.refreshToken);
+    } catch (error) {
+      console.error("Signup failed:", error);
+      throw error;
+    }
+  }, [setJwt, setUsername]);
+
+  // Logout function
+  const logout = useCallback(() => {
+    setJwt(null);
+    setUsername(null);
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("username");
+  }, []);
+
   useEffect(() => {
     setJwtState(localStorage.getItem("accessToken"));
     setUsernameState(localStorage.getItem("username"));
-    // Sync state with localStorage when storage changes externally
+    
     const handleStorageChange = () => {
       setJwtState(localStorage.getItem("accessToken"));
       setUsernameState(localStorage.getItem("username"));
     };
-
+    
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
@@ -56,9 +95,11 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   const authContextValue: AuthContextType = {
     isLoggedIn: !!jwt,
     jwt,
+    id,
     username,
-    setJwt,
-    setUsername
+    login,
+    signup,
+    logout
   };
 
   return (

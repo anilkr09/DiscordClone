@@ -9,15 +9,19 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StatusUpdatePayload {
-    private UserStatus status;
-    private String customStatusText;
-    private String customStatusEmoji;
+    private UserStatus currentStatus;
+    private UserStatus customStatus;
     private String expiresAt;
+    private String lastActivity;
+    private String lastStatusChange;
     
-    public StatusUpdatePayload(UserStatus status) {
-        this.status = status;
-        this.customStatusText = null;
-        this.customStatusEmoji = null;
-        this.expiresAt = null;
+    public StatusUpdatePayload(UserStatus currentStatus) {
+        this.currentStatus = currentStatus;
+    }
+    
+    public StatusUpdatePayload(UserStatus currentStatus, UserStatus customStatus, String expiresAt) {
+        this.currentStatus = currentStatus;
+        this.customStatus = customStatus;
+        this.expiresAt = expiresAt;
     }
 } 

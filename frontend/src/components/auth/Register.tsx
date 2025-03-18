@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Box, Button, Container, TextField, Typography, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/auth.service';
+import { useAuth } from '../../services/AuthProvider.tsx';
 
 export default function Register() {
+    const { signup } = useAuth();
     const navigate = useNavigate();
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
@@ -22,7 +24,7 @@ export default function Register() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await authService.register(formData);
+            await signup(formData.username, formData.email, formData.password);
             navigate('/servers');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Registration failed');

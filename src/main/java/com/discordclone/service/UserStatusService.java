@@ -2,6 +2,10 @@ package com.discordclone.service;
 
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
+import com.discordclone.model.UserStatusEntity;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 public interface UserStatusService {
     
@@ -12,18 +16,19 @@ public interface UserStatusService {
      * @return Updated user
      */
     User updateUserStatus(Long userId, UserStatus status);
-    
+
+    @Transactional(readOnly = true)
+    List<UserStatusEntity> getAllUserStatus();
+
     /**
      * Update a user's custom status
      * @param userId ID of the user
-     * @param status New status
-     * @param customStatusText Custom status text
-     * @param customStatusEmoji Custom status emoji
+     * @param currentStatus Current status
+     * @param customStatus Custom status
      * @param expiresAt Expiration time
      * @return Updated user
      */
-    User updateCustomStatus(Long userId, UserStatus status, String customStatusText, 
-                           String customStatusEmoji, String expiresAt);
+    User updateCustomStatus(Long userId, UserStatus currentStatus, UserStatus customStatus, String expiresAt);
     
     /**
      * Get a user's status
