@@ -68,7 +68,10 @@ public class FriendshipServiceImpl implements FriendshipService {
         Optional<Friendship> reverseRequest = friendshipRepository.findBySenderAndReceiver(receiver, sender);
         if (reverseRequest.isPresent()) {
             Friendship friendship = reverseRequest.get();
-            if (friendship.getStatus() == FriendshipStatus.PENDING) {
+              if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
+                  throw new IllegalArgumentException("You are already friends with this user");
+              }
+            else if (friendship.getStatus() == FriendshipStatus.PENDING) {
                 // Auto-accept the existing request
                 friendship.setStatus(FriendshipStatus.ACCEPTED);
                 friendship.setUpdatedAt(LocalDateTime.now());

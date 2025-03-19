@@ -53,7 +53,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
   };
 
   const handleFriendClick = (friendId: number) => {
-    navigate(`/app/dm/${friendId}`);
+    // navigate(`/app/dm/${friendId}`);
   };
 
   const handleAddDM = () => {

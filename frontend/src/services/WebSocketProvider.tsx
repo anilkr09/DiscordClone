@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useState, ReactNode, useContext } from "react";
 import { Client } from "@stomp/stompjs";
-
+import {useAuth} from "./AuthProvider.tsx";
 // Define the context type
 interface SocketContextType {
     stompClient: Client | null;
@@ -17,13 +17,14 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }) => {
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const { jwt } = useAuth();
 
+    const accessToken = jwt;
     useEffect(() => {
 
+        if (!accessToken    ) return; // Don't connect if user is not logged in
 
-            const accessToken = localStorage.getItem("accessToken");
     const socketUrl = `ws://localhost:8082/ws?access_token=${accessToken}`;
-
     const client = new Client({
       brokerURL: socketUrl,
       connectHeaders: {
@@ -49,8 +50,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         return () => {
             client.deactivate(); // Clean up on unmount
         };
-    }, []);
-
+    },[accessToken])
     return (
         <SocketContext.Provider value={{ stompClient, isConnected }}>
             {children}

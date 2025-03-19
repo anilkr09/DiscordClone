@@ -12,6 +12,7 @@
     "moduleDetection": "force",
     "noEmit": true,
 
+    "noImplicitAny": false,
 
     "strict": true,
     "noUnusedLocals": true,

@@ -7,11 +7,12 @@ import StatusIndicator from './StatusIndicator';
 import UserStatusSelector from './UserStatusSelector';
 import { UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 interface UserProfileProps {
   user: User;
   status: UserStatus;
-  customStatus: string;
+  customStatus: UserStatus;
 }
 
 export default function UserProfile({ user, status, customStatus }: UserProfileProps) {
@@ -24,6 +25,18 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
   const handleStatusClose = () => {
     setStatusAnchorEl(null);
   };
+  const handleLogout = () => {
+    // Remove authentication tokens
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+
+    // Clear any user-related data
+    sessionStorage.clear(); // Optional: if using sessionStorage
+    // Dispatch an action if using Redux (example: dispatch(logoutUser()))
+
+    // Redirect to login page
+    window.location.href = "/login";
+};
 
   // Get first letter of username for avatar
   const avatarText = user.username.charAt(0).toUpperCase();
@@ -72,16 +85,8 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
         )}
       </Box>
       
-      <IconButton size="small" sx={{ color: '#b9bbbe' }}>
-        <MicIcon fontSize="small" />
-      </IconButton>
-      
-      <IconButton size="small" sx={{ color: '#b9bbbe' }}>
-        <HeadsetIcon fontSize="small" />
-      </IconButton>
-      
-      <IconButton size="small" sx={{ color: '#b9bbbe' }}>
-        <SettingsIcon fontSize="small" />
+      <IconButton size="small" sx={{ color: '#b9bbbe' } }   onClick={handleLogout}>
+        Logout<LogoutIcon fontSize="small" />
       </IconButton>
 
       <UserStatusSelector 

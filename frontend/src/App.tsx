@@ -4,7 +4,7 @@ import Register from './components/auth/Register';
 import MainLayout from './components/layout/MainLayout';
 import ServerView from './components/servers/ServerView';
 import FriendsList from './components/friends/FriendsList';
-
+import ProtectedRoute from './components/layout/ProtectedRoute.tsx';
 import './App.css';
 import { WebSocketProvider } from './services/WebSocketProvider';
 import { AuthProvider } from './services/AuthProvider.tsx';
@@ -20,12 +20,16 @@ function App() {
           <Route path="/register" element={<Register />} />
           
           {/* Protected routes under MainLayout */}
+          <Route element={<ProtectedRoute />}>
+          <Route path="*" element={<Navigate to="/login" />} />
           <Route path="/app" element={<MainLayout />}>
             <Route index element={<Navigate to="friends" replace />} />
             <Route path="friends" element={<FriendsList />} />
             <Route path="servers" element={<ServerView />} />
             <Route path="servers/:serverId" element={<ServerView />} />
           </Route>
+          </Route>
+
         </Routes>
       </Router>
      </WebSocketProvider>

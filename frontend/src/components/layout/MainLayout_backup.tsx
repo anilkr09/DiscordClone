@@ -85,11 +85,11 @@ export default function MainLayout() {
         flexDirection: 'column',
         position: 'relative'
       }}>
-        <Box sx={{ p: 2, fontWeight: 'bold', borderBottom: '1px solid #26282c' }}>
-          Friends
-        </Box>
+          {/* <Box sx={{ p: 2, fontWeight: 'bold', borderBottom: '1px solid #26282c' }}>
+            Friends
+          </Box> */}
         
-        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+        {/* <Box sx={{ flex: 1, overflowY: 'auto' }}>
           <Box sx={{ 
             px: 1, 
             py: 1, 
@@ -153,7 +153,7 @@ export default function MainLayout() {
               </Box>
             ))}
           </Box>
-        </Box>
+        </Box> */}
         
         {/* Bottom user profile */}
         <Box sx={{ 
