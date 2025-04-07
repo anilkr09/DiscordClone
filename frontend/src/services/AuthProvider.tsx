@@ -47,10 +47,12 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response = await AuthService.login({username: email, password: password});
+      console.log("response",response);
       setJwt(response.accessToken);
       setUsername(response.username);
+      localStorage.setItem("id", response.userId.toString());
       setId(response.userId.toString());
-      localStorage.setItem("refreshToken", response.refreshToken);
+      localStorage.setItem("accessToken", response.accessToken);
     } catch (error) {
       console.error("Login failed:", error);
       throw error;

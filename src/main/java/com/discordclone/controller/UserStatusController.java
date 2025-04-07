@@ -62,8 +62,8 @@ public class UserStatusController {
         
         if (statusEntity != null) {
             StatusUpdatePayload payload = new StatusUpdatePayload(
-                statusEntity.getCurrentStatus(),
-                statusEntity.getCustomStatus(),
+                statusEntity.getCurrentStatus().toString(),
+                statusEntity.getCustomStatus().toString(),
                 statusEntity.getStatusExpiresAt() != null ? 
                     statusEntity.getStatusExpiresAt().toString() : null,
                 statusEntity.getLastActivity() != null ?
@@ -74,9 +74,11 @@ public class UserStatusController {
             return ResponseEntity.ok(payload);
         }
         
-        // Fallback to basic status
+//         Fallback to basic status
         UserStatus status = userStatusService.getUserStatus(userId);
-        return ResponseEntity.ok(new StatusUpdatePayload(status));
+        return ResponseEntity.ok(new StatusUpdatePayload());
+
+//        return ResponseEntity.ok(new StatusUpdatePayload(status));
     }
 
     @GetMapping("/me/status")

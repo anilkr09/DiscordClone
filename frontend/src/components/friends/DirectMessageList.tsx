@@ -6,7 +6,7 @@ import StatusIndicator from '../user/StatusIndicator';
 import { Friend } from '../../types/friend';
 import { UserStatus } from '../../types/status';
 import friendService from '../../services/friend.service';
-// import { useFriendStatus } from '../../hooks/useFriendStatus';
+import { useStatus } from '../../services/StatusProvider';
 
 interface DirectMessageListProps {
   onAddDM?: () => void;
@@ -15,7 +15,10 @@ interface DirectMessageListProps {
 export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  // const { getStatus } = useFriendStatus();
+  const { friendStatuses } = useStatus();
+  const getStatus = (userId: number) => {
+    return friendStatuses[userId] || UserStatus.OFFLINE;
+  };
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,10 +31,10 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
       const data = await friendService.getFriends();
       // Sort by online status first, then by username
       const sortedFriends = data.sort((a, b) => {
-        // const aStatus = getStatus(a.id);
-        // const bStatus = getStatus(b.id);
-        const aStatus=UserStatus.ONLINE;
-        const bStatus=UserStatus.ONLINE;
+        const aStatus = getStatus(a.id);
+        const bStatus = getStatus(b.id);
+        console.log("aStatus", aStatus);
+        console.log("bStatus", bStatus);
         const aOnline = aStatus === UserStatus.ONLINE || 
                        aStatus === UserStatus.IDLE || 
                        aStatus === UserStatus.DO_NOT_DISTURB;
@@ -53,7 +56,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
   };
 
   const handleFriendClick = (friendId: number) => {
-    // navigate(`/app/dm/${friendId}`);
+    navigate(`/channels/@me/${friendId}`);
   };
 
   const handleAddDM = () => {
@@ -125,8 +128,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
                 {friend.username.charAt(0).toUpperCase()}
               </Avatar>
               <StatusIndicator 
-                // status={getStatus(friend.id)}
-                status= {UserStatus.ONLINE}
+                status={getStatus(friend.id)}
                 borderColor="#2f3136"
               />
             </Box>

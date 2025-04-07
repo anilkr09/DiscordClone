@@ -12,7 +12,7 @@ export default function Login() {
     // useEffect(() => {
     //     authService.getConnection();
     // }, []);
-    // const { messages, sendMessage, clearMessages, isConnected } = useWebSocketTopic("/topic/status");
+    // const { messages, sendMessage, clearMessages, isConnected } = useWebSocketTopic("/app/status");
 
     // useEffect(() => {
     //     if (messages.length > 0) {

@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -24,6 +25,8 @@ import org.springframework.security.messaging.context.SecurityContextChannelInte
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
+import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
 
 import java.util.List;
 
@@ -71,10 +74,24 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         System.out.println("✅ Registering WebSocketAuthInterceptor...");
 
         registration
-        .interceptors(webSocketAuthInterceptor) // ✅ Ensures authentication
-       .interceptors(securityContextChannelInterceptor) // ✅ Then applies Spring Security
-                         .interceptors(authorizationChannelInterceptor); // Enforce message auth
+        .interceptors(webSocketAuthInterceptor) ;// ✅ Ensures authentication
+//       .interceptors(securityContextChannelInterceptor) // ✅ Then applies Spring Security
+//                         .interceptors(authorizationChannelInterceptor); // Enforce message auth
 
+    }
+
+    @Bean
+    public WebSocketHandlerDecoratorFactory errorHandler() {
+        return handler -> new WebSocketHandlerDecorator(handler) {
+            public void handleMessage(org.springframework.web.socket.WebSocketSession session, org.springframework.web.socket.TextMessage message) throws Exception {
+                try {
+                    super.handleMessage(session, message);
+                } catch (MessageDeliveryException e) {
+                    // Send a custom error message to the client
+                    session.sendMessage(new org.springframework.web.socket.TextMessage("Error: " + e.getMessage()));
+                }
+            }
+        };
     }
 
 

@@ -23,12 +23,10 @@ public interface UserStatusService {
     /**
      * Update a user's custom status
      * @param userId ID of the user
-     * @param currentStatus Current status
-     * @param customStatus Custom status
-     * @param expiresAt Expiration time
+
      * @return Updated user
      */
-    User updateCustomStatus(Long userId, UserStatus currentStatus, UserStatus customStatus, String expiresAt);
+    User updateCustomStatus(Long userId, UserStatus customStatu);
     
     /**
      * Get a user's status

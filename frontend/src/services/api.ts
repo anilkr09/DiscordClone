@@ -61,6 +61,8 @@ api.interceptors.request.use(
 );
 const isTokenExpired = (token) => {
     if (!token) return true; // No token means it's already "expired"
+    const base64Url = token.split('.')[1]; // Extract payload
+    if (!base64Url) throw new Error("Invalid token format");
 
     const payload = JSON.parse(atob(token.split(".")[1])); // Decode payload
     const expiry = payload.exp * 1000; // Convert to milliseconds

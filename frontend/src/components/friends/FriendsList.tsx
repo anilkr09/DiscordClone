@@ -23,9 +23,7 @@
   import { useAuth } from '../../services/AuthProvider.tsx';
 import { StatusUpdate } from '../../types/status';
 import { useUserStatus } from '../../hooks/useUserStatus';
-
-// import { useStatus } from '../../services/statusProvider';
-import { useStatusService } from '../../services/status.service';
+import { useStatus } from '../../services/StatusProvider';
 
 
   enum FriendTab {
@@ -38,7 +36,10 @@ import { useStatusService } from '../../services/status.service';
   export default function FriendsList() {
 
 
-    const { getStatus, updateCustomStatus } = useStatusService();
+    const {  friendStatuses } = useStatus();
+    const getUserStatus = (userId: number) => {
+      return friendStatuses[userId] || UserStatus.OFFLINE;
+    };
     // console.log("statusService", getStatus());
 
 
@@ -47,83 +48,11 @@ import { useStatusService } from '../../services/status.service';
     const [friendRequests, setFriendRequests] = useState<FriendRequestType[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const { username } = useAuth();
-    // console.log("username", username);
-    const { stompClient, isConnected } = useWebSocket();
+   
 
-    const [connected, setConnected] = useState<boolean>(false); // New state to track stompClient.connected
-
-    const [status, setStatus] = useState<any[]>([]);
-    const [statuses, setStatuses] = useState<Map<number, UserStatus>>(new Map());
-
-useEffect(() => {
-  const fetchStatuses = async () => {
-    try {
-      const response = await getStatus(); // Assume getStatuses() returns a Promise<UserStatus[]>
-      const statusMap = new Map<number, UserStatus>();
-  
-      response.forEach((st:StatusUpdate) => {
-        statusMap.set(st.id,st.status);
-      });
-  
-      setStatuses(statusMap);
-    } catch (error) {
-      console.error("Error fetching statuses:", error);
-    }
-  };
-  fetchStatuses();
-  
-}, []);
-
-const updateUserStatus = (id: number, newStatus: UserStatus) => {
-  setStatuses((prevStatuses) => {
-    const updatedMap = new Map(prevStatuses);
-    updatedMap.set(id, newStatus);
-    return updatedMap;
-  });
-};
-
-const getUserStatus = (id: number) => statuses.get(id);
-
-    useEffect(() => {
-      
-
-
-
-      console.log("status updated --  ", statuses);
-    }, [statuses]);
-
-
-    useEffect(() => {
-      if (!stompClient || !isConnected || !connected) return;
-          console.log("subscribing to topic "+ connected);
-          // Subscribe to a topic
-          const subscription = stompClient.subscribe("/topic/status", (status) => {
-            setStatuses((prevStatuses) => {
-              console.log("new status --  ", status.body);
-              const updatedMap = new Map(prevStatuses);
-              const statusMsg = JSON.parse(status.body);
-                updatedMap.set(  statusMsg.userId,statusMsg.status);
-              return updatedMap;
-            });
-          });
-          console.log("subscribed to topic "+ connected);
-
-          return () => {
-              subscription.unsubscribe();
-          };
-    }, [connected]);
-
-
-    useEffect(() => {
-      setTimeout(() => {
-        if (stompClient?.connected) {
-            setConnected(stompClient.connected);
-        }
-    }, 1000);
     
-    }, [stompClient]); // Runs whenever stompClient updates
-    
+ 
+
  
     
     const loadData = useCallback(async () => {
@@ -307,7 +236,7 @@ const getUserStatus = (id: number) => statuses.get(id);
               <FriendItem 
                 key={friend.id} 
                 friend={friend} 
-                status={getUserStatus(friend.id)}
+                status={getUserStatus(friend.id) || UserStatus.OFFLINE}
                 onRemove={handleRemoveFriend} 
               />
             ))}

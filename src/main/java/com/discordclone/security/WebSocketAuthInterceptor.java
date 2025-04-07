@@ -1,5 +1,6 @@
 package com.discordclone.security;
 
+import com.discordclone.exception.JwtAuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
@@ -7,12 +8,14 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
@@ -30,8 +33,8 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        logger.debug("inside presend -- presend{}",accessor);
-
+        logger.debug("inside presend -- presend{}", accessor);
+//    try {
         if (accessor != null) {
             if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                 logger.debug("Processing WebSocket CONNECT command");
@@ -43,6 +46,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
                     if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
                         token = token.substring(7); // Remove "Bearer " prefix
+                        logger.debug("token jwt value : {}", token);
 
                         if (jwtTokenProvider.validateToken(token)) {
                             Authentication auth = jwtTokenProvider.getAuthentication(token);
@@ -81,8 +85,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                 Authentication auth = (principal instanceof Authentication) ? (Authentication) principal : null;
 
 
-
-                logger.debug("auth value is{} ",auth);
+                logger.debug("auth value is{} ", auth);
                 if (auth == null || !auth.isAuthenticated()) {
                     logger.warn("Unauthenticated message send attempt");
                     return null; // Reject the message
@@ -90,7 +93,30 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             }
         }
 
+
         return message;
+//    }
+
+//       catch (JwtAuthenticationException e) {
+//
+//
+//            // Convert to STOMP ERROR frame
+//
+//
+//            logger.warn("JWT Authentication failed: {} - Session ID: {}", e.getMessage(),
+//                    accessor.getSessionId(), e);
+//            StompHeaderAccessor errorAccessor = StompHeaderAccessor.create(StompCommand.ERROR);
+//            errorAccessor.setMessage(e.getMessage());
+//            errorAccessor.setSessionId(accessor.getSessionId());
+//
+//            // Add a more specific error code
+//            errorAccessor.setHeader("message", e.getMessage());
+//            errorAccessor.setHeader("error-type", "AUTH_ERROR");
+//
+//            return MessageBuilder.createMessage(
+//                    e.getMessage().getBytes(StandardCharsets.UTF_8),
+//                    errorAccessor.getMessageHeaders());
+//        }
     }
 
     private boolean isValidDestination(String destination) {
@@ -110,6 +136,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
     @Override
     public void afterSendCompletion(Message<?> message, MessageChannel channel, boolean sent, Exception ex) {
+        logger.info("after send completion");
         if (ex != null) {
             logger.error("Error during WebSocket message processing", ex);
         }

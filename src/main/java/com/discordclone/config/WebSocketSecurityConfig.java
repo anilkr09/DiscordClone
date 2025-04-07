@@ -24,7 +24,7 @@ public class WebSocketSecurityConfig {
         builder.simpSubscribeDestMatchers("/topic/**").authenticated(); // Secure subscription destinations
 
         builder.simpSubscribeDestMatchers("/topic/admin").access(AuthorityAuthorizationManager.hasRole("ADMIN"));
-        builder.anyMessage().permitAll();
+//        builder.anyMessage().permitAll();
 //        builder.anyMessage().denyAll();
 
         return builder.build();

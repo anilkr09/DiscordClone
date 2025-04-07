@@ -39,13 +39,11 @@ public class StatusWebSocketController {
             if (statusUpdate.getCustomStatus() != null ) {
                 userStatusService.updateCustomStatus(
                     currentUser.getId(),
-                    statusUpdate.getCurrentStatus(),
-                    statusUpdate.getCustomStatus(),
-                    statusUpdate.getExpiresAt()
+                    UserStatus.valueOf(statusUpdate.getCustomStatus())
                 );
             }
             else
-                userStatusService.updateUserStatus(currentUser.getId(), statusUpdate.getCurrentStatus());
+                userStatusService.updateUserStatus(currentUser.getId(), UserStatus.valueOf(statusUpdate.getCurrentStatus()));
 
 
         }

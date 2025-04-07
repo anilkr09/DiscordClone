@@ -6,76 +6,80 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
 interface ChatAreaProps {
-    channel: {
-        id: string;
-        name: string;
-    };
+  id: string;
+  name: string;
+  isDM?: boolean;
 }
 
-export default function ChatArea({ channel }: ChatAreaProps) {
-    const [messages, setMessages] = useState<Message[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, []);
+export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (channel.id) {
-            loadMessages();
-            const handleNewMessage = (message: Message) => {
-                setMessages(prev => [...prev, message]);
-                scrollToBottom();
-            };
-            
-            messageService.subscribeToChannel(parseInt(channel.id), handleNewMessage);
-            
-            return () => {
-                messageService.unsubscribeFromChannel(parseInt(channel.id), handleNewMessage);
-            };
-        }
-    }, [channel.id, scrollToBottom]);
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
-    const loadMessages = async () => {
-        try {
-            setIsLoading(true);
-            const fetchedMessages = await messageService.getChannelMessages(parseInt(channel.id));
-            setMessages(fetchedMessages);
-            scrollToBottom();
-        } catch (error) {
-            console.error('Error loading messages:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  useEffect(() => {
+    if (id) {
+      loadMessages();
+      const handleNewMessage = (message: Message) => {
+        setMessages(prev => [...prev, message]);
+        scrollToBottom();
+      };
 
-    return (
-        <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            height: '100vh',
-            bgcolor: 'background.default' 
-        }}>
-            <Box sx={{ 
-                p: 2, 
-                borderBottom: 1, 
-                borderColor: 'divider',
-                bgcolor: 'background.paper' 
-            }}>
-                <Typography variant="h6"># {channel.name}</Typography>
-            </Box>
+      messageService.subscribeToChannel(parseInt(id), handleNewMessage, isDM);
 
-            <MessageList 
-                ref={messagesEndRef}
-                messages={messages}
-                isLoading={isLoading}
-            />
+      return () => {
+        messageService.unsubscribeFromChannel(parseInt(id), handleNewMessage, isDM);
+      };
+    }
+  }, [id, scrollToBottom, isDM]);
 
-            <MessageInput 
-                channelId={channel.id}
-                channelName={channel.name}
-            />
-        </Box>
-    );
+  const loadMessages = async () => {
+    try {
+      setIsLoading(true);
+      const fetchedMessages = isDM
+        ? await messageService.getDMHistory(parseInt(id))
+        : await messageService.getChannelMessages(parseInt(id));
+      setMessages(fetchedMessages);
+      scrollToBottom();
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Box sx={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      bgcolor: 'background.default'
+    }}>
+      <Box sx={{
+        p: 2,
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: 'background.paper'
+      }}>
+        <Typography variant="h6">
+          {isDM ? `@${name}` : `# ${name}`}
+        </Typography>
+      </Box>
+
+      <MessageList
+        ref={messagesEndRef}
+        messages={messages}
+        isLoading={isLoading}
+      />
+
+      <MessageInput
+        channelId={id}
+        channelName={name}
+        isDM={isDM}
+      />
+    </Box>
+  );
 }
