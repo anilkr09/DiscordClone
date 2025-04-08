@@ -57,7 +57,7 @@ export default function Login() {
         try {
             await login(formData.username, formData.password);
             // setUsername(formData.username);
-            navigate('/app');
+            navigate('/channels');
         } catch (err) {
             setError('Invalid username or password');
         }

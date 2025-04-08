@@ -27,9 +27,10 @@ function App() {
           <Route element={<ProtectedRoute />}>
           <Route path="*" element={<Navigate to="/login" />} />
           <Route path="/channels" element={<MainLayout />}>
+          
           <Route index element={<Navigate to="/channels/@me" replace />} />
           <Route path="@me" element={<FriendsList />} />
-            <Route path="@me/:friendId" element={<DirectMessage />} />
+          <Route path="@me/:friendId" element={<DirectMessage />} />
 {/* <Route path="/channels/:channelId" element={<Channel />} /> */}
 
 

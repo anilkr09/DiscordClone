@@ -18,7 +18,7 @@ import { useStatus } from '../../services/StatusProvider';
 // import { useWebSocket } from '../../services/WebSocketProvider';
 
 const dummyServers = [
-  { id: 1, name: 'Discord', initial: 'D' },
+  { id: 1, name: 'Home', initial: 'D' },
   { id: 2, name: 'Awesome Server', initial: 'AS' },
   { id: 3, name: 'Cool Group', initial: 'CG' },
 ];
@@ -43,15 +43,18 @@ export default function MainLayout() {
   }, [location]);
 
   const handleServerClick = (serverId: number) => {
-    navigate(`/app/servers/${serverId}`);
+    if(serverId==1)
+      navigate(`/channels/@me`);
+    else
+    navigate(`/channels/servers/${serverId}`);
   };
 
   const handleAddServer = () => {
-    navigate('/app/servers/new');
+    // navigate('/channels/servers/new');
   };
 
   const handleFriendsClick = () => {
-    navigate('/app/friends');
+    
   };
 
   const handleAddDM = () => {
@@ -65,10 +68,14 @@ export default function MainLayout() {
 
   return (
     <Box sx={{ 
-      height: '100vh', 
+      height: '100vh',
+      width:'100%',
       display: 'flex', 
       bgcolor: '#36393f', 
-      color: '#dcddde' 
+      color: '#dcddde', 
+      position: 'fixed',
+  top: 0,
+  left: 0,
     }}>
       {/* Server list sidebar */}
       <Box sx={{ 
@@ -118,6 +125,11 @@ export default function MainLayout() {
       </Box>
 
       {/* Channel/DM list sidebar */}
+      {/* {conditionforserverorDM ? (
+        ) : (
+        )} */}
+
+
       <Box sx={{
         width: '240px',
         bgcolor: '#2f3136',

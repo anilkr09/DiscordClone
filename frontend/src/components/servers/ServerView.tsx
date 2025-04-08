@@ -77,12 +77,11 @@ export default function ServerView() {
             </Drawer>
             <Box component="main" sx={{ flexGrow: 1 }}>
                 {selectedChannel && (
-                    <ChatArea 
-                        channel={{
-                            id: selectedChannel.id?.toString() || '',
-                            name: selectedChannel.name
-                        }} 
-                    />
+                    <ChatArea  
+                        id={selectedChannel?.id?.toString()||""}
+                        name={selectedChannel.name}
+                    isDM={false}
+                />
                 )}
             </Box>
         </>
