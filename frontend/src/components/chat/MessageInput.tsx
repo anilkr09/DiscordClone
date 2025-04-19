@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Box, TextField, Button } from '@mui/material';
 import { MessageRequest } from '../../types/message';
 import messageService from '../../services/message.service';
-
+import { useWebSocketTopic } from '../../services/WebSocketProvider';
 interface MessageInputProps {
     channelId: string;
     channelName: string;
@@ -12,6 +12,9 @@ export default function MessageInput({ channelId, channelName }: MessageInputPro
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
 
+    const { sendMessage, connected } = useWebSocketTopic("/app/chat.send");
+   
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!message.trim() || isSending) return;
@@ -20,10 +23,10 @@ export default function MessageInput({ channelId, channelName }: MessageInputPro
             setIsSending(true);
             const messageRequest: MessageRequest = {
                 content: message,
-                channelId
+                channelId:"1"
             };
             
-            await messageService.sendMessage(messageRequest);
+            sendMessage(messageRequest);
             setMessage('');
         } catch (error) {
             console.error('Error sending message:', error);

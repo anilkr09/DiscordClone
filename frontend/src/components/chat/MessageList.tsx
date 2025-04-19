@@ -8,6 +8,9 @@ interface MessageListProps {
 }
 
 const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, isLoading }, ref) => {
+
+    console.log("current message list"+ JSON.stringify(messages));
+
     return (
         <Box sx={{ 
             flex: 1, 
@@ -20,6 +23,8 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, is
             {isLoading ? (
                 <Typography align="center">Loading messages...</Typography>
             ) : (
+                
+
                 messages.map((message) => (
                     <Paper 
                         key={message.id} 
@@ -49,6 +54,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, is
                         </Box>
                     </Paper>
                 ))
+            
             )}
             <div ref={ref} />
         </Box>

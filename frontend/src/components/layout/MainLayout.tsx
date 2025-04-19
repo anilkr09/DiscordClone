@@ -2,18 +2,13 @@ import { useState, useEffect } from 'react';
 import { Box, Typography, Avatar, InputBase, IconButton } from '@mui/material';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
-import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import ChatIcon from '@mui/icons-material/Chat';
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
-import DirectMessageList from '../friends/DirectMessageList';
-import FriendsList from '../friends/FriendsList';
+
 import UserProfile from '../user/UserProfile';
-import StatusIndicator from '../user/StatusIndicator';
 import { StatusUpdate, UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
 import authService from '../../services/auth.service';
 import { useStatus } from '../../services/StatusProvider';
+import HomeView from './HomeView';
 // Dummy data for the layout
 // import { useWebSocket } from '../../services/WebSocketProvider';
 
@@ -36,11 +31,7 @@ export default function MainLayout() {
   
   }, [navigate]);
 
-  useEffect(() => {
-    // Check if we're on the friends route
-    const isFriendsRoute = location.pathname === '/app' || location.pathname === '/app/friends';
-    setShowFriendsList(isFriendsRoute);
-  }, [location]);
+ 
 
   const handleServerClick = (serverId: number) => {
     if(serverId==1)
@@ -130,45 +121,11 @@ export default function MainLayout() {
         )} */}
 
 
-      <Box sx={{
-        width: '240px',
-        bgcolor: '#2f3136',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative'
-      }}>
-        <Box 
-          sx={{ 
-            p: 2, 
-            fontWeight: 'bold', 
-            borderBottom: '1px solid #26282c',
-            cursor: 'pointer'
-          }}
-          onClick={handleFriendsClick}
-        >
-          Friends
-        </Box>
-        
-        <Box sx={{ flex: 1, overflowY: 'auto' }}>
-          <DirectMessageList onAddDM={handleAddDM} />
-        </Box>
-        
-        {/* Bottom user profile */}
-        <UserProfile 
-          user={currentUser}
-          status={getUserStatus(currentUser.id)||UserStatus.ONLINE}
-          customStatus={getUserStatus(currentUser.id)||UserStatus.ONLINE}
-        />
-      </Box>
-
       {/* Main content area */}
       <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        {showFriendsList ? (
-          <FriendsList />
-        ) : (
-          <Outlet />
-        )}
+      <HomeView></HomeView>
       </Box>
+      
 
       {/* Right sidebar - Active Now */}
       <Box sx={{ 
@@ -190,6 +147,19 @@ export default function MainLayout() {
           </Typography>
         </Box>
       </Box>
+      <Box sx={{
+        width:'200px',
+        position: 'fixed',
+        left:'20px',
+        bottom:'0',
+       
+      }} >
+      <UserProfile 
+          user={currentUser}
+          status={getUserStatus(currentUser.id)||UserStatus.ONLINE}
+          customStatus={getUserStatus(currentUser.id)||UserStatus.ONLINE}
+        />
+        </Box>
     </Box>
   );
 }

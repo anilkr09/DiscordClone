@@ -6,6 +6,7 @@ import { Server, Channel, ChannelType } from '../../types/server';
 import serverService from '../../services/server.service';
 import ChatArea from '../chat/ChatArea';
 
+
 const DRAWER_WIDTH = 240;
 
 export default function ServerView() {
@@ -16,6 +17,20 @@ export default function ServerView() {
     useEffect(() => {
         if (serverId) {
             loadServer(parseInt(serverId));
+            const myChannel: Channel = {
+                name: "myChannel",
+                id:1,
+                serverId: 1,
+                messages: [
+                    
+                ],
+                type:ChannelType.TEXT,
+                createdAt: "2025-04-10T15:00:00Z",
+                updatedAt: "2025-04-11T09:00:00Z"
+            };
+
+            setSelectedChannel(myChannel);
+
         }
     }, [serverId]);
 
@@ -33,7 +48,7 @@ export default function ServerView() {
 
     return (
         <>
-            <Drawer
+            {/* <Drawer
                 variant="permanent"
                 sx={{
                     width: DRAWER_WIDTH,
@@ -74,11 +89,11 @@ export default function ServerView() {
                         </ListItemButton>
                     </ListItem>
                 </List>
-            </Drawer>
+            </Drawer> */}
             <Box component="main" sx={{ flexGrow: 1 }}>
                 {selectedChannel && (
                     <ChatArea  
-                        id={selectedChannel?.id?.toString()||""}
+                        id={selectedChannel?.id?.toString()||"1"}
                         name={selectedChannel.name}
                     isDM={false}
                 />

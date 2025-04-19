@@ -47,6 +47,9 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
       bgcolor: '#292b2f', 
       display: 'flex', 
       alignItems: 'center', 
+       border:'1px solid #2f3136',
+        borderRadius:'8px',
+     
       gap: 1 
     }}>
       <Box sx={{ position: 'relative' }} onClick={handleStatusClick}>

@@ -4,7 +4,8 @@ import { Message } from '../../types/message';
 import messageService from '../../services/message.service';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
-
+import {useAuth} from '../../services/AuthProvider';
+import { useWebSocketTopic } from '../../services/WebSocketProvider';
 interface ChatAreaProps {
   id: string;
   name: string;
@@ -15,33 +16,51 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+const { messages: newMessage ,connected} = useWebSocketTopic("/topic/channels/1/messages");
+
+useEffect(()=>{
+  console.log("--- ---  - - --  new msg"+JSON.stringify (newMessage));
+},[newMessage])
+
+ const {id:userId}  = useAuth();
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
+  // useEffect( () =>   {
+  //   if (userId) {
+  //     // loadMessages();
+  //     console.log("new msg --------"+newMessage);
+  //     const handleNewMessage = (message) => {
+  //       setMessages(prev => [...prev, message]);
+  //       scrollToBottom();
+  //     };
+  //     handleNewMessage(newMessage);
+
+
+  //     return () => {
+  //     };
+  //   }
+  // }, [userId, scrollToBottom, isDM,newMessage]);
   useEffect(() => {
-    if (id) {
-      loadMessages();
-      const handleNewMessage = (message: Message) => {
-        setMessages(prev => [...prev, message]);
-        scrollToBottom();
-      };
+    if (!newMessage) return;
+  
 
-      messageService.subscribeToChannel(parseInt(id), handleNewMessage, isDM);
-
-      return () => {
-        messageService.unsubscribeFromChannel(parseInt(id), handleNewMessage, isDM);
-      };
+    if (connected  && newMessage.length > 0) {
+    const latestMessage = newMessage[newMessage.length - 1] as Message;
+        
+    setMessages(prev => [...prev, latestMessage]);
     }
-  }, [id, scrollToBottom, isDM]);
-
+    scrollToBottom();
+  }, [connected,newMessage, scrollToBottom]);
+  
   const loadMessages = async () => {
     try {
       setIsLoading(true);
-      const fetchedMessages = isDM
-        ? await messageService.getDMHistory(parseInt(id))
-        : await messageService.getChannelMessages(parseInt(id));
+      const fetchedMessages = 
+      
+       await messageService.getChannelMessages(parseInt(id));
       setMessages(fetchedMessages);
       scrollToBottom();
     } catch (error) {
@@ -53,6 +72,7 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
 
   return (
     <Box sx={{
+      width:'800px',
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
@@ -78,7 +98,6 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
       <MessageInput
         channelId={id}
         channelName={name}
-        isDM={isDM}
       />
     </Box>
   );

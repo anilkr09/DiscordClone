@@ -1,13 +1,10 @@
 package com.discordclone.service.impl;
 
 import com.discordclone.exception.ResourceNotFoundException;
-import com.discordclone.model.Friendship;
-import com.discordclone.model.FriendshipStatus;
-import com.discordclone.model.User;
+import com.discordclone.model.*;
 import com.discordclone.payload.FriendRequestPayload;
 import com.discordclone.payload.FriendResponsePayload;
-import com.discordclone.repository.FriendshipRepository;
-import com.discordclone.repository.UserRepository;
+import com.discordclone.repository.*;
 import com.discordclone.service.FriendshipService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,11 +22,16 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
-
+    private final DmChannelRepository dmChannelRepository;
+    private final ChannelRepository channelRepository;
+    private  final ServerRepository serverRepository;
     @Autowired
-    public FriendshipServiceImpl(FriendshipRepository friendshipRepository, UserRepository userRepository) {
+    public FriendshipServiceImpl(FriendshipRepository friendshipRepository, UserRepository userRepository, DmChannelRepository dmChannelRepository, ChannelRepository channelRepository, ServerRepository serverRepository) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
+        this.dmChannelRepository = dmChannelRepository;
+        this.channelRepository = channelRepository;
+        this.serverRepository = serverRepository;
     }
 
     @Override
@@ -111,8 +113,29 @@ public class FriendshipServiceImpl implements FriendshipService {
         // Accept the request
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         friendship.setUpdatedAt(LocalDateTime.now());
-        
+
+
+//        Optional<Server> optionalServer = serverRepository.findById(1L);
+//
+//        if (optionalServer.isPresent()) {
+//            Server server = optionalServer.get();
+//            // Use the server
+//
+//        Channel dummy = new Channel();
+//        dummy.setServer(server);
+//        Channel channel =channelRepository.save(dummy );
+//        dmChannelRepository.save( DmChannel.builder()
+//
+//                .channel(channel)
+//                .user1(friendship.getSender())
+//                .user2(friendship.getReceiver())
+//                .build());
+//
+//        } else {
+//            // Handle not found case
+//        }
         return friendshipRepository.save(friendship);
+
     }
 
     @Override
@@ -232,8 +255,13 @@ public class FriendshipServiceImpl implements FriendshipService {
         List<Friendship> friendships = friendshipRepository.findAcceptedFriendships(user);
         
         return friendships.stream()
-                .map(friendship -> {
-                    User friend = friendship.getSender().getId().equals(userId) 
+                .map(
+
+
+                        friendship -> {
+                            System.out.println("--  -   -   -   -   -   -   -   -   - Friendships" + friendship.toString());
+
+                            User friend = friendship.getSender().getId().equals(userId)
                             ? friendship.getReceiver() : friendship.getSender();
                     
                     FriendResponsePayload response = new FriendResponsePayload();

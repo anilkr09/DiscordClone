@@ -1,4 +1,14 @@
 {
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.app.json --noEmit && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
   "devDependencies": {
     "@types/sockjs-client": "^1.5.4"
   }

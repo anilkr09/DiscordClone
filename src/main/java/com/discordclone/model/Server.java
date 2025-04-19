@@ -2,6 +2,7 @@ package com.discordclone.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.HashSet;
@@ -12,6 +13,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Server {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,8 +29,9 @@ public class Server {
     private User owner;
     
     @ManyToMany(mappedBy = "servers")
+    @Builder.Default
     private Set<User> members = new HashSet<>();
-    
+    @Builder.Default
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
     private Set<Channel> channels = new HashSet<>();
 } 

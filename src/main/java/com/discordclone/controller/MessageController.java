@@ -2,7 +2,10 @@ package com.discordclone.controller;
 
 import com.discordclone.model.Channel;
 import com.discordclone.model.Message;
+import com.discordclone.payload.MessageRequest;
+import com.discordclone.payload.StatusUpdatePayload;
 import com.discordclone.repository.ChannelRepository;
+import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -10,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,9 +26,16 @@ public class MessageController {
     private final ChannelRepository channelRepository;
 
     @MessageMapping("/chat.send")
-    public void sendMessage(@Payload Message message) {
-        messageService.sendMessage(message);
+    public void sendMessage(@Payload MessageRequest message , SimpMessageHeaderAccessor headerAccessor) {
+        Authentication authentication = (Authentication) headerAccessor.getUser();
+        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal currentUser) {
+
+
+            messageService.sendMessage(message, currentUser.getId());
+        }
     }
+
+
 
     @GetMapping("/channels/{channelId}")
     public ResponseEntity<Page<Message>> getChannelMessages(

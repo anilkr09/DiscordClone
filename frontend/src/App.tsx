@@ -9,7 +9,6 @@ import './App.css';
 import { WebSocketProvider } from './services/WebSocketProvider.tsx';
 import { AuthProvider } from './services/AuthProvider.tsx';
 import { StatusProvider } from './services/StatusProvider.tsx';
-import ChatArea from './components/chat/ChatArea.tsx';
 import DirectMessage from './components/chat/DirectMessage.tsx';
 function App() {
   return (
@@ -29,13 +28,20 @@ function App() {
           <Route path="/channels" element={<MainLayout />}>
           
           <Route index element={<Navigate to="/channels/@me" replace />} />
+          {/* <Route path="Home" element={<HomeView/>}> */}
           <Route path="@me" element={<FriendsList />} />
           <Route path="@me/:friendId" element={<DirectMessage />} />
+          {/* </Route> */}
+          
 {/* <Route path="/channels/:channelId" element={<Channel />} /> */}
 
 
             <Route path="servers" element={<ServerView />} />
+           
+
             <Route path="servers/:serverId" element={<ServerView />} />
+           
+           
           </Route>
           </Route>
 
