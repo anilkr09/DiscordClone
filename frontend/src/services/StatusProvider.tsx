@@ -40,13 +40,15 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         expiresAt: new Date(new Date().getTime() + 24 * 60 * 60 * 1000) // Correct date calculation
     });
     const idleTimer = useRef<NodeJS.Timeout | null>(null);
-    const statusRef = useRef<UserStatus>(UserStatus.ONLINE);
+    const statusRef = useRef(status);
 
     const { sendMessage, connected } = useWebSocketTopic("/app/status");
     const { messages, connected: connected2 } = useWebSocketTopic("/topic/status");
     const [friendStatuses, setFriendStatuses] = useState<FriendStatusMap>({});
     const { id } = useAuth();
+    const customStatusRef = useRef(customStatus);
 
+   
     // Initialize status from server
     useEffect(() => {
         if (!id || !connected || isInitialized) return;
@@ -103,6 +105,8 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (customStatus.status !== status) {
             setStatus(customStatus.status);
         }
+        customStatusRef.current = customStatus; // Keep ref in sync
+
     }, [customStatus, isInitialized]);
 
     // Status expiry check
@@ -123,11 +127,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return () => clearInterval(intervalId);
     }, []);
 
-    const customStatusRef = useRef(customStatus);
-
-    useEffect(() => {
-        customStatusRef.current = customStatus; // Keep ref in sync
-    }, [customStatus]);
+  
 
     useEffect(() => {
         if (!id) return;
@@ -141,7 +141,10 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }));
         }
     }, [messages, connected2, id]);
-
+    useEffect(() => {
+        console.log("friendStatuses updated:", JSON.stringify(friendStatuses));
+      }, [friendStatuses]);
+      
     useEffect(() => {
         const fetchStatuses = async () => {
             try {
@@ -153,11 +156,14 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 });
 
                 setFriendStatuses(statusMap);
+                // console.log("friend statuses inside----"+JSON.stringify(friendStatuses));
+
             } catch (error) {
                 console.error("Error fetching statuses:", error);
             }
         };
         fetchStatuses();
+
     }, [id]);
 
     const getStatus = (userId: number): UserStatus => {
@@ -229,9 +235,18 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         
         idleTimer.current = setTimeout(() => {
             console.log("idle timer expired, setting status to idle");
-            
-            if(customStatusRef.current.status === UserStatus.ONLINE && status != UserStatus.IDLE)
-              {console.log("set idle -----true"+"custom status - "+ customStatus.status); setStatus(UserStatus.IDLE);}
+            console.log("from idle time  customstatus ", customStatus.status, "currentStatus", status);
+            if (
+                statusRef.current === UserStatus.ONLINE &&
+                customStatusRef.current.status === UserStatus.ONLINE
+              ) {
+                console.log(
+                  "set idle -----true custom status - ",
+                  customStatusRef.current.status
+                );
+                setStatus(UserStatus.IDLE);
+              }
+              
         }, 5 * 1000); // 5 seconds
     };
 
@@ -248,10 +263,10 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const resetIdleTimer = () => {
         // Use ref for immediate access to current status
-        const currentStatus = statusRef.current;
         
+        console.log("resttimer"+"customStatusRef"+customStatusRef.current.status+"statusref"+statusRef.current );
         // Only update if not already ONLINE
-        if (currentStatus == UserStatus.ONLINE && currentStatus != UserStatus.ONLINE) {
+        if (statusRef.current != UserStatus.ONLINE && customStatusRef.current.status == UserStatus.ONLINE) {
             setStatus(UserStatus.ONLINE);
         }
         

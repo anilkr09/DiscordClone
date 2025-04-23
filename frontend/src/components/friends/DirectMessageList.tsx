@@ -79,7 +79,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
           textTransform: 'uppercase',
           fontWeight: 'bold'
         }}>
-          Direct Messages
+          Direct Messagess
         </Typography>
         <IconButton 
           size="small" 

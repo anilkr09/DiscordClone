@@ -7,6 +7,7 @@ import com.discordclone.payload.StatusResponse;
 import com.discordclone.payload.StatusUpdatePayload;
 import com.discordclone.security.CurrentUser;
 import com.discordclone.security.UserPrincipal;
+import com.discordclone.service.RedisUserStatusService;
 import com.discordclone.service.UserService;
 import com.discordclone.service.UserStatusService;
 import com.discordclone.repository.UserStatusRepository;
@@ -28,25 +29,25 @@ public class UserStatusController {
     private final UserService userService;
     private final UserStatusService userStatusService;
     private final UserStatusRepository userStatusRepository;
+    private  final  RedisUserStatusService redisUserStatusService;
 
     @Autowired
-    public UserStatusController(UserService userService, 
-                              UserStatusService userStatusService,
-                              UserStatusRepository userStatusRepository) {
+    public UserStatusController(UserService userService,
+                                UserStatusService userStatusService,
+                                UserStatusRepository userStatusRepository, RedisUserStatusService redisUserStatusService) {
         this.userService = userService;
         this.userStatusService = userStatusService;
         this.userStatusRepository = userStatusRepository;
+        this.redisUserStatusService = redisUserStatusService;
     }
 
     @GetMapping("/status")
     public ResponseEntity<?> getAllUserStatus() {
-            List<UserStatusEntity> statuses = userStatusService.getAllUserStatus();
-
-            List<StatusResponse> res =statuses.stream().map(status -> {
-                return new StatusResponse( status.getUser().getId(),
-                        String.valueOf((status.getCustomStatus() != null )
-                                ? status.getCustomStatus()
-                                : status.getCurrentStatus())
+//            List<UserStatusEntity> statuses = userStatusService.getAllUserStatus();
+                Map<Long,String> statuses = redisUserStatusService.getAllUserStatuses();
+            List<StatusResponse> res =statuses.entrySet().stream().map(status -> {
+                return new StatusResponse( status.getKey(),
+                        status.getValue()
                 );
 
             }).collect(Collectors.toList());

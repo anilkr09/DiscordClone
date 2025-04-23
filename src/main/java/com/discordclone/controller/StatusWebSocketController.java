@@ -4,6 +4,7 @@ import com.discordclone.model.UserStatus;
 import com.discordclone.payload.StatusUpdatePayload;
 import com.discordclone.security.CurrentUser;
 import com.discordclone.security.UserPrincipal;
+import com.discordclone.service.RedisUserStatusService;
 import com.discordclone.service.UserStatusService;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
@@ -20,10 +21,12 @@ import org.springframework.stereotype.Controller;
 public class StatusWebSocketController {
     private final UserStatusService userStatusService;
     private static final Logger logger = LoggerFactory.getLogger(StatusWebSocketController.class);
+    private final RedisUserStatusService redisUserStatusService;
 
     @Autowired
-    public StatusWebSocketController(UserStatusService userStatusService) {
+    public StatusWebSocketController(UserStatusService userStatusService, RedisUserStatusService redisUserStatusService) {
         this.userStatusService = userStatusService;
+        this.redisUserStatusService = redisUserStatusService;
     }
 
     @MessageMapping("/status")
@@ -43,7 +46,7 @@ public class StatusWebSocketController {
                 );
             }
             else
-                userStatusService.updateUserStatus(currentUser.getId(), UserStatus.valueOf(statusUpdate.getCurrentStatus()));
+                redisUserStatusService.updateUserStatus(currentUser.getId(), UserStatus.valueOf(statusUpdate.getCurrentStatus()));
 
 
         }
