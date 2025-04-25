@@ -1,40 +1,30 @@
 version: '3.8'
+
 services:
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: discord-backend
-    ports:
-      - "8080:8080"
+    build: .  # Spring Boot backend in root directory
+    container_name: spring-backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/discord
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/discord_clone?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
-      SPRING_DATASOURCE_PASSWORD: root
-    depends_on:
-      - mysql
-
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
-    restart: always
-    environment:
-      MYSQL_DATABASE: discord
-      MYSQL_ROOT_PASSWORD: root
+      SPRING_DATASOURCE_PASSWORD: A@n12345
     ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
+      - "8082:8082"  # Map backend container port to host port 8082
+    networks:
+      - discord-clone-network
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: discord-frontend
+    build: ./frontend  # React app inside the frontend directory
+    container_name: react-frontend
     ports:
-      - "5173:80"
+      - "4173:80"  # Map frontend container port 80 to host port 3000
+    environment:
+      - REACT_APP_BACKEND_URL=http://backend:8082  # Backend URL for the React app
     depends_on:
-      - backend
+      - backend  # Ensure backend starts before frontend
+    networks:
+      - discord-clone-network
 
-volumes:
-  mysql-data:
+networks:
+  discord-clone-network:
+    driver: bridge
