@@ -5,7 +5,7 @@ FROM openjdk:17-jdk-slim
 WORKDIR /app
 
 # 3. Copy the jar file from host to container
-COPY /build/libs/discord-clone-0.0.1-SNAPSHOT.jar app.jar
+COPY /build/libs/*.jar app.jar
 
 # 4. Expose port (optional, helps with documentation)
 EXPOSE 8083
