@@ -21,6 +21,10 @@ jobs:
       uses: actions/setup-java@v2
       with:
         java-version: '17'
+        java-package: jdk
+        architecture: x64
+        check-latest: false
+        distribution: 'adoptopenjdk'
 
     - name: Build JAR file
       run: ./gradlew build
