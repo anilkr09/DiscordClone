@@ -24,7 +24,7 @@ jobs:
         java-package: jdk
         architecture: x64
         check-latest: false
-        distribution: 'adoptopenjdk'
+        distribution: 'openjdk'
 
     - name: Build JAR file
       run: ./gradlew build
