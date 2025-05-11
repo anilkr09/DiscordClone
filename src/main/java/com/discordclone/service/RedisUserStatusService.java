@@ -46,7 +46,7 @@ public class RedisUserStatusService {
 
         List<String> statuses = redisTemplate.opsForValue().multiGet(keys);
         Map<Long, String> result = new HashMap<>();
-
+        int count=0;
         int i = 0;
         for (String key : keys) {
             String userIdStr = key.replace(PREFIX, "");

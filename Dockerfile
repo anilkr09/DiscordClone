@@ -13,7 +13,7 @@ ENV SPRING_DATASOURCE_PASSWORD=A@n12345
 ENV SPRING_REDIS_HOST=host.docker.internal
 ENV SPRING_REDIS_PORT=6379
 # 4. Expose port (optional, helps with documentation)
-EXPOSE 8083
+EXPOSE 8082
 
 # 5. Command to run the jar
 ENTRYPOINT ["java", "-jar", "app.jar"]

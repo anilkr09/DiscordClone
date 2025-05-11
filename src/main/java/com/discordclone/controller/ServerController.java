@@ -21,6 +21,7 @@ public class ServerController {
     public ResponseEntity<Server> createServer(
             @RequestBody Server server,
             @AuthenticationPrincipal UserPrincipal currentUser) {
+
         return ResponseEntity.ok(serverService.createServer(server, currentUser.getId()));
     }
 
@@ -48,4 +49,31 @@ public class ServerController {
             @PathVariable Long userId) {
         return ResponseEntity.ok(serverService.removeMember(serverId, userId));
     }
+    @DeleteMapping("/{serverId}")
+    public ResponseEntity<Void> deleteServer(
+            @PathVariable Long serverId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        serverService.deleteServer(serverId, currentUser.getId());
+        return ResponseEntity.noContent().build();
+    }
+    @PutMapping("/{serverId}")
+    public ResponseEntity<Server> updateServer(
+            @PathVariable Long serverId,
+            @RequestBody Server server,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        return ResponseEntity.ok(serverService.updateServer(serverId, server, currentUser.getId()));
+    }
+
+
+    @PutMapping("/{serverId}/roles/{roleId}")
+    public ResponseEntity<Server> updateRole(
+            @PathVariable Long serverId,            
+            @PathVariable Long userId,
+            @PathVariable Long roleId,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        return ResponseEntity.ok(serverService.updateRole(serverId,userId,roleId, currentUser.getId()));
+    }
+    
+
+    
 } 

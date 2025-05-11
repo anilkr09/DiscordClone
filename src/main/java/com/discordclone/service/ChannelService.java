@@ -15,28 +15,51 @@ public class ChannelService {
     private final ChannelRepository channelRepository;
     private final ServerService serverService;
 
+    // Authorization for admin actions (create, update, delete)
+    private void checkUserIsAdmin(Long serverId, Long userId) {
+        if (!serverService.isUserAdmin(serverId, userId)) {
+            throw new RuntimeException("Unauthorized: User is not an admin of this server");
+        }
+    }
+
+    // Authorization for member actions (view)
+    private void checkUserIsMember(Long serverId, Long userId) {
+        if (!serverService.isUserMember(serverId, userId)) {
+            throw new RuntimeException("Unauthorized: User is not a member of this server");
+        }
+    }
+
+    private Channel getChannelByIdInternal(Long channelId) {
+        return channelRepository.findById(channelId)
+                .orElseThrow(() -> new RuntimeException("Channel not found"));
+    }
+
     @Transactional
-    public Channel createChannel(Channel channel, Long serverId) {
+    public Channel createChannel(Channel channel, Long serverId, Long userId) {
+        checkUserIsAdmin(serverId, userId);
         Server server = serverService.getServerById(serverId);
         channel.setServer(server);
         return channelRepository.save(channel);
     }
 
     @Transactional(readOnly = true)
-    public Channel getChannelById(Long id) {
-        return channelRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Channel not found"));
+    public Channel getChannelById(Long id, Long userId) {
+        Channel channel = getChannelByIdInternal(id);
+        checkUserIsMember(channel.getServer().getId(), userId);
+        return channel;
     }
 
     @Transactional(readOnly = true)
-    public List<Channel> getServerChannels(Long serverId) {
+    public List<Channel> getServerChannels(Long serverId, Long userId) {
+        checkUserIsMember(serverId, userId);
         Server server = serverService.getServerById(serverId);
         return channelRepository.findByServerOrderByName(server);
     }
 
     @Transactional
-    public Channel updateChannel(Long channelId, Channel channelDetails) {
-        Channel channel = getChannelById(channelId);
+    public Channel updateChannel(Long channelId, Channel channelDetails, Long userId) {
+        Channel channel = getChannelByIdInternal(channelId);
+        checkUserIsAdmin(channel.getServer().getId(), userId);
         channel.setName(channelDetails.getName());
         channel.setDescription(channelDetails.getDescription());
         channel.setType(channelDetails.getType());
@@ -44,8 +67,9 @@ public class ChannelService {
     }
 
     @Transactional
-    public void deleteChannel(Long channelId) {
-        Channel channel = getChannelById(channelId);
+    public void deleteChannel(Long channelId, Long userId) {
+        Channel channel = getChannelByIdInternal(channelId);
+        checkUserIsAdmin(channel.getServer().getId(), userId);
         channelRepository.delete(channel);
     }
-} 
+}

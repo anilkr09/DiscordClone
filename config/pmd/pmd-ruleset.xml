@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="Basic Ruleset"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0
+                             http://pmd.sourceforge.net/ruleset_2_0_0.xsd"
+         description="Basic PMD ruleset for Java code quality. This ruleset enforces basic coding standards and best practices for Java development.">
+
+    <!-- Basic code style -->
+    <rule ref="category/java/codestyle.xml/UnnecessaryConstructor"/>
+    <rule ref="category/java/codestyle.xml/ShortVariable"/>
+    <rule ref="category/java/codestyle.xml/MethodNamingConventions"/>
+
+    <!-- Common best practices -->
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateField"/>
+    <rule ref="category/java/bestpractices.xml/UnusedLocalVariable"/>
+    <rule ref="category/java/bestpractices.xml/AvoidReassigningParameters"/>
+
+    <!-- Basic bug detection -->
+    <rule ref="category/java/errorprone.xml/NullAssignment"/>
+    <rule ref="category/java/errorprone.xml/UseEqualsToCompareStrings"/>
+    <rule ref="category/java/errorprone.xml/ReturnFromFinallyBlock"/>
+
+    <!-- Performance improvements -->
+    <rule ref="category/java/performance.xml/AvoidInstantiatingObjectsInLoops"/>
+    <rule ref="category/java/performance.xml/UseStringBufferForStringAppends"/>
+
+</ruleset>

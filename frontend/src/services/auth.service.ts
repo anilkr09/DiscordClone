@@ -56,7 +56,7 @@ class AuthService {
 
 
      authApi = axios.create({
-    baseURL: "http://localhost:8082/api",
+    baseURL: "https://localhost:8082/api",
     headers: {
         "Content-Type": "application/json",
     },

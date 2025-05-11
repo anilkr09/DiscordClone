@@ -18,20 +18,21 @@ public class Server {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(nullable = false)
     private String name;
-    
+
     private String description;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
-    
-    @ManyToMany(mappedBy = "servers")
+
     @Builder.Default
-    private Set<User> members = new HashSet<>();
+    @OneToMany(mappedBy = "server", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<Member> members = new HashSet<>();
+
     @Builder.Default
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
     private Set<Channel> channels = new HashSet<>();
-} 
+}

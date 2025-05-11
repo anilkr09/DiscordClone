@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   backend:
@@ -17,11 +16,21 @@ services:
     build: ./frontend  # React app inside the frontend directory
     container_name: react-frontend
     ports:
-      - "4173:80"  # Map frontend container port 80 to host port 3000
+      - "4173:80"  # Map frontend container port 80 to host port 4173
     environment:
       - REACT_APP_BACKEND_URL=http://backend:8082  # Backend URL for the React app
     depends_on:
       - backend  # Ensure backend starts before frontend
+    networks:
+      - discord-clone-network
+
+  jenkins-agent:
+    image: jenkins-agent-spring-react  # Use the custom Jenkins agent image
+    container_name: jenkins-agent-spring-react
+    environment:
+      - JENKINS_URL=http://your-jenkins-url:8080
+      - JENKINS_AGENT_NAME=spring-react-agent
+      - JENKINS_SECRET=your-agent-secret
     networks:
       - discord-clone-network
 

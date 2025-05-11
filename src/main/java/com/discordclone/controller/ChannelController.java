@@ -1,48 +1,57 @@
 package com.discordclone.controller;
 
 import com.discordclone.model.Channel;
+import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.ChannelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/channels")
+@RequestMapping("/api/servers/{serverId}/channels")
 @RequiredArgsConstructor
 public class ChannelController {
 
     private final ChannelService channelService;
 
-    @PostMapping("/servers/{serverId}")
+    @PostMapping("")
     public ResponseEntity<Channel> createChannel(
             @PathVariable Long serverId,
-            @RequestBody Channel channel) {
-        return ResponseEntity.ok(channelService.createChannel(channel, serverId));
+            @RequestBody Channel channel,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(channelService.createChannel(channel, serverId, userPrincipal.getId()));
     }
 
-    @GetMapping("/servers/{serverId}")
+    @GetMapping("")
     public ResponseEntity<List<Channel>> getServerChannels(
-            @PathVariable Long serverId) {
-        return ResponseEntity.ok(channelService.getServerChannels(serverId));
+            @PathVariable Long serverId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(channelService.getServerChannels(serverId, userPrincipal.getId()));
     }
 
     @GetMapping("/{channelId}")
-    public ResponseEntity<Channel> getChannel(@PathVariable Long channelId) {
-        return ResponseEntity.ok(channelService.getChannelById(channelId));
+    public ResponseEntity<Channel> getChannel(
+            @PathVariable Long channelId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(channelService.getChannelById(channelId, userPrincipal.getId()));
     }
 
     @PutMapping("/{channelId}")
     public ResponseEntity<Channel> updateChannel(
             @PathVariable Long channelId,
-            @RequestBody Channel channelDetails) {
-        return ResponseEntity.ok(channelService.updateChannel(channelId, channelDetails));
+            @RequestBody Channel channelDetails,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(channelService.updateChannel(channelId, channelDetails, userPrincipal.getId()));
     }
 
     @DeleteMapping("/{channelId}")
-    public ResponseEntity<Void> deleteChannel(@PathVariable Long channelId) {
-        channelService.deleteChannel(channelId);
+    public ResponseEntity<Void> deleteChannel(
+            @PathVariable Long channelId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        channelService.deleteChannel(channelId, userPrincipal.getId());
         return ResponseEntity.ok().build();
     }
-} 
+}

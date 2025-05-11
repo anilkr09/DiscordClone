@@ -1,0 +1,36 @@
+# Start from a base Jenkins inbound agent image
+FROM jenkins/inbound-agent:latest
+
+# Use root user to install required tools
+USER root
+
+# Install Java 17, Gradle, Node.js, and other necessary dependencies
+RUN apt-get update && apt-get install -y \
+    openjdk-17-jdk \
+    maven \
+    gradle \
+    git \
+    curl \
+    unzip \
+    && apt-get clean
+
+# Install Node.js (v20 in this case for your frontend)
+RUN curl -sL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean
+
+# Set Java and Node.js environment variables
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV PATH=$JAVA_HOME/bin:$PATH
+ENV NODE_HOME=/usr/local/bin/node
+ENV PATH=$NODE_HOME:$PATH
+
+# Set Gradle environment variables (optional, to ensure it works correctly)
+ENV GRADLE_HOME=/opt/gradle
+ENV PATH=${GRADLE_HOME}/bin:${PATH}
+
+# Set the working directory for Jenkins Agent
+WORKDIR /workspace
+
+# Set user back to Jenkins (as it's required for the inbound agent to run as Jenkins)
+USER jenkins
