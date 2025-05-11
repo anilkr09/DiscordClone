@@ -1,0 +1,32 @@
+name: Docker Image CI
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select environment'
+        required: true
+        default: 'production'
+
+
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v2
+      with:
+        java-version: '17'
+
+    - name: Build JAR file
+      run: ./gradlew build
+
+    - name: Build Docker image
+      run: docker build -t discord-backend .
+      
+    - name: Push Docker image
+      run: docker push anil0003/discord-clone:latest
