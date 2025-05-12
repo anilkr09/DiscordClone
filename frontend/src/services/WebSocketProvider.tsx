@@ -35,7 +35,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         if (!accessToken) return; // Don't connect if user is not logged in
         console.log("accessToken", accessToken);
         console.log("Initializing WebSocket connection...");
-        const socketUrl = `ws://localhost:8082/ws`;
+        const socketUrl = `wss://localhost:8082/ws`;
 
         const stompClient = new Client({
             brokerURL: socketUrl,

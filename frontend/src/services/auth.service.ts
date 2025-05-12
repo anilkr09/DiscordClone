@@ -7,52 +7,6 @@ import SockJS from "sockjs-client";
 import { AuthProvider } from './AuthProvider.tsx';
 
 class AuthService {
-// getConnection(){
-//   const accessToken = localStorage.getItem("accessToken");
-// const socketUrl = `ws://localhost:8082/ws?access_token=${accessToken}`; // ✅ Using ws://
-
-// const stompClient = new Client({
-//   brokerURL: socketUrl, // ✅ Use brokerURL instead of webSocketFactory
-//   connectHeaders: {
-//     Authorization: "Bearer " + accessToken, // ✅ Now headers will work
-//   },
-//   onConnect: () => {
-//     console.log("✅ Connected to WebSocket");
-
-//     stompClient.subscribe("/app/status", (message) => {
-//       console.log("📩 Received:", message.body);
-//     });
-//   },
-//   onStompError: (frame) => {
-//     console.error("🚨 Broker error:", frame.headers["message"]);
-//   },
-// });
-
-// stompClient.activate();
-
-// //     const socketUrl = "http://localhost:8082/ws"; // Must use HTTP, not ws://
-
-// // const stompClient = new Client({
-// //   webSocketFactory: () => new SockJS(socketUrl), // Use SockJS
-// //   connectHeaders: {
-// //     Authorization: "Bearer " + localStorage.getItem("accessToken"), // Add JWT if required
-// //   },
-// //   onConnect: () => {
-// //     console.log("✅ Connected to WebSocket -    --      --  -   -   -   -");
-
-// //     stompClient.subscribe("/app/status", (message) => {
-// //       console.log("📩 Received:", message.body);
-// //     });
-// //   },
-// //   onStompError: (frame) => {
-// //     console.error("❌ STOMP Error:", frame.headers["message"]);
-// //   },
-// // });
-
-// // stompClient.activate();
-// }
-
-
 
 
      authApi = axios.create({

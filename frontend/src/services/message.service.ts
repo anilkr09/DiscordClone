@@ -42,7 +42,7 @@ export const deleteMessage = async (channelId: string, messageId: string): Promi
 
 // WebSocket related functions
 export const createWebSocketConnection = (channelId: string): WebSocket => {
-    return new WebSocket(`ws://${window.location.host}/ws/chat/${channelId}`);
+    return new WebSocket(`wss://${window.location.host}/ws/chat/${channelId}`);
 };
 
 export const subscribeToChannelMessages = (channelId: string, callback: (message: Message) => void) => {

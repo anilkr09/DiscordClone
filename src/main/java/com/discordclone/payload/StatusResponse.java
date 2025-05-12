@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StatusResponse {
-    private Long id;
+    private Long userId;
     private String status;
 
 }

@@ -48,7 +48,9 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { id } = useAuth();
     const customStatusRef = useRef(customStatus);
 
-   
+   useEffect(()=>{
+    console.log("friends status change" + JSON.stringify(friendStatuses));
+   },[friendStatuses])
     // Initialize status from server
     useEffect(() => {
         if (!id || !connected || isInitialized) return;
@@ -141,6 +143,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }));
         }
     }, [messages, connected2, id]);
+
     useEffect(() => {
         console.log("friendStatuses updated:", JSON.stringify(friendStatuses));
       }, [friendStatuses]);
@@ -151,9 +154,12 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 const response = await getAllStatus(); // Assume getStatuses() returns a Promise<StatusUpdate[]>
                 const statusMap: FriendStatusMap = {};
 
-                response.forEach((st: StatusUpdate) => {
+                response.forEach((st: StatusUpdate,index) => {
+                    console.log("status----map --"+index+" -"+st.userId+" -"+st.status);
                     statusMap[st.userId] = st.status;
                 });
+
+                console.log("Initial friends statusMap :", JSON.stringify(statusMap));
 
                 setFriendStatuses(statusMap);
                 // console.log("friend statuses inside----"+JSON.stringify(friendStatuses));
@@ -173,38 +179,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         if (!id || !connected) return;
 
-        // console.log("status provider mounted or connection established");
-        
-        // const fetchStatus = async () => {
-        //     try {
-        //         const { data } = await api.get(`/users/${id}/status`);
-        //         console.log("fetched user status", data);
-                
-        //         const currentTime = new Date();
-        //         const expiryTime = new Date(data.expiresAt);
-
-        //         if (currentTime > expiryTime) {
-        //             console.log("status expired, setting to online");
-        //             setCustomStatus({
-        //                 status: UserStatus.ONLINE,
-        //                 expiresAt: new Date(currentTime.getTime() + 60 * 1000) // 1 minute from now
-        //             });
-        //         } else {
-        //             console.log("status not expired, setting to", data.customStatus);
-        //             setCustomStatus({
-        //                 status: data.customStatus,
-        //                 expiresAt: new Date(data.expiresAt)
-        //             });
-        //             setStatus(data.customStatus);
-        //         }
-        //     } catch (error) {
-        //         console.error("Error fetching status:", error);
-        //         setStatus(UserStatus.ONLINE);
-        //     }
-        // };
-
-        // fetchStatus();
-
+      
         // Set up activity listeners
         window.addEventListener("mousemove", resetIdleTimer);
         window.addEventListener("keydown", resetIdleTimer);
@@ -253,7 +228,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const getAllStatus = async () => {
         try {
             const response = await api.get("/users/status");
-            console.log(response.data);
+            console.log( "initial friends statuses-"+JSON.stringify(response.data));
             return response.data;
         } catch (error) {
             console.error("Error fetching statuses:", error);
