@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState, useRef, useMemo 
 import { UserStatus } from "../types/status";
 import { useWebSocketTopic } from "./WebSocketProvider";
 import api from "./api";
+import { debounce } from "lodash";
+
 import { useAuth } from "./AuthProvider";
 
 // Define Context Type
@@ -11,6 +13,7 @@ interface StatusContextType {
     customStatus: CustomStatus;
     updateCustomStatus: (status: UserStatus) => void;
     friendStatuses: FriendStatusMap;
+    isInitialized:boolean;
 }
 
 interface CustomStatus {
@@ -45,7 +48,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { sendMessage, connected } = useWebSocketTopic("/app/status");
     const { messages, connected: connected2 } = useWebSocketTopic("/topic/status");
     const [friendStatuses, setFriendStatuses] = useState<FriendStatusMap>({});
-    const { id } = useAuth();
+    const { id ,isLoggedIn} = useAuth();
     const customStatusRef = useRef(customStatus);
 
    useEffect(()=>{
@@ -53,7 +56,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
    },[friendStatuses])
     // Initialize status from server
     useEffect(() => {
-        if (!id || !connected || isInitialized) return;
+        if (!isLoggedIn || !connected || isInitialized) return;
 
         const initializeStatus = async () => {
             try {
@@ -82,7 +85,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
 
         initializeStatus();
-    }, [id, connected, isInitialized]);
+    }, [isLoggedIn, connected, isInitialized]);
 
     // Status sync effect
     useEffect(() => {
@@ -149,7 +152,11 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }, [friendStatuses]);
       
     useEffect(() => {
+        if (!isLoggedIn) return;
+
         const fetchStatuses = async () => {
+            
+
             try {
                 const response = await getAllStatus(); // Assume getStatuses() returns a Promise<StatusUpdate[]>
                 const statusMap: FriendStatusMap = {};
@@ -170,36 +177,44 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
         fetchStatuses();
 
-    }, [id]);
+    }, [isLoggedIn]);
 
     const getStatus = (userId: number): UserStatus => {
         return friendStatuses?.[userId] || UserStatus.OFFLINE;
     };
 
+
     useEffect(() => {
         if (!id || !connected) return;
-
-      
-        // Set up activity listeners
-        window.addEventListener("mousemove", resetIdleTimer);
-        window.addEventListener("keydown", resetIdleTimer);
-        window.addEventListener("click", resetIdleTimer);
-        window.addEventListener("scroll", resetIdleTimer);
-
+    
+        // Debounce the resetIdleTimer function for all events
+        const debouncedResetIdleTimer = debounce(resetIdleTimer, 3000); // Adjust delay as needed
+    
+        // Attach all event listeners with debounced function
+        window.addEventListener("mousemove", debouncedResetIdleTimer);
+        window.addEventListener("keydown", debouncedResetIdleTimer);
+        window.addEventListener("click", debouncedResetIdleTimer);
+        window.addEventListener("scroll", debouncedResetIdleTimer);
+    
         // Start idle timer on mount
         startIdleTimer();
-
+    
         return () => {
-            window.removeEventListener("mousemove", resetIdleTimer);
-            window.removeEventListener("keydown", resetIdleTimer);
-            window.removeEventListener("click", resetIdleTimer);
-            window.removeEventListener("scroll", resetIdleTimer);
-            
+            // Clean up all event listeners
+            window.removeEventListener("mousemove", debouncedResetIdleTimer);
+            window.removeEventListener("keydown", debouncedResetIdleTimer);
+            window.removeEventListener("click", debouncedResetIdleTimer);
+            window.removeEventListener("scroll", debouncedResetIdleTimer);
+    
             if (idleTimer.current) {
                 clearTimeout(idleTimer.current);
             }
+    
+            // Cancel any pending debounced calls
+            debouncedResetIdleTimer.cancel();
         };
     }, [id, connected]);
+    
 
     const startIdleTimer = () => {
         // console.log("starting idle timer");
@@ -222,7 +237,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setStatus(UserStatus.IDLE);
               }
               
-        }, 5 * 1000); // 5 seconds
+        }, 60 * 1000); // 5 seconds
     };
 
     const getAllStatus = async () => {
@@ -255,7 +270,7 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             expiresAt: new Date(new Date().getTime() + 24 *60 * 60 * 1000) // 1 day from now
         });
         
-        if (connected ) {
+        if (connected && newStatus) {
             sendMessage({
                 customStatus: newStatus
             });
@@ -267,7 +282,8 @@ export const StatusProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setStatus, 
         customStatus, 
         updateCustomStatus,
-        friendStatuses
+        friendStatuses,
+        isInitialized
     }), [status, customStatus, friendStatuses ]);
     
     return (
@@ -287,6 +303,6 @@ export const useStatusContext = () => {
 };
 
 export const useStatus = () => {
-    const { status, setStatus, customStatus, updateCustomStatus, friendStatuses } = useStatusContext();
-    return { status, customStatus, updateCustomStatus ,friendStatuses};
+    const { status, isInitialized,setStatus,customStatus, updateCustomStatus, friendStatuses } = useStatusContext();
+    return { status,isInitialized, customStatus, updateCustomStatus ,friendStatuses};
 };

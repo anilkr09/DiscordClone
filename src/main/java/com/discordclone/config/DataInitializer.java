@@ -1,7 +1,9 @@
 package com.discordclone.config;
 
+import com.discordclone.model.Channel;
 import com.discordclone.model.Server;
 import com.discordclone.model.User;
+import com.discordclone.repository.ChannelRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
@@ -12,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 public class DataInitializer {
 
     @Bean
-    public CommandLineRunner initData(ServerRepository serverRepository, UserRepository userRepository) {
+    public CommandLineRunner initData(ServerRepository serverRepository, UserRepository userRepository , ChannelRepository channelRepository) {
         return args -> {
 
 
@@ -24,17 +26,28 @@ public class DataInitializer {
                 user.setPassword("password123"); // Optional: hash it
                 userRepository.save(user);
                 System.out.println("✅ Test user created!");
-
-            // Create default server if none exists
+                Server server;
+                // Create default server if none exists
             if (serverRepository.count() == 0) {
-                Server server = Server.builder()
+                 server = Server.builder()
                         .name("Default Server")
                         .owner(user)
                         .description("This is a default server on first run")
                         .build();
                 serverRepository.save(server);
                 System.out.println("✅ Default server created!");
+                if (channelRepository.count() == 0) {
+                    Channel channel = Channel.builder()
+                            .name("Default channel")
+                            .server(server)
+                            .description("This is a default channel on first run")
+                            .build();
+                    channelRepository.save(channel);
+                    System.out.println("✅ Default server created!");
+                }
+
             }
+
             }
         };
     }

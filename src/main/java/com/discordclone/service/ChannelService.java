@@ -23,10 +23,9 @@ public class ChannelService {
     }
 
     // Authorization for member actions (view)
-    private void checkUserIsMember(Long serverId, Long userId) {
-        if (!serverService.isUserMember(serverId, userId)) {
-            throw new RuntimeException("Unauthorized: User is not a member of this server");
-        }
+    public boolean checkUserIsMember(Long channelId, Long userId) {
+        Channel channel = getChannelByIdInternal(channelId);
+        return serverService.isUserMember(channel.getServer().getId(), userId);
     }
 
     private Channel getChannelByIdInternal(Long channelId) {
@@ -45,13 +44,17 @@ public class ChannelService {
     @Transactional(readOnly = true)
     public Channel getChannelById(Long id, Long userId) {
         Channel channel = getChannelByIdInternal(id);
-        checkUserIsMember(channel.getServer().getId(), userId);
+        if (!serverService.isUserMember(channel.getServer().getId(), userId)) {
+            throw new RuntimeException("Unauthorized: User is not a member of this server");
+        }
         return channel;
     }
 
     @Transactional(readOnly = true)
     public List<Channel> getServerChannels(Long serverId, Long userId) {
-        checkUserIsMember(serverId, userId);
+        if (!serverService.isUserMember(serverId, userId)) {
+            throw new RuntimeException("Unauthorized: User is not a member of this server");
+        }
         Server server = serverService.getServerById(serverId);
         return channelRepository.findByServerOrderByName(server);
     }
