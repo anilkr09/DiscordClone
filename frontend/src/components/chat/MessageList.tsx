@@ -24,7 +24,6 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, is
                 <Typography align="center">Loading messages...</Typography>
             ) : (
                 
-
                 messages.map((message) => (
                     <Paper 
                         key={message.id} 
@@ -37,7 +36,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, is
                     >
                         <Box sx={{ display: 'flex', gap: 2 }}>
                             <Avatar 
-                                src={message.author.avatarUrl} 
+                                src={message.author?.avatarUrl || ""} 
                                 alt={message.author.username}
                             />
                             <Box sx={{ flex: 1 }}>

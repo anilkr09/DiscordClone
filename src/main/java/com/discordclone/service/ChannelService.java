@@ -1,12 +1,16 @@
 package com.discordclone.service;
 
 import com.discordclone.model.Channel;
+import com.discordclone.model.ChannelType;
 import com.discordclone.model.Server;
+import com.discordclone.model.User;
 import com.discordclone.repository.ChannelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Set;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
@@ -14,6 +18,7 @@ public class ChannelService {
     
     private final ChannelRepository channelRepository;
     private final ServerService serverService;
+    private final UserService userService;
 
     // Authorization for admin actions (create, update, delete)
     private void checkUserIsAdmin(Long serverId, Long userId) {
@@ -39,6 +44,24 @@ public class ChannelService {
         Server server = serverService.getServerById(serverId);
         channel.setServer(server);
         return channelRepository.save(channel);
+    }
+    @Transactional
+    public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
+        Long min = Math.min(userId1, userId2);
+        Long max = Math.max(userId1, userId2);
+        String channelName = "dm-" + min + "-" + max;
+        System.out.println("custom channel name - "+channelName);
+        return channelRepository.findByNameAndType(channelName, ChannelType.DM)
+                .orElseGet(() -> {
+                    User user1 = userService.getUserById(min);
+                    User user2 = userService.getUserById(max);
+                    Server server = serverService.getServerById(1L);
+                    Channel dmChannel = new Channel();
+                    dmChannel.setName(channelName);
+                    dmChannel.setType(ChannelType.DM);
+                    dmChannel.setServer(server);
+                    return channelRepository.save(dmChannel);
+                });
     }
 
     @Transactional(readOnly = true)

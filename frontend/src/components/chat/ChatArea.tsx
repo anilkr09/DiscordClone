@@ -16,7 +16,7 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-const { messages: newMessage ,connected} = useWebSocketTopic("/topic/channels/1/messages");
+const { messages: newMessage ,connected} = useWebSocketTopic(`/topic/channels/${id}/messages`);
 
 useEffect(()=>{
   console.log("--- ---  - - --  new msg"+JSON.stringify (newMessage));
@@ -55,20 +55,31 @@ useEffect(()=>{
     scrollToBottom();
   }, [connected,newMessage, scrollToBottom]);
   
-  const loadMessages = async () => {
-    try {
-      setIsLoading(true);
-      const fetchedMessages = 
-      
-       await messageService.getChannelMessages(parseInt(id));
-      setMessages(fetchedMessages);
-      scrollToBottom();
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(()=>{
+     
+loadMessages();
+
+},[])
+
+
+const loadMessages = async () => {
+  try {
+
+    setIsLoading(true);
+    const fetchedMessages = 
+    
+     await messageService.getChannelMessages(parseInt(id));
+    setMessages(fetchedMessages);
+    scrollToBottom();
+  } catch (error) {
+    console.error('Error loading messages:', error);
+  } finally {
+    setIsLoading(false);
+  }
+
+
+};
+ 
 
   return (
     <Box sx={{

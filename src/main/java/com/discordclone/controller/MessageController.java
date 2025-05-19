@@ -9,6 +9,7 @@ import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.MessageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -16,6 +17,9 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Collections;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/messages")
@@ -38,12 +42,18 @@ public class MessageController {
 
 
     @GetMapping("/channels/{channelId}")
-    public ResponseEntity<Page<Message>> getChannelMessages(
+    public ResponseEntity<Page<MessageResponse>> getChannelMessages(
             @PathVariable Long channelId,
             Pageable pageable) {
         Channel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new RuntimeException("Channel not found"));
-        return ResponseEntity.ok(messageService.getChannelMessages(channel, pageable));
+
+        Page<Message> messagesPage = messageService.getChannelMessages(channel, pageable);
+
+        // Convert Page<Message> to Page<MessageResponse>
+        Page<MessageResponse> dtoPage = messagesPage.map(MessageResponse::fromEntity);
+
+        return ResponseEntity.ok(dtoPage);
     }
 
     @PutMapping("/{messageId}")

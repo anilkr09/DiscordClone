@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
     Page<Message> findByChannelOrderByTimestampDesc(Channel channel, Pageable pageable);
+
+    Page<Message> findByChannelOrderByTimestamp(Channel channel, Pageable pageable);
 } 

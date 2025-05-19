@@ -16,8 +16,11 @@ export const sendMessageToChannel = async (message: MessageRequest): Promise<Mes
 
 export const getChannelMessages = async (channelId: number): Promise<Message[]> => {
     try {
-        const response = await api.get<Message[]>(`/messages/channels/${channelId}`);
-        return response.data;
+        console.log("fetch previous msg----")
+        const response = await api.get(`/messages/channels/${channelId}`);
+        console.log("fetch previous msg----"+JSON.stringify(response.data.content));
+
+        return response.data.content.reverse();
     } catch (error) {
         throw new Error('Failed to fetch channel messages');
     }
@@ -42,7 +45,7 @@ export const deleteMessage = async (channelId: string, messageId: string): Promi
 
 // WebSocket related functions
 export const createWebSocketConnection = (channelId: string): WebSocket => {
-    return new WebSocket(`wss://${window.location.host}/ws/chat/${channelId}`);
+    return new WebSocket(`ws://${window.location.host}/ws/chat/${channelId}`);
 };
 
 export const subscribeToChannelMessages = (channelId: string, callback: (message: Message) => void) => {

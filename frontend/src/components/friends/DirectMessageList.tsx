@@ -55,8 +55,8 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
     }
   };
 
-  const handleFriendClick = (friendId: number) => {
-    navigate(`/channels/@me/${friendId}`);
+  const handleFriendClick = (friend) => {
+    navigate(`/channels/@me/${friend.id}`,{state: { name: friend.username }});
   };
 
   const handleAddDM = () => {
@@ -102,7 +102,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
         friends.map(friend => (
           <Box 
             key={friend.id}
-            onClick={() => handleFriendClick(friend.id)}
+            onClick={() => handleFriendClick(friend)}
             sx={{ 
               display: 'flex', 
               alignItems: 'center', 

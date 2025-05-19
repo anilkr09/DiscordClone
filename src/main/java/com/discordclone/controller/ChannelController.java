@@ -25,6 +25,14 @@ public class ChannelController {
         return ResponseEntity.ok(channelService.createChannel(channel, serverId, userPrincipal.getId()));
     }
 
+    @PostMapping("/dm/{userId}")
+    public ResponseEntity<Long> getOrCreateDmChannel(
+        @PathVariable Long userId,
+        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(channelService.getOrCreateDmChannel(userPrincipal.getId(), userId).getId());
+    }
+
+
     @GetMapping("")
     public ResponseEntity<List<Channel>> getServerChannels(
             @PathVariable Long serverId,

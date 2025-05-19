@@ -1,12 +1,11 @@
 package com.discordclone.controller;
 
 import com.discordclone.model.User;
-import com.discordclone.payload.JwtAuthResponse;
-import com.discordclone.payload.LoginRequest;
-import com.discordclone.payload.RefreshTokenRequest;
+import com.discordclone.payload.*;
 import com.discordclone.security.JwtTokenProvider;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,22 +29,34 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody User user) {
-        logger.info("request body - -- - {}",user.toString());
+    public ResponseEntity<RegistrationResponse> registerUser( @Valid @RequestBody RegistrationRequest request) {
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPassword(request.getPassword());
+        user.setEmail(request.getEmail());
+
         User result = userService.createUser(user);
 
 
 
-        return ResponseEntity.ok(result);
+        RegistrationResponse response = new RegistrationResponse(
+                result.getId(),
+                result.getUsername(),
+                result.getEmail(),
+                "User registered successfully"
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                loginRequest.getUsername(),
-                loginRequest.getPassword()
-            )
+                new UsernamePasswordAuthenticationToken(
+                    loginRequest.getUsername(),
+                    loginRequest.getPassword()
+                )
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);

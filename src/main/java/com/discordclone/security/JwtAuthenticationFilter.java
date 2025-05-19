@@ -1,5 +1,6 @@
     package com.discordclone.security;
 
+    import com.fasterxml.jackson.databind.ObjectMapper;
     import jakarta.servlet.FilterChain;
     import jakarta.servlet.ServletException;
     import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +13,8 @@
     import org.springframework.util.StringUtils;
     import org.springframework.web.filter.OncePerRequestFilter;
     import java.io.IOException;
+    import java.time.LocalDateTime;
+    import java.util.Map;
 
     public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -45,8 +48,20 @@
                             SecurityContextHolder.getContext().setAuthentication(authentication);
                         }
                     } catch (Exception ex) {
-                        logger.error("Could not set user authentication in security context", ex);
+                        logger.error("JWT authentication failed", ex);
 
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write(new ObjectMapper().writeValueAsString(Map.of(
+                                "timestamp", LocalDateTime.now().toString(),
+                                "status", 401,
+                                "error", "Unauthorized",
+                                "message", ex.getMessage(),
+                                "path", request.getRequestURI()
+                        )));
+
+
+                        return;
                     }
 
                 filterChain.doFilter(request, response);

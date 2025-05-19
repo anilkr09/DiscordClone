@@ -27,10 +27,10 @@ public class Channel {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "server_id", nullable = false)
     private Server server;
-    
+    @Builder.Default
     @OneToMany(mappedBy = "channel", cascade = CascadeType.ALL)
     private List<Message> messages = new ArrayList<>();
-    
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     private ChannelType type = ChannelType.TEXT;
 } 

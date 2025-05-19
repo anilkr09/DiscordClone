@@ -12,7 +12,9 @@ import com.discordclone.repository.MessageRepository;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,6 +68,7 @@ public class MessageService {
 
     @Transactional(readOnly = true)
     public Page<Message> getChannelMessages(Channel channel, Pageable pageable) {
+
         return messageRepository.findByChannelOrderByTimestampDesc(channel, pageable);
     }
 

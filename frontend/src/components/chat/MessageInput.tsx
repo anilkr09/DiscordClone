@@ -23,7 +23,7 @@ export default function MessageInput({ channelId, channelName }: MessageInputPro
             setIsSending(true);
             const messageRequest: MessageRequest = {
                 content: message,
-                channelId:"1"
+                channelId: channelId,
             };
             
             sendMessage(messageRequest);
