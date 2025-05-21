@@ -1,5 +1,6 @@
 package com.discordclone.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,6 +22,8 @@ public class Message {
     private String content;
     
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonBackReference // Prevent recursive serialization
+
     @JoinColumn(name = "channel_id", nullable = false)
     private Channel channel;
     

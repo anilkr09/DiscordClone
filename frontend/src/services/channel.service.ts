@@ -8,7 +8,7 @@ class ChannelService {
     }
 
     async getServerChannels(serverId: number): Promise<Channel[]> {
-        const response = await api.get<Channel[]>(`/channels/servers/${serverId}`);
+        const response = await api.get<Channel[]>(`/servers/${serverId}/channels`);
         return response.data;
     }
 

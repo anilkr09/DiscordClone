@@ -18,7 +18,7 @@ function App() {
       <StatusProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Navigate to="/channels" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
@@ -28,20 +28,11 @@ function App() {
           <Route path="/channels" element={<MainLayout />}>
           
           <Route index element={<Navigate to="/channels/@me" replace />} />
-          {/* <Route path="Home" element={<HomeView/>}> */}
           <Route path="@me" element={<FriendsList />} />
           <Route path="@me/:friendId" element={<DirectMessage />} />
-          {/* </Route> */}
-          
-{/* <Route path="/channels/:channelId" element={<Channel />} /> */}
+          <Route path=":serverId" element={<ServerView />} />
+            <Route path=":serverId/:channelId" element={<ServerView />} />
 
-
-            <Route path="servers" element={<ServerView />} />
-           
-
-            <Route path="servers/:serverId" element={<ServerView />} />
-           
-           
           </Route>
           </Route>
 

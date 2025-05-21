@@ -1,4 +1,4 @@
-package com.discordclone.payload;
+package com.discordclone.dto;
 
 import com.discordclone.model.User;
 import lombok.AllArgsConstructor;
@@ -13,12 +13,14 @@ import lombok.NoArgsConstructor;
 public class UserDTO {
     private Long id;
     private String username;
-    private String avatarUrl; // Optional if you're handling profile pics
-
-    public static UserDTO fromEntity(User owner) {
+    private String email;
+    private String avatarUrl;
+    
+    public static UserDTO fromEntity(User user) {
         return UserDTO.builder()
-                .id(owner.getId())
-                .username(owner.getUsername())
-                .build();
+            .id(user.getId())
+            .username(user.getUsername())
+            .email(user.getEmail())
+            .build();
     }
 }

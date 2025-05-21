@@ -1,6 +1,7 @@
 package com.discordclone.controller;
 
 import com.discordclone.model.Channel;
+import com.discordclone.model.ChannelDTO;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.ChannelService;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/servers/{serverId}/channels")
@@ -34,10 +36,13 @@ public class ChannelController {
 
 
     @GetMapping("")
-    public ResponseEntity<List<Channel>> getServerChannels(
+    public ResponseEntity<List<ChannelDTO>> getServerChannels(
             @PathVariable Long serverId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(channelService.getServerChannels(serverId, userPrincipal.getId()));
+        return ResponseEntity.ok(channelService.getServerChannels(serverId, userPrincipal.getId())
+                .stream()
+                .map(ChannelDTO::fromEntity)
+                .collect(Collectors.toList()));
     }
 
     @GetMapping("/{channelId}")

@@ -4,18 +4,21 @@ import { Tag as TagIcon, VolumeUp as VolumeUpIcon, Add as AddIcon } from '@mui/i
 import { useParams } from 'react-router-dom';
 import { Server, Channel, ChannelType } from '../../types/server';
 import serverService from '../../services/server.service';
+import channelService from '../../services/channel.service';
 import ChatArea from '../chat/ChatArea';
+import { channel } from 'diagnostics_channel';
 
 
 const DRAWER_WIDTH = 240;
 
 export default function ServerView() {
-    const { serverId } = useParams();
-    const [server, setServer] = useState<Server | null>(null);
+ const { serverId } = useParams();  
+   const [server, setServer] = useState<Server | null>(null);
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
 
     useEffect(() => {
         if (serverId) {
+            console.log("Server ID:", serverId);
             loadServer(parseInt(serverId));
             const myChannel: Channel = {
                 name: "myChannel",
@@ -37,6 +40,8 @@ export default function ServerView() {
     const loadServer = async (id: number) => {
         try {
             const data = await serverService.getServer(id);
+            const channels = await channelService.getServerChannels(id);
+            data.channels = channels;
             setServer(data);
             if (data.channels && data.channels.length > 0) {
                 setSelectedChannel(data.channels[0]);
@@ -48,7 +53,7 @@ export default function ServerView() {
 
     return (
         <>
-            {/* <Drawer
+            <Drawer
                 variant="permanent"
                 sx={{
                     width: DRAWER_WIDTH,
@@ -89,12 +94,12 @@ export default function ServerView() {
                         </ListItemButton>
                     </ListItem>
                 </List>
-            </Drawer> */}
+            </Drawer>
             <Box component="main" sx={{ flexGrow: 1 }}>
                 {selectedChannel && (
                     <ChatArea  
                         // id={selectedChannel?.id?.toString()||"1"}
-                        id={"2"}
+                        id={"1"}
                         name={selectedChannel.name}
                     isDM={false}
                 />

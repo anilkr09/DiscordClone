@@ -37,16 +37,14 @@ export default function MainLayout() {
     if(serverId==1)
       navigate(`/channels/@me`);
     else
-    navigate(`/channels/servers/${serverId}`);
+    navigate(`/channels/${serverId}`);
   };
 
   const handleAddServer = () => {
     // navigate('/channels/servers/new');
   };
 
-  const handleFriendsClick = () => {
-    
-  };
+
 
   const handleAddDM = () => {
     // This would open a dialog to select a friend to DM

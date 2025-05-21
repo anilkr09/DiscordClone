@@ -23,5 +23,6 @@ export interface Channel {
 
 export enum ChannelType {
     TEXT = 'TEXT',
-    VOICE = 'VOICE'
+    VOICE = 'VOICE',
+    DM = 'DM'
 }

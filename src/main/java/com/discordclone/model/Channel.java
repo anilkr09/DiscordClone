@@ -1,5 +1,6 @@
 package com.discordclone.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,11 +25,13 @@ public class Channel {
     
     private String description;
     
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne()
     @JoinColumn(name = "server_id", nullable = false)
     private Server server;
     @Builder.Default
     @OneToMany(mappedBy = "channel", cascade = CascadeType.ALL)
+    @JsonManagedReference
+
     private List<Message> messages = new ArrayList<>();
     @Builder.Default
     @Enumerated(EnumType.STRING)

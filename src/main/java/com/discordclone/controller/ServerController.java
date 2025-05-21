@@ -1,6 +1,7 @@
 package com.discordclone.controller;
 
 import com.discordclone.model.Server;
+import com.discordclone.model.ServerDTO;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.ServerService;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +33,8 @@ public class ServerController {
     }
 
     @GetMapping("/{serverId}")
-    public ResponseEntity<Server> getServer(@PathVariable Long serverId) {
-        return ResponseEntity.ok(serverService.getServerById(serverId));
+    public ResponseEntity<ServerDTO> getServer(@PathVariable Long serverId) {
+        return ResponseEntity.ok(ServerDTO.fromEntity(serverService.getServerById(serverId)));
     }
 
     @PostMapping("/{serverId}/members/{userId}")

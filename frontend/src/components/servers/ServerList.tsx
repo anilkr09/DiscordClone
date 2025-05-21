@@ -38,7 +38,7 @@ export default function ServerList() {
                     <ListItem key={server.id} sx={{ mb: 1, p: 0 }}>
                         <Tooltip title={server.name} placement="right">
                             <IconButton
-                                onClick={() => navigate(`/servers/${server.id}`)}
+                                onClick={() => navigate(`/${server.id}`)}
                                 sx={{
                                     width: 48,
                                     height: 48,

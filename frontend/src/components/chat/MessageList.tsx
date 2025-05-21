@@ -9,7 +9,7 @@ interface MessageListProps {
 
 const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, isLoading }, ref) => {
 
-    console.log("current message list"+ JSON.stringify(messages));
+    console.log("current message list size: " + messages.length);
 
     return (
         <Box sx={{ 

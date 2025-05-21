@@ -17,7 +17,9 @@ export default function HomeView() {
 
     useEffect(() => {
         // Check if we're on the friends route
-        const isFriendsRoute = location.pathname === '/channels/@me' || location.pathname === '/app/friends';
+        // const isFriendsRoute = location.pathname === '/channels/@me' || location.pathname === '/app/friends';
+        const isFriendsRoute = location.pathname.startsWith('/channels/@me');
+
         setShowFriendsList(isFriendsRoute);
       }, [location]);
     const handleFriendsClick = () => {
@@ -34,10 +36,12 @@ return (
     
       display: 'flex', 
       bgcolor: '#36393f', 
+
       color: '#dcddde', 
      
     }}>
-    <Box sx={{
+      {showFriendsList ? (
+   <Box sx={{
         width:'250px',
         bgcolor: '#2f3136',
         display: 'flex',
@@ -63,15 +67,15 @@ return (
         {/* Bottom user profile */}
        
       </Box>
+  ):null} 
+   
 
-<Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-{showFriendsList ? (
-  <FriendsList />
-) : (
+{/* <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}> */}
+
   <Outlet />
-)}
 
-</Box>
+
+{/* </Box> */}
 
 </Box>
       

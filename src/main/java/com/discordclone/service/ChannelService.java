@@ -40,7 +40,7 @@ public class ChannelService {
 
     @Transactional
     public Channel createChannel(Channel channel, Long serverId, Long userId) {
-        checkUserIsAdmin(serverId, userId);
+//        checkUserIsAdmin(serverId, userId);
         Server server = serverService.getServerById(serverId);
         channel.setServer(server);
         return channelRepository.save(channel);

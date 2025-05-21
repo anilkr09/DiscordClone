@@ -1,5 +1,6 @@
 package com.discordclone.model;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,13 +26,15 @@ public class Server {
     private String description;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonManagedReference
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
     @Builder.Default
+    @JsonManagedReference
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Member> members = new HashSet<>();
-
+    @JsonManagedReference
     @Builder.Default
     @OneToMany(mappedBy = "server", cascade = CascadeType.ALL)
     private Set<Channel> channels = new HashSet<>();

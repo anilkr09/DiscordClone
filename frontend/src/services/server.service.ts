@@ -14,6 +14,7 @@ class ServerService {
 
     async getServer(serverId: number): Promise<Server> {
         const response = await api.get<Server>(`/servers/${serverId}`);
+        console.log
         return response.data;
     }
 

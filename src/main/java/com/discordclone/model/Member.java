@@ -1,4 +1,5 @@
 package com.discordclone.model;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,10 +26,14 @@ public class Member {
     private Long serverId;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonBackReference // Prevent recursive serialization
+
     @JoinColumn(name = "id", insertable = false, updatable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JsonBackReference // Prevent recursive serialization
+
     @JoinColumn(name = "id", insertable = false, updatable = false)
     private Server server;
 

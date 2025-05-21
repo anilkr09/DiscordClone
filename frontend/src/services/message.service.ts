@@ -16,9 +16,8 @@ export const sendMessageToChannel = async (message: MessageRequest): Promise<Mes
 
 export const getChannelMessages = async (channelId: number): Promise<Message[]> => {
     try {
-        console.log("fetch previous msg----")
         const response = await api.get(`/messages/channels/${channelId}`);
-        console.log("fetch previous msg----"+JSON.stringify(response.data.content));
+        console.log("fetch previous msg----"+JSON.stringify(response.data.content.length  ));
 
         return response.data.content.reverse();
     } catch (error) {

@@ -44,8 +44,12 @@ public class ServerService {
 
     @Transactional(readOnly = true)
     public Server getServerById(Long id) {
-        return serverRepository.findById(id)
+        System.out.println("called findfullserver");
+        return serverRepository.findWithChannelsById(id)
                 .orElseThrow(() -> new RuntimeException("Server not found"));
+
+
+
     }
 
     @Transactional(readOnly = true)
