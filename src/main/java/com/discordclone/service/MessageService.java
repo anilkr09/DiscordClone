@@ -1,5 +1,6 @@
 package com.discordclone.service;
 
+import com.discordclone.dto.MessageResp;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.Channel;
 import com.discordclone.model.Message;
@@ -12,9 +13,7 @@ import com.discordclone.repository.MessageRepository;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,8 +68,25 @@ public class MessageService {
     @Transactional(readOnly = true)
     public Page<Message> getChannelMessages(Channel channel, Pageable pageable) {
 
-        return messageRepository.findByChannelOrderByTimestampDesc(channel, pageable);
+        Page<Message> messages =
+                messageRepository.findByChannelOrderByTimestampDesc(channel, pageable);
+
+
+
+        return messages;
     }
+    @Transactional(readOnly = true)
+    public Page<MessageResp> getChannelMessages1(Channel channel, Pageable pageable) {
+
+        Page<Message> messages =
+                messageRepository.findByChannelOrderByTimestampDesc(channel, pageable);
+
+        Page<MessageResp> response =
+                messages.map(MessageResp::fromEntity);
+
+        return response;
+    }
+
 
     @Transactional
     public Message editMessage(Message message) {

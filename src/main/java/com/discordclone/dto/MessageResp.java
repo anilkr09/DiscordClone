@@ -1,4 +1,4 @@
-package com.discordclone.controller;
+package com.discordclone.dto;
 
 import com.discordclone.model.Message;
 import lombok.AllArgsConstructor;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor  // <--- Add this for Jackson
 @Getter
 
-public class MessageResponse {
+public class MessageResp {
     private Long id;
     private String content;
     private Long channelId;
@@ -21,8 +21,8 @@ public class MessageResponse {
 
 
 
-    public static MessageResponse fromEntity(Message message) {
-        return new MessageResponse(
+    public static MessageResp fromEntity(Message message) {
+        return new MessageResp(
                 message.getId(),
                 message.getContent(),
                 message.getChannel().getId(),

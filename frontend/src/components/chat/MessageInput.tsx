@@ -11,7 +11,7 @@ interface MessageInputProps {
 export default function MessageInput({ channelId, channelName }: MessageInputProps) {
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
-
+    console.log("MessageInput rendered for channelId:", channelId, "channelName:", channelName);
     const { sendMessage, connected } = useWebSocketTopic("/app/chat.send");
    
 

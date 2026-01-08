@@ -1,16 +1,18 @@
 package com.discordclone.controller;
 
+import com.discordclone.dto.MessageResp;
 import com.discordclone.model.Channel;
 import com.discordclone.model.Message;
 import com.discordclone.payload.MessageRequest;
-import com.discordclone.payload.StatusUpdatePayload;
 import com.discordclone.repository.ChannelRepository;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.MessageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -18,8 +20,7 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.List;
+@Slf4j
 
 @RestController
 @RequestMapping("/api/messages")
@@ -42,19 +43,37 @@ public class MessageController {
 
 
     @GetMapping("/channels/{channelId}")
-    public ResponseEntity<Page<MessageResponse>> getChannelMessages(
-            @PathVariable Long channelId,
+
+    public ResponseEntity<Page<MessageResp>> getChannelMessages(
+            @PathVariable Long channelId,        @PageableDefault(page = 0, size = 20, sort = "timestamp")
+
             Pageable pageable) {
+
+        log.info(
+                "➡️ GET /channels/{} | page={}, size={}, sort={}",
+                channelId,
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                pageable.getSort()
+        );
+
         Channel channel = channelRepository.findById(channelId)
-                .orElseThrow(() -> new RuntimeException("Channel not found"));
+                .orElseThrow(() -> {
+                    log.warn("❌ Channel not found: {}", channelId);
+                    return new RuntimeException("Channel not found");
+                });
 
-        Page<Message> messagesPage = messageService.getChannelMessages(channel, pageable);
+        Page<MessageResp> messagesPage =
+                messageService.getChannelMessages1(channel, pageable);
 
-        // Convert Page<Message> to Page<MessageResponse>
-        Page<MessageResponse> dtoPage = messagesPage.map(MessageResponse::fromEntity);
 
-        return ResponseEntity.ok(dtoPage);
+        log.info("⬅️ GET /channels/{} completed", channelId);
+
+
+        return ResponseEntity.ok(messagesPage);
+
     }
+
 
     @PutMapping("/{messageId}")
     public ResponseEntity<Message> editMessage(

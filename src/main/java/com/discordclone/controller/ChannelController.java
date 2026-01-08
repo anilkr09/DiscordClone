@@ -5,6 +5,7 @@ import com.discordclone.model.ChannelDTO;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.ChannelService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/servers/{serverId}/channels")
 @RequiredArgsConstructor
@@ -33,9 +35,46 @@ public class ChannelController {
         @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(channelService.getOrCreateDmChannel(userPrincipal.getId(), userId).getId());
     }
+//    @Transactional
+//    public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
+//
+//        Long min = Math.min(userId1, userId2);
+//        Long max = Math.max(userId1, userId2);
+//
+//        String channelName = "dm-" + min + "-" + max;
+//
+//        // 1️⃣ Fast path: already exists
+//        return channelRepository.findByName(channelName)
+//                .orElseGet(() -> createDmSafely(channelName));
+//    }
+//
+//    private Channel createDmSafely(String channelName) {
+//
+//        Channel channel = Channel.builder()
+//                .name(channelName)
+//                .type(ChannelType.DM)
+//                .server(serverService.getServerById(1L)) // DM server
+//                .build();
+//
+//        try {
+//            // 2️⃣ Try to insert
+//            return channelRepository.saveAndFlush(channel);
+//
+//        } catch (DataIntegrityViolationException ex) {
+//            // 3️⃣ Lost the race → fetch existing channel
+//            return channelRepository.findByName(channelName)
+//                    .orElseThrow(() ->
+//                            new IllegalStateException(
+//                                    "Channel exists but could not be retrieved", ex
+//                            )
+//                    );
+//        }
+//    }
 
 
-    @GetMapping("")
+
+
+@GetMapping("")
     public ResponseEntity<List<ChannelDTO>> getServerChannels(
             @PathVariable Long serverId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {

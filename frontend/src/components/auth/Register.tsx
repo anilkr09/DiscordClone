@@ -25,7 +25,7 @@ export default function Register() {
         e.preventDefault();
         try {
             await signup(formData.username, formData.email, formData.password);
-            navigate('/servers');
+            navigate('/channels/@me');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Registration failed');
         }

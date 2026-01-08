@@ -29,7 +29,7 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<RegistrationResponse> registerUser( @Valid @RequestBody RegistrationRequest request) {
+    public ResponseEntity<?>  registerUser( @Valid @RequestBody RegistrationRequest request) {
 
         User user = new User();
         user.setUsername(request.getUsername());
@@ -40,14 +40,36 @@ public class AuthController {
 
 
 
-        RegistrationResponse response = new RegistrationResponse(
-                result.getId(),
-                result.getUsername(),
-                result.getEmail(),
-                "User registered successfully"
+//        RegistrationResponse response = new RegistrationResponse(
+//                result.getId(),
+//                result.getUsername(),
+//                result.getEmail(),
+//                "User registered successfully"
+//        );
+        Authentication authentication = authenticationManager.authenticate(
+
+                        new UsernamePasswordAuthenticationToken(
+                                request.getUsername(),
+                                request.getPassword()   // ✅ RAW password
+                        )
+
         );
 
-        return ResponseEntity.ok(response);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+        String accessToken = tokenProvider.generateToken(authentication);
+        String refreshToken = tokenProvider.generateRefreshToken(userPrincipal.getId());
+
+        return ResponseEntity.ok(JwtAuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType(TOKEN_TYPE)
+                .userId(userPrincipal.getId())
+                .username(userPrincipal.getUsername())
+                .email(userPrincipal.getEmail())
+                .build());
+
     }
 
     @PostMapping("/login")

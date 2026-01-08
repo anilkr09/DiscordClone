@@ -158,7 +158,7 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
     try {
       console.log("📝 Signup attempt");
       const response = await AuthService.register({ username, email, password });
-      
+      console.log("response value", response);
       if (!response || !response.accessToken) {
         throw new Error("Invalid response from auth service");
       }

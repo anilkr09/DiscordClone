@@ -13,6 +13,7 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
+  console.log("ChatArea rendered with id:", id, "name:", name, "isDM:", isDM);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

@@ -21,6 +21,7 @@ const location = useLocation();
       setIsLoading(true);
       try {
         const response = await api.post(`/servers/1/channels/dm/${friendId}`);
+        console.log("Fetched DM channel ID:", response.data);
         setChannelId(response.data);
       } catch (error) {
         console.error('Error fetching channel ID:', error);
