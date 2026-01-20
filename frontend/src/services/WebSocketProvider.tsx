@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Client, StompSubscription, IMessage } from "@stomp/stompjs";
 import { useAuth } from "./AuthProvider.tsx";
+import { registerMessageSocket } from "../websocket/message.socket.ts";
 
 // WebSocket Context Type
 interface WebSocketContextType {
@@ -31,7 +32,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
 
     useEffect(() => {
         if ( connected) return; // Prevent double connection
-
+        
         if (!accessToken) return; // Don't connect if user is not logged in
         console.log("accessToken", accessToken);
         console.log("Initializing WebSocket connection...");
@@ -46,6 +47,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
                 console.log("STOMP client connected");
                 setConnected(true);
                 setClient(stompClient);
+                registerMessageSocket(stompClient);
             },
             onDisconnect: () => {
                 console.log("STOMP client disconnected");

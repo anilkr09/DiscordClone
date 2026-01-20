@@ -43,9 +43,14 @@ import java.util.Map;
             responseBody.put("timestamp", LocalDateTime.now());
             responseBody.put("status", 400);
             responseBody.put("errors", errors);
-
+            log.info("❌ Validation failed: {}", errors);
             return new ResponseEntity<>(responseBody, HttpStatus.BAD_REQUEST);
         }
+
+
+
+
+
         @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
         public ResponseEntity<Map<String, Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
             Map<String, Object> response = new HashMap<>();

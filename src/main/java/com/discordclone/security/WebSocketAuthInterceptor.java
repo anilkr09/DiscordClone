@@ -39,34 +39,76 @@
             logger.debug("inside presend -- presend{}", accessor);
     //    try {
             if (accessor != null) {
+//                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+//                    logger.debug("Processing WebSocket CONNECT command");
+//                    logger.debug("WS CONNECT principal.getName() = {}", accessor.getUser().getName());
+//
+//                    // Extract JWT token from headers
+//                    List<String> authHeaders = accessor.getNativeHeader("Authorization");
+//                    if (authHeaders != null && !authHeaders.isEmpty()) {
+//                        String token = authHeaders.get(0);
+//
+//                        if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
+//                            token = token.substring(7); // Remove "Bearer " prefix
+//                            logger.debug("token jwt value : {}", token);
+//
+//                            if (jwtTokenProvider.validateToken(token)) {
+//                                Authentication auth = jwtTokenProvider.getAuthentication(token);
+//                                accessor.setUser(auth);
+//                                logger.debug("WebSocket Authentication successful for user: {}", auth.getName());
+//
+//
+//                            } else {
+//                                logger.warn("Invalid JWT token in WebSocket CONNECT request");
+//                                return null; // Reject connection
+//                            }
+//                        }
+//                    } else {
+//                        logger.warn("Missing Authorization header in WebSocket CONNECT request");
+//                        return null; // Reject connection
+//                    }
+//                }
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+
                     logger.debug("Processing WebSocket CONNECT command");
 
-                    // Extract JWT token from headers
                     List<String> authHeaders = accessor.getNativeHeader("Authorization");
-                    if (authHeaders != null && !authHeaders.isEmpty()) {
-                        String token = authHeaders.get(0);
-
-                        if (StringUtils.hasText(token) && token.startsWith("Bearer ")) {
-                            token = token.substring(7); // Remove "Bearer " prefix
-                            logger.debug("token jwt value : {}", token);
-
-                            if (jwtTokenProvider.validateToken(token)) {
-                                Authentication auth = jwtTokenProvider.getAuthentication(token);
-                                accessor.setUser(auth);
-                                logger.debug("WebSocket Authentication successful for user: {}", auth.getName());
-
-
-                            } else {
-                                logger.warn("Invalid JWT token in WebSocket CONNECT request");
-                                return null; // Reject connection
-                            }
-                        }
-                    } else {
+                    if (authHeaders == null || authHeaders.isEmpty()) {
                         logger.warn("Missing Authorization header in WebSocket CONNECT request");
-                        return null; // Reject connection
+                        return null;
                     }
-                } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+
+                    String token = authHeaders.get(0);
+                    if (!StringUtils.hasText(token) || !token.startsWith("Bearer ")) {
+                        logger.warn("Invalid Authorization header format");
+                        return null;
+                    }
+
+                    token = token.substring(7); // remove "Bearer "
+
+                    if (!jwtTokenProvider.validateToken(token)) {
+                        logger.warn("Invalid JWT token in WebSocket CONNECT request");
+                        return null;
+                    }
+
+                    Authentication auth = jwtTokenProvider.getAuthentication(token);
+
+                    // 🔥 SET USER FIRST
+                    accessor.setUser(auth);
+
+                    // 🔥 THEN LOG
+                    logger.info(
+                            "WS CONNECT principal.getName() = {}",
+                            auth.getName()
+                    );
+
+                    logger.debug("WebSocket Authentication successful for user: {}", auth.getName());
+                }
+
+
+
+
+                else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     logger.debug("Processing WebSocket SUBSCRIBE command to destination: {}", accessor.getDestination());
 
                     // Validate subscription destination
@@ -101,7 +143,7 @@
                     Authentication auth = (principal instanceof Authentication) ? (Authentication) principal : null;
 
 
-                    logger.debug("auth value is{} ", auth);
+                    logger.debug("auth value is{} ", auth.getName());
                     if (auth == null || !auth.isAuthenticated()) {
                         logger.warn("Unauthenticated message send attempt");
                         return null; // Reject the message
@@ -137,7 +179,9 @@
 
         private boolean isValidDestination(String destination) {
             // Add your destination validation logic here
-            return destination.startsWith("/topic/") || destination.startsWith("/app/");
+            return destination.startsWith("/topic/")
+                    || destination.startsWith("/app/")
+                    || destination.startsWith("/user/queue/");
         }
 
         @Override

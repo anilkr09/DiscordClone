@@ -157,6 +157,7 @@ export const AuthProvider = ({ children }: AuthProviderProps): JSX.Element => {
   const signup = useCallback(async (username: string, email: string, password: string) => {
     try {
       console.log("📝 Signup attempt");
+      console.log("username:", username, "email:", email,"password:", password);
       const response = await AuthService.register({ username, email, password });
       console.log("response value", response);
       if (!response || !response.accessToken) {

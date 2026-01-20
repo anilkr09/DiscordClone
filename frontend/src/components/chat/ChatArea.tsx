@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Box, Typography } from '@mui/material';
-import { Message } from '../../types/message';
-import messageService from '../../services/message.service';
-import MessageList from './MessageList';
-import MessageInput from './MessageInput';
-import {useAuth} from '../../services/AuthProvider';
-import { useWebSocketTopic } from '../../services/WebSocketProvider';
+import { useEffect, useRef, useCallback } from "react";
+import { Box, Typography } from "@mui/material";
+import { useParams } from "react-router-dom";
+
+import MessageList from "./MessageList";
+import MessageInput from "./MessageInput";
+
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { fetchMessages } from "../../store/messages/messages.thunks";
+
 interface ChatAreaProps {
   id: string;
   name: string;
@@ -13,104 +15,66 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
-  console.log("ChatArea rendered with id:", id, "name:", name, "isDM:", isDM);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const dispatch = useAppDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-const { messages: newMessage ,connected} = useWebSocketTopic(`/topic/channels/${id}/messages`);
 
-useEffect(()=>{
-  console.log("--- ---  - - --  new msg"+JSON.stringify (newMessage));
-},[newMessage])
+  // 🔥 Redux: get channel messages
+  const channel = useAppSelector(
+    (s) => s.messages.byChannelId[id]
+  );
 
- const {id:userId}  = useAuth();
+  const messages = channel?.messages || [];
+  const isLoading = !channel?.loaded;
 
+  // 🔥 Load history ONLY ONCE per channel
+  useEffect(() => {
+    if (!channel?.loaded) {
+      dispatch(fetchMessages(id));
+    }
+  }, [id]);
+
+  // 🔥 Auto-scroll on new message
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
 
-  // useEffect( () =>   {
-  //   if (userId) {
-  //     // loadMessages();
-  //     console.log("new msg --------"+newMessage);
-  //     const handleNewMessage = (message) => {
-  //       setMessages(prev => [...prev, message]);
-  //       scrollToBottom();
-  //     };
-  //     handleNewMessage(newMessage);
-
-
-  //     return () => {
-  //     };
-  //   }
-  // }, [userId, scrollToBottom, isDM,newMessage]);
   useEffect(() => {
-    if (!newMessage) return;
-  
-
-    if (connected  && newMessage.length > 0) {
-    const latestMessage = newMessage[newMessage.length - 1] as Message;
-        
-    setMessages(prev => [...prev, latestMessage]);
-    }
     scrollToBottom();
-  }, [connected,newMessage, scrollToBottom]);
-  
-  useEffect(()=>{
-     
-loadMessages();
-
-},[])
-
-
-const loadMessages = async () => {
-  try {
-
-    setIsLoading(true);
-    const fetchedMessages = 
-    
-     await messageService.getChannelMessages(parseInt(id));
-    setMessages(fetchedMessages);
-    scrollToBottom();
-  } catch (error) {
-    console.error('Error loading messages:', error);
-  } finally {
-    setIsLoading(false);
-  }
-
-
-};
- 
+  }, [messages.length]);
 
   return (
-    <Box sx={{
-      width:'800px',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      bgcolor: 'background.default'
-    }}>
-      <Box sx={{
-        p: 2,
-        borderBottom: 1,
-        borderColor: 'divider',
-        bgcolor: 'background.paper'
-      }}>
+    <Box
+      sx={{
+        width: "800px",
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        bgcolor: "background.default",
+      }}
+    >
+      {/* Header */}
+      <Box
+        sx={{
+          p: 2,
+          borderBottom: 1,
+          borderColor: "divider",
+          bgcolor: "background.paper",
+        }}
+      >
         <Typography variant="h6">
           {isDM ? `@${name}` : `# ${name}`}
         </Typography>
       </Box>
 
+      {/* Messages */}
       <MessageList
         ref={messagesEndRef}
         messages={messages}
         isLoading={isLoading}
       />
 
-      <MessageInput
-        channelId={id}
-        channelName={name}
-      />
+      {/* Input */}
+      <MessageInput channelId={id} channelName={name} />
     </Box>
   );
 }

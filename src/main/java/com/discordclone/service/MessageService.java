@@ -12,6 +12,8 @@ import com.discordclone.repository.ChannelRepository;
 import com.discordclone.repository.MessageRepository;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MessageService {
     
     private final MessageRepository messageRepository;
@@ -56,12 +59,27 @@ public class MessageService {
                 .content(savedMessage.getContent())
                 .timestamp(savedMessage.getTimestamp())
                 .build();
-
-
-        messagingTemplate.convertAndSend(
-            "/topic/channels/" + message.getChannel().getId() + "/messages",
-            messageResponse
+        log.info("➡️ queue msg user {}", user.getUsername());
+        log.info(
+                "Sending WS message to user={} channelId={}",
+                user.getUsername(),
+                channel.getId()
         );
+        messagingTemplate.convertAndSendToUser(
+                user.getUsername(),
+                "/queue/messages",
+                messageResponse
+        );
+
+//        messagingTemplate.convertAndSendToUser(
+//                dto.getUserB(),
+//                "/queue/messages",
+//                messageResponse
+//        );
+//        messagingTemplate.convertAndSend(
+//            "/topic/channels/" + message.getChannel().getId() + "/messages",
+//            messageResponse
+//        );
         return savedMessage;
     }
 

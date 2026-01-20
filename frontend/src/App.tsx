@@ -10,10 +10,13 @@ import { WebSocketProvider } from './services/WebSocketProvider.tsx';
 import { AuthProvider } from './services/AuthProvider.tsx';
 import { StatusProvider } from './services/StatusProvider.tsx';
 import DirectMessage from './components/chat/DirectMessage.tsx';
+import { Provider } from "react-redux";
+import { store } from "./store/store";
+
 function App() {
   return (
     <AuthProvider>
-
+      <Provider store={store}>  
     <WebSocketProvider>
       <StatusProvider>
       <Router>
@@ -40,6 +43,7 @@ function App() {
       </Router>
       </StatusProvider>
      </WebSocketProvider>
+      </Provider>
     </AuthProvider>
   );
 }
