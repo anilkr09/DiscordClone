@@ -72,9 +72,7 @@ import { useStatus } from '../../services/StatusProvider';
             
             friendsData = friendsData.filter(friend => {
               const currentStatus= getUserStatus(friend.id);
-              return currentStatus === UserStatus.ONLINE || 
-                    currentStatus === UserStatus.IDLE || 
-                    currentStatus === UserStatus.DO_NOT_DISTURB;
+              return currentStatus === UserStatus.ONLINE ;
             });
           } else {
             // Get all friends
@@ -89,7 +87,7 @@ import { useStatus } from '../../services/StatusProvider';
       } finally {
         setLoading(false);
       }
-    },[activeTab]);
+    },[activeTab, friendStatuses]);
     //  [activeTab, getStatus]);
 
     useEffect(() => {
