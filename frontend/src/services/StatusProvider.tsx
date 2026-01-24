@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useMemo } from "react";
 import { UserStatus } from "../types/status";
-import { useWebSocketTopic } from "./WebSocketProvider";
+import { useWebSocketTopic } from "../providers/WebSocketProvider";
 import api from "./api";
 import { debounce } from "lodash";
 
-import { useAuth } from "./AuthProvider";
+import { useAuth } from "../providers/AuthProvider";
 
 // Define Context Type
 interface StatusContextType {

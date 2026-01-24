@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import authService from '../../services/auth.service';
 import { on } from 'events';
 // import { useWebSocketTopic } from '../../services/WebSocketProvider';
-import { useAuth } from '../../services/AuthProvider.tsx';
+import { useAuth } from '../../providers/AuthProvider.tsx';
 export default function Login() {
 
     const { login,signup } = useAuth();

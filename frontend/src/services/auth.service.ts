@@ -4,7 +4,7 @@ import axios from "axios";
 import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest, User } from '../types/auth';
 import { Client, Stomp } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
-import { AuthProvider } from './AuthProvider.tsx';
+import { AuthProvider } from '../providers/AuthProvider.tsx';
 
 class AuthService {
 

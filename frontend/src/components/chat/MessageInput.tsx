@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Box, TextField, Button } from '@mui/material';
 import { MessageRequest } from '../../types/message';
 import messageService from '../../services/message.service';
-import { useWebSocketTopic } from '../../services/WebSocketProvider';
+import { useWebSocketTopic } from '../../providers/WebSocketProvider';
 interface MessageInputProps {
     channelId: string;
     channelName: string;

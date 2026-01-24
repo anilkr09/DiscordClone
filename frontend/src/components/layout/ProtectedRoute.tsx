@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../../services/AuthProvider.tsx';
+import { useAuth } from '../../providers/AuthProvider.tsx';
 
 // Loading spinner component
 const LoadingSpinner = () => (

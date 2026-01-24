@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useWebSocketTopic } from '../../services/WebSocketProvider';
-import { useStatusContext  } from '../../services/StatusProvider';
+import { useWebSocketTopic } from '../../providers/WebSocketProvider';
+// import { useStatusContext  } from '../../services/StatusProvider';
 import { 
   Box, 
   Menu, 
@@ -18,7 +18,7 @@ import NightsStayIcon from '@mui/icons-material/NightsStay';
 import DoNotDisturbOnIcon from '@mui/icons-material/DoNotDisturbOn';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 // import { useAuth } from '../../hooks/useAuth';
-import { useStatus } from '../../services/StatusProvider';
+import { useStatus } from '../../hooks/useStatus';
 interface UserStatusSelectorProps {
   currentStatus: UserStatus;
   anchorEl: HTMLElement | null;
@@ -32,10 +32,10 @@ export default function UserStatusSelector({
 }: UserStatusSelectorProps) {
   const [customStatus, setCustomStatus] = useState<string>('');
   const [showCustomInput, setShowCustomInput] = useState<boolean>(false);
-  const {  friendStatuses } = useStatus();
+  const {  friendStatuses,updateCustomStatus } = useStatus();
 
   const { messages } = useWebSocketTopic("/topic/status");
-  const { updateCustomStatus } = useStatusContext();
+
 
   useEffect(() => {
     console.log("messages", messages);

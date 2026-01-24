@@ -7,7 +7,7 @@ import UserProfile from '../user/UserProfile';
 import { StatusUpdate, UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
 import authService from '../../services/auth.service';
-import { useStatus } from '../../services/StatusProvider';
+import { useStatus } from '../../hooks/useStatus';
 import HomeView from './HomeView';
 // Dummy data for the layout
 // import { useWebSocket } from '../../services/WebSocketProvider';

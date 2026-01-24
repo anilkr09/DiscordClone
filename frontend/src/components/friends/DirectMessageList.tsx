@@ -6,7 +6,7 @@ import StatusIndicator from '../user/StatusIndicator';
 import { Friend } from '../../types/friend';
 import { UserStatus } from '../../types/status';
 import friendService from '../../services/friend.service';
-import { useStatus } from '../../services/StatusProvider';
+import { useStatus } from '../../hooks/useStatus';
 
 interface DirectMessageListProps {
   onAddDM?: () => void;

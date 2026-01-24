@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Box, Button, Container, TextField, Typography, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import authService from '../../services/auth.service';
-import { useAuth } from '../../services/AuthProvider.tsx';
+import { useAuth } from '../../providers/AuthProvider.tsx';
 
 export default function Register() {
     const { signup } = useAuth();

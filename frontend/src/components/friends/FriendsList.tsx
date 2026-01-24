@@ -19,11 +19,11 @@
   import { Friend, FriendRequest as FriendRequestType, FriendshipStatus } from '../../types/friend';
   import { UserStatus } from '../../types/status';
   import friendService from '../../services/friend.service';
-  import { useWebSocket } from '../../services/WebSocketProvider';
-  import { useAuth } from '../../services/AuthProvider.tsx';
+  import { useWebSocket } from '../../providers/WebSocketProvider.tsx';
+  import { useAuth } from '../../providers/AuthProvider.tsx';
 import { StatusUpdate } from '../../types/status';
 import { useUserStatus } from '../../hooks/useUserStatus';
-import { useStatus } from '../../services/StatusProvider';
+import { useStatus } from '../../hooks/useStatus';
 
 
   enum FriendTab {

@@ -1,7 +1,7 @@
 import { Client } from '@stomp/stompjs';
 import api from './api';
 import { Message, MessageRequest } from '../types/message';
-import { useWebSocketTopic } from './WebSocketProvider';
+import { useWebSocketTopic } from '../providers/WebSocketProvider';
 import { useCallback, useRef } from 'react';
 
 // Standalone functions
