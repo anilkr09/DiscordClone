@@ -2,6 +2,7 @@ package com.discordclone.controller;
 
 import com.discordclone.model.Friendship;
 import com.discordclone.payload.FriendRequestPayload;
+import com.discordclone.payload.FriendResponse;
 import com.discordclone.payload.FriendResponsePayload;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.FriendshipService;
@@ -25,7 +26,7 @@ public class FriendController {
         this.friendshipService = friendshipService;
     }
     @GetMapping("")
-    public List<FriendResponsePayload> getFriends() {
+    public List<FriendResponse> getFriends() {
         UserPrincipal currentUser = getCurrentUser();
         return friendshipService.getFriends(currentUser.getId());
     }
@@ -34,6 +35,11 @@ public class FriendController {
     public List<FriendResponsePayload> getPendingRequests() {
         UserPrincipal currentUser = getCurrentUser();
         return friendshipService.getPendingRequests(currentUser.getId());
+    }
+    @GetMapping("/requests/outgoing")
+    public List<FriendResponsePayload> getOutgoingRequests() {
+        UserPrincipal currentUser = getCurrentUser();
+        return friendshipService.getOutgoingRequests(currentUser.getId());
     }
 
     @PostMapping("/request")
@@ -47,6 +53,7 @@ public class FriendController {
     public ResponseEntity<?> acceptFriendRequest(@PathVariable Long requestId) {
         UserPrincipal currentUser = getCurrentUser();
         Friendship friendship = friendshipService.acceptFriendRequest(requestId, currentUser.getId());
+
         return ResponseEntity.ok().body(friendship);
     }
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { Client, StompSubscription, IMessage } from "@stomp/stompjs";
-import { useAuth } from "./AuthProvider.tsx";
+import { useAuth} from "./AuthProvider.tsx";
 import { registerMessageSocket } from "../websocket/message.socket.ts";
 
 // WebSocket Context Type
@@ -25,8 +25,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const [connected, setConnected] = useState(false);
     const [subscriptions, setSubscriptions] = useState<Record<string, StompSubscription>>({});
     const [messageStore, setMessageStore] = useState<Record<string, any[]>>({});
-
-    // const { jwt } = useAuth();
+    const { jwt,isLoggedIn } = useAuth();
 
     const accessToken = localStorage.getItem("accessToken");
 
@@ -81,7 +80,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
             setConnected(false);
             setClient(null);
         };
-    }, [accessToken]);
+    }, [isLoggedIn]);
 
     // Subscribe to a topic
     const subscribeToTopic = useCallback(

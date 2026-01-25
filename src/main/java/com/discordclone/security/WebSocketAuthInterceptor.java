@@ -1,6 +1,5 @@
     package com.discordclone.security;
 
-    import com.discordclone.exception.JwtAuthenticationException;
     import org.slf4j.Logger;
     import org.slf4j.LoggerFactory;
     import com.discordclone.service.ChannelService;
@@ -9,27 +8,23 @@
     import org.springframework.messaging.simp.stomp.StompCommand;
     import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
     import org.springframework.messaging.support.ChannelInterceptor;
-    import org.springframework.messaging.support.MessageBuilder;
     import org.springframework.messaging.support.MessageHeaderAccessor;
     import org.springframework.security.core.Authentication;
-    import org.springframework.security.core.context.SecurityContextHolder;
     import org.springframework.stereotype.Component;
     import org.springframework.util.StringUtils;
 
-    import java.nio.charset.StandardCharsets;
     import java.security.Principal;
     import java.util.List;
-    import java.util.Map;
 
     @Component
     public class WebSocketAuthInterceptor implements ChannelInterceptor {
         private static final Logger logger = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
-        private final JwtTokenProvider jwtTokenProvider;
+        private final JwtService jwtService;
         private final ChannelService channelService;
 
-        public WebSocketAuthInterceptor(JwtTokenProvider jwtTokenProvider , ChannelService channelService) {
-            this.jwtTokenProvider = jwtTokenProvider;
+        public WebSocketAuthInterceptor(JwtService jwtService, ChannelService channelService) {
+            this.jwtService = jwtService;
             this.channelService = channelService;
         }
 
@@ -86,12 +81,12 @@
 
                     token = token.substring(7); // remove "Bearer "
 
-                    if (!jwtTokenProvider.validateToken(token)) {
+                    if (!jwtService.validateToken(token)) {
                         logger.warn("Invalid JWT token in WebSocket CONNECT request");
                         return null;
                     }
 
-                    Authentication auth = jwtTokenProvider.getAuthentication(token);
+                    Authentication auth = jwtService.getAuthentication(token);
 
                     // 🔥 SET USER FIRST
                     accessor.setUser(auth);

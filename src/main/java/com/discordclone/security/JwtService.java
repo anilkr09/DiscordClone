@@ -13,7 +13,7 @@ import java.security.Key;
 import java.util.Date;
 
 @Component
-public class JwtTokenProvider {
+public class JwtService {
     private final CustomUserDetailsService customUserDetailsService;
 
     @Value("${app.jwt.secret}")
@@ -27,7 +27,7 @@ public class JwtTokenProvider {
 
     private Key key;
 
-    public JwtTokenProvider(CustomUserDetailsService customUserDetailsService) {
+    public JwtService(CustomUserDetailsService customUserDetailsService) {
         this.customUserDetailsService = customUserDetailsService;
     }
 

@@ -2,7 +2,7 @@ package com.discordclone.controller;
 
 import com.discordclone.model.User;
 import com.discordclone.payload.*;
-import com.discordclone.security.JwtTokenProvider;
+import com.discordclone.security.JwtService;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.UserService;
 import jakarta.validation.Valid;
@@ -26,7 +26,7 @@ public class AuthController {
 
     private static final String TOKEN_TYPE = "Bearer";
     private final AuthenticationManager authenticationManager;
-    private final JwtTokenProvider tokenProvider;
+    private final JwtService tokenProvider;
     private final UserService userService;
 
     @PostMapping("/register")
@@ -41,13 +41,6 @@ public class AuthController {
         User result = userService.createUser(user);
 
 
-
-//        RegistrationResponse response = new RegistrationResponse(
-//                result.getId(),
-//                result.getUsername(),
-//                result.getEmail(),
-//                "User registered successfully"
-//        );
         Authentication authentication = authenticationManager.authenticate(
 
                         new UsernamePasswordAuthenticationToken(

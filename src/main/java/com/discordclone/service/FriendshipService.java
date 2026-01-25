@@ -3,7 +3,9 @@ package com.discordclone.service;
 import com.discordclone.model.Friendship;
 import com.discordclone.model.User;
 import com.discordclone.payload.FriendRequestPayload;
+import com.discordclone.payload.FriendResponse;
 import com.discordclone.payload.FriendResponsePayload;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -59,7 +61,7 @@ public interface FriendshipService {
      * @param userId ID of the user
      * @return List of friend response payloads
      */
-    List<FriendResponsePayload> getFriends(Long userId);
+    List<FriendResponse> getFriends(Long userId);
     
     /**
      * Get all pending friend requests for a user
@@ -67,7 +69,10 @@ public interface FriendshipService {
      * @return List of friend response payloads
      */
     List<FriendResponsePayload> getPendingRequests(Long userId);
-    
+
+    @Transactional(readOnly = true)
+    List<FriendResponsePayload> getOutgoingRequests(Long userId);
+
     /**
      * Check if two users are friends
      * @param userId ID of the first user

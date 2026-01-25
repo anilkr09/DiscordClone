@@ -10,9 +10,6 @@ export interface Friend {
   username: string;
   email?: string;
   avatarUrl?: string;
-  status: string;
-  friendshipId: number;
-  friendshipStatus: FriendshipStatus;
 }
 
 export interface FriendRequest {

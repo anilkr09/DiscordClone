@@ -62,6 +62,16 @@ class FriendService {
     }
   }
 
+
+  async getOutgoingFriendRequests(): Promise<FriendRequest[]> {
+    try {
+      const response = await api.get('/friends/requests/outgoing');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching friend requests:', error);
+      throw new Error(error.response?.data?.message || 'Failed to fetch friend requests');
+    }
+  }
   /**
    * Accept a friend request
    */

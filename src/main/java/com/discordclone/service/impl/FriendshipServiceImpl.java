@@ -3,10 +3,13 @@ package com.discordclone.service.impl;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.*;
 import com.discordclone.payload.FriendRequestPayload;
+import com.discordclone.payload.FriendResponse;
 import com.discordclone.payload.FriendResponsePayload;
+import com.discordclone.payload.FriendshipResponse;
 import com.discordclone.repository.*;
 import com.discordclone.service.FriendshipService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,12 +28,14 @@ public class FriendshipServiceImpl implements FriendshipService {
     private final DmChannelRepository dmChannelRepository;
     private final ChannelRepository channelRepository;
     private  final ServerRepository serverRepository;
+    private final SimpMessagingTemplate messagingTemplate;
     @Autowired
-    public FriendshipServiceImpl(FriendshipRepository friendshipRepository, UserRepository userRepository, DmChannelRepository dmChannelRepository, ChannelRepository channelRepository, ServerRepository serverRepository) {
+    public FriendshipServiceImpl(FriendshipRepository friendshipRepository,SimpMessagingTemplate messagingTemplate, UserRepository userRepository, DmChannelRepository dmChannelRepository, ChannelRepository channelRepository, ServerRepository serverRepository) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
         this.dmChannelRepository = dmChannelRepository;
         this.channelRepository = channelRepository;
+        this.messagingTemplate= messagingTemplate;
         this.serverRepository = serverRepository;
     }
 
@@ -114,26 +119,32 @@ public class FriendshipServiceImpl implements FriendshipService {
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         friendship.setUpdatedAt(LocalDateTime.now());
 
+        FriendResponse friendResponse =  FriendResponse.builder()
+                .id(friendship.getSender().getId())
+                .username(friendship.getSender().getUsername())
+                .email(friendship.getSender().getEmail()).build();
+        FriendshipResponse friendshipResponse = new FriendshipResponse();
 
-//        Optional<Server> optionalServer = serverRepository.findById(1L);
-//
-//        if (optionalServer.isPresent()) {
-//            Server server = optionalServer.get();
-//            // Use the server
-//
-//        Channel dummy = new Channel();
-//        dummy.setServer(server);
-//        Channel channel =channelRepository.save(dummy );
-//        dmChannelRepository.save( DmChannel.builder()
-//
-//                .channel(channel)
-//                .user1(friendship.getSender())
-//                .user2(friendship.getReceiver())
-//                .build());
-//
-//        } else {
-//            // Handle not found case
-//        }
+        friendshipResponse.setFriend(friendResponse);
+        friendshipResponse.setType("FRIEND_ACCEPTED");
+
+        messagingTemplate.convertAndSendToUser(
+                friendship.getReceiver().getUsername(),
+                "/queue/messages",
+                friendshipResponse
+
+                );
+        friendResponse.setId(friendship.getReceiver().getId());
+        friendResponse.setEmail(friendship.getReceiver().getEmail());
+        friendResponse.setUsername(friendship.getReceiver().getUsername());
+        messagingTemplate.convertAndSendToUser(
+                friendship.getSender().getUsername(),
+                "/queue/messages",
+                friendshipResponse
+
+        );
+
+
         return friendshipRepository.save(friendship);
 
     }
@@ -248,7 +259,7 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<FriendResponsePayload> getFriends(Long userId) {
+    public List<FriendResponse> getFriends(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         
@@ -263,14 +274,12 @@ public class FriendshipServiceImpl implements FriendshipService {
 
                             User friend = friendship.getSender().getId().equals(userId)
                             ? friendship.getReceiver() : friendship.getSender();
-                    
-                    FriendResponsePayload response = new FriendResponsePayload();
+
+                            FriendResponse response = new FriendResponse();
                     response.setId(friend.getId());
                     response.setUsername(friend.getUsername());
                     response.setEmail(friend.getEmail());
-                    response.setFriendshipId(friendship.getId());
-                    response.setFriendshipStatus(friendship.getStatus());
-                    response.setLastInteraction(friendship.getUpdatedAt());
+
                     
                     return response;
                 })
@@ -287,8 +296,6 @@ public class FriendshipServiceImpl implements FriendshipService {
         List<Friendship> incomingRequests = friendshipRepository.findByReceiverAndStatus(user, FriendshipStatus.PENDING);
         
         // Get outgoing requests
-        List<Friendship> outgoingRequests = friendshipRepository.findBySenderAndStatus(user, FriendshipStatus.PENDING);
-        
         List<FriendResponsePayload> result = new ArrayList<>();
         
         // Map incoming requests
@@ -305,6 +312,23 @@ public class FriendshipServiceImpl implements FriendshipService {
             result.add(response);
         });
         
+
+
+        
+        return result;
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<FriendResponsePayload> getOutgoingRequests(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // Get outgoing requests
+        List<Friendship> outgoingRequests = friendshipRepository.findBySenderAndStatus(user, FriendshipStatus.PENDING);
+
+        List<FriendResponsePayload> result = new ArrayList<>();
+
         // Map outgoing requests
         outgoingRequests.forEach(friendship -> {
             FriendResponsePayload response = new FriendResponsePayload();
@@ -315,10 +339,10 @@ public class FriendshipServiceImpl implements FriendshipService {
             response.setReceiverUsername(friendship.getReceiver().getUsername());
             response.setFriendshipStatus(friendship.getStatus());
             response.setCreatedAt(friendship.getCreatedAt());
-            
+
             result.add(response);
         });
-        
+
         return result;
     }
 

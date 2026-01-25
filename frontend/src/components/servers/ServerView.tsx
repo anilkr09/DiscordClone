@@ -6,7 +6,7 @@ import { Server, Channel, ChannelType } from '../../types/server';
 import serverService from '../../services/server.service';
 import channelService from '../../services/channel.service';
 import ChatArea from '../chat/ChatArea';
-import { channel } from 'diagnostics_channel';
+
 
 
 const DRAWER_WIDTH = 240;

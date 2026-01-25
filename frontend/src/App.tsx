@@ -12,13 +12,15 @@ import { StatusProvider } from './providers/StatusProvider.tsx';
 import DirectMessage from './components/chat/DirectMessage.tsx';
 import { Provider } from "react-redux";
 import { store } from "./store/store";
-
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/reactQuery";
 function App() {
   return (
     <AuthProvider>
       <Provider store={store}>  
     <WebSocketProvider>
       <StatusProvider>
+        <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
           <Route path="/" element={<Navigate to="/channels" replace />} />
@@ -41,6 +43,7 @@ function App() {
 
         </Routes>
       </Router>
+      </QueryClientProvider>
       </StatusProvider>
      </WebSocketProvider>
       </Provider>
