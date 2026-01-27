@@ -63,8 +63,8 @@ export default function FriendsList() {
 
   const allFriends = friends.data ?? [];
   const incoming = incomingRequests.data ?? [];
+  console.log("Incoming Requests:", incoming);
   const outgoing = outgoingRequests.data ?? [];
-
   const visibleFriends =
     activeTab === FriendTab.ONLINE
       ? allFriends.filter(
@@ -93,6 +93,9 @@ export default function FriendsList() {
   );
 
   const renderFriends = () => {
+
+    console.log("Visible Friends:", visibleFriends);
+    
     if (visibleFriends.length === 0) {
       return (
         <Box sx={{ p: 3, textAlign: "center", color: "#96989d" }}>

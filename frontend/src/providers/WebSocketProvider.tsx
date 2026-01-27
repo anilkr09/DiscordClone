@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { Client, StompSubscription, IMessage } from "@stomp/stompjs";
 import { useAuth} from "./AuthProvider.tsx";
 import { registerMessageSocket } from "../websocket/message.socket.ts";
-
+import { queryClient } from "../lib/reactQuery.ts";
+import { handleFriendEvent } from "../websocket/friends.events.ts";
 // WebSocket Context Type
 interface WebSocketContextType {
     connected: boolean;
@@ -47,6 +48,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
                 setConnected(true);
                 setClient(stompClient);
                 registerMessageSocket(stompClient);
+                 stompClient.subscribe("/user/queue/friends", message => {
+        const event = JSON.parse(message.body);
+        console.log("Received Friend Event:", event);
+        console.log("Event Type:", event.type);
+        console.log("Event Payload:", event.payload);
+        handleFriendEvent(queryClient, event.type, event.payload);
+      });
             },
             onDisconnect: () => {
                 console.log("STOMP client disconnected");

@@ -2,8 +2,8 @@ package com.discordclone.controller;
 
 import com.discordclone.model.Friendship;
 import com.discordclone.payload.FriendRequestPayload;
-import com.discordclone.payload.FriendResponse;
-import com.discordclone.payload.FriendResponsePayload;
+import com.discordclone.payload.FriendDTO;
+import com.discordclone.payload.FriendshipDTO;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.FriendshipService;
 import jakarta.validation.Valid;
@@ -26,39 +26,39 @@ public class FriendController {
         this.friendshipService = friendshipService;
     }
     @GetMapping("")
-    public List<FriendResponse> getFriends() {
+    public List<FriendDTO> getFriends() {
         UserPrincipal currentUser = getCurrentUser();
         return friendshipService.getFriends(currentUser.getId());
     }
 
     @GetMapping("/requests")
-    public List<FriendResponsePayload> getPendingRequests() {
+    public List<FriendshipDTO> getPendingRequests() {
         UserPrincipal currentUser = getCurrentUser();
         return friendshipService.getPendingRequests(currentUser.getId());
     }
     @GetMapping("/requests/outgoing")
-    public List<FriendResponsePayload> getOutgoingRequests() {
+    public List<FriendshipDTO> getOutgoingRequests() {
         UserPrincipal currentUser = getCurrentUser();
         return friendshipService.getOutgoingRequests(currentUser.getId());
     }
 
     @PostMapping("/request")
-    public ResponseEntity<?> sendFriendRequest(@Valid @RequestBody FriendRequestPayload request) {
+    public ResponseEntity<FriendshipDTO> sendFriendRequest(@Valid @RequestBody FriendRequestPayload request) {
         UserPrincipal currentUser = getCurrentUser();
-        Friendship friendship = friendshipService.sendFriendRequest(currentUser.getId(), request);
+        FriendshipDTO friendship = friendshipService.sendFriendRequest(currentUser.getId(), request);
         return ResponseEntity.ok().body(friendship);
     }
 
     @PutMapping("/accept/{requestId}")
-    public ResponseEntity<?> acceptFriendRequest(@PathVariable Long requestId) {
+    public ResponseEntity<FriendDTO> acceptFriendRequest(@PathVariable Long requestId) {
         UserPrincipal currentUser = getCurrentUser();
-        Friendship friendship = friendshipService.acceptFriendRequest(requestId, currentUser.getId());
+        FriendDTO friendship = friendshipService.acceptFriendRequest(requestId, currentUser.getId());
 
         return ResponseEntity.ok().body(friendship);
     }
 
     @PutMapping("/reject/{requestId}")
-    public ResponseEntity<?> rejectFriendRequest(@PathVariable Long requestId) {
+    public ResponseEntity<FriendshipDTO> rejectFriendRequest(@PathVariable Long requestId) {
         UserPrincipal currentUser = getCurrentUser();
         friendshipService.rejectFriendRequest(requestId, currentUser.getId());
         return ResponseEntity.ok().build();

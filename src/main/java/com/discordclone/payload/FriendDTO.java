@@ -7,7 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
-public class FriendResponse {
+public class FriendDTO {
     private Long id;
     private String username;
     private String email;

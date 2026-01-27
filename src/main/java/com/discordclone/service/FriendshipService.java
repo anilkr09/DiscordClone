@@ -1,10 +1,9 @@
 package com.discordclone.service;
 
 import com.discordclone.model.Friendship;
-import com.discordclone.model.User;
 import com.discordclone.payload.FriendRequestPayload;
-import com.discordclone.payload.FriendResponse;
-import com.discordclone.payload.FriendResponsePayload;
+import com.discordclone.payload.FriendDTO;
+import com.discordclone.payload.FriendshipDTO;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -17,7 +16,7 @@ public interface FriendshipService {
      * @param request Friend request payload containing the username of the receiver
      * @return The created friendship
      */
-    Friendship sendFriendRequest(Long senderId, FriendRequestPayload request);
+    FriendshipDTO sendFriendRequest(Long senderId, FriendRequestPayload request);
     
     /**
      * Accept a friend request
@@ -25,21 +24,21 @@ public interface FriendshipService {
      * @param userId ID of the user accepting the request
      * @return The updated friendship
      */
-    Friendship acceptFriendRequest(Long requestId, Long userId);
+    FriendDTO acceptFriendRequest(Long requestId, Long userId);
     
     /**
      * Reject a friend request
      * @param requestId ID of the friend request
      * @param userId ID of the user rejecting the request
      */
-    void rejectFriendRequest(Long requestId, Long userId);
+    FriendshipDTO rejectFriendRequest(Long requestId, Long userId);
     
     /**
      * Remove a friendship
      * @param userId ID of the user removing the friendship
      * @param friendId ID of the friend to remove
      */
-    void removeFriend(Long userId, Long friendId);
+    FriendDTO removeFriend(Long userId, Long friendId);
     
     /**
      * Block a user
@@ -61,17 +60,17 @@ public interface FriendshipService {
      * @param userId ID of the user
      * @return List of friend response payloads
      */
-    List<FriendResponse> getFriends(Long userId);
+    List<FriendDTO> getFriends(Long userId);
     
     /**
      * Get all pending friend requests for a user
      * @param userId ID of the user
      * @return List of friend response payloads
      */
-    List<FriendResponsePayload> getPendingRequests(Long userId);
+    List<FriendshipDTO> getPendingRequests(Long userId);
 
     @Transactional(readOnly = true)
-    List<FriendResponsePayload> getOutgoingRequests(Long userId);
+    List<FriendshipDTO> getOutgoingRequests(Long userId);
 
     /**
      * Check if two users are friends

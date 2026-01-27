@@ -7,30 +7,26 @@ import { Friend } from '../../types/friend';
 import { UserStatus } from '../../types/status';
 import friendService from '../../services/friend.service';
 import { useStatus } from '../../hooks/useStatus';
-
+import{useFriends} from"../../hooks/useFriends";
 interface DirectMessageListProps {
   onAddDM?: () => void;
 }
 
 export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+
   const { friendStatuses } = useStatus();
+  const { friends:allFriends } = useFriends();
   const getStatus = (userId: number) => {
     return friendStatuses[userId] || UserStatus.OFFLINE;
   };
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadFriends();
-  }, []);
+        const loading = allFriends.isLoading;
 
-  const loadFriends = async () => {
-    setLoading(true);
-    try {
-      const data = await friendService.getFriends();
-      // Sort by online status first, then by username
-      const sortedFriends = data.sort((a, b) => {
+
+
+    // Sort by online status first, then by username
+      const friends = allFriends.data.sort((a, b) => {
         const aStatus = getStatus(a.id);
         const bStatus = getStatus(b.id);
         console.log("aStatus", aStatus);
@@ -46,14 +42,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
         if (!aOnline && bOnline) return 1;
         return a.username.localeCompare(b.username);
       });
-      
-      setFriends(sortedFriends);
-    } catch (error) {
-      console.error('Failed to load friends:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+   
 
   const handleFriendClick = (friend) => {
     navigate(`/channels/@me/${friend.id}`,{state: { name: friend.username }});

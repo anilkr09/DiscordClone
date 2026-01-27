@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import FriendService from "../services/friend.service";
 import { Friend, FriendRequest } from "../types/friend";
-
+import { AddFriendResponse } from "../types/friend";
 export function useFriends() {
   const queryClient = useQueryClient();
 
@@ -25,6 +25,29 @@ export function useFriends() {
     queryFn: () => FriendService.getOutgoingFriendRequests(),
        initialData: [] as FriendRequest[]
   });
+
+   // 4️⃣ Send friend request (ADD FRIEND)
+const addFriend = useMutation<AddFriendResponse, Error, string>({
+  mutationFn: (username: string) =>
+    FriendService.addFriend(username),
+
+  onSuccess: (response) => {
+    const { success, friendRequest } = response;
+
+    // ⛔ hard stop — TS now knows friendRequest is NOT optional below
+    if (!success || !friendRequest) return;
+
+    queryClient.setQueryData<FriendRequest[]>(["outgoingRequests"], old => {
+      if (!old) return [friendRequest];
+
+      if (old.some(r => r.id === friendRequest.id)) {
+        return old;
+      }
+
+      return [...old, friendRequest];
+    });
+  }
+});
 
   // 4️⃣ Accept incoming friend request (USER ACTION)
   const acceptFriend = useMutation({
@@ -85,7 +108,7 @@ export function useFriends() {
     friends,
     incomingRequests,
     outgoingRequests,
-
+    addFriend,
     acceptFriend,
     rejectFriend,
     removeFriend
