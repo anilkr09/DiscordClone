@@ -6,6 +6,7 @@ A full-stack Discord-like chat application with a Spring Boot backend and a Reac
 
 ## Table of Contents
 - [Features](#features)
+- [Demo]
 - [Architecture](#architecture)
 - [Backend Setup](#backend-setup)
 - [Frontend Setup](#frontend-setup)
@@ -23,13 +24,19 @@ A full-stack Discord-like chat application with a Spring Boot backend and a Reac
 - Role-based access control (Owner, Admin, Member)
 - RESTful API
 - PostgreSQL and Redis integration
-- Kafka for event streaming
 - Dockerized for easy deployment
 
 ---
+## Demo
+<img width="1464" height="855" alt="image" src="https://github.com/user-attachments/assets/05fe74fe-ee37-45e4-88c2-01f301e01575" />
+
+<img width="1464" height="855" alt="image" src="https://github.com/user-attachments/assets/95723d2d-981f-49c0-b60f-a5ec1ccb12e3" />
+<img width="1464" height="855" alt="image" src="https://github.com/user-attachments/assets/1854b273-cc88-4e13-a6d2-5e4d09e0e892" />
+
+
 
 ## Architecture
-- **Backend:** Java 17, Spring Boot, Spring Security, JPA, WebSocket, Kafka, Redis, PostgreSQL
+- **Backend:** Java 17, Spring Boot, Spring Security, JPA, WebSocket, Redis, PostgreSQL
 - **Frontend:** React, TypeScript, Vite, MUI, React Query, WebSocket
 - **DevOps:** Docker, Docker Compose, Nginx (for frontend static serving), Jenkins agent (optional)
 
@@ -42,7 +49,6 @@ A full-stack Discord-like chat application with a Spring Boot backend and a Reac
 - Gradle
 - PostgreSQL (default: `localhost:5432`, DB: `discord_clone`)
 - Redis (default: `localhost:6379`)
-- Kafka (default: `localhost:9092`)
 
 ### Running Locally
 1. Clone the repository:
