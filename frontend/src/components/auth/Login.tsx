@@ -1,44 +1,19 @@
 import { useState ,useEffect} from 'react';
 import { Box, Button, Container, TextField, Typography, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import authService from '../../services/auth.service';
-import { on } from 'events';
-// import { useWebSocketTopic } from '../../services/WebSocketProvider';
+import React from 'react';
 import { useAuth } from '../../providers/AuthProvider.tsx';
 export default function Login() {
 
-    const { login,signup } = useAuth();
-    
-    // useEffect(() => {
-    //     authService.getConnection();
-    // }, []);
-    // const { messages, sendMessage, clearMessages, isConnected } = useWebSocketTopic("/app/status");
-
-    // useEffect(() => {
-    //     if (messages.length > 0) {
-    //       console.log("📩 -----------New Message:", messages[messages.length - 1]); // Logs latest message
-    //     }
-    //   }, [messages]);
-
-    //   useEffect(() => {
-    //     if (isConnected) {
-
-    //   sendMessage({
-    //     "status": "ONLINE",
-    //     "customStatusText": "Working on a project",
-    //     "customStatusEmoji": "💻",
-    //     "expiresAt": "2025-03-12T18:30:00Z"
-      
-    //   });
-
-    //       console.log("Connected to WebSocket server");
-    //     } else {
-    //       console.log("Disconnected from WebSocket server");
-    //     }
-    //   }, [isConnected]);
-
-    
+    const { login,isLoggedIn} = useAuth();
     const navigate = useNavigate();
+  
+    useEffect(() => {
+        if (isLoggedIn) {
+            navigate('/channels');
+        }
+    }, [isLoggedIn,navigate]);
+    
     const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         username: '',
