@@ -28,7 +28,7 @@ Channel-based group chats
 
 WebSocket (STOMP) real-time communication
 
-Typing indicators & online/offline status
+online/offline status
 
 👥 Friends System
 
