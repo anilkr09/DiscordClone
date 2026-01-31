@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Box, Typography, Avatar, InputBase, IconButton } from '@mui/material';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import DirectMessageList from '../friends/DirectMessageList';
-import FriendsList from '../friends/FriendsList';
 
 
 export default function HomeView() {

@@ -9,7 +9,7 @@ import ChatArea from '../chat/ChatArea';
 
 
 
-const DRAWER_WIDTH = 240;
+
 
 export default function ServerView() {
  const { serverId } = useParams();  
@@ -53,48 +53,107 @@ export default function ServerView() {
 
     return (
         <>
-            <Drawer
-                variant="permanent"
-                sx={{
-                    width: DRAWER_WIDTH,
-                    flexShrink: 0,
-                    '& .MuiDrawer-paper': {
-                        width: DRAWER_WIDTH,
-                        boxSizing: 'border-box',
-                        backgroundColor: 'grey.800',
-                        color: 'white',
-                    },
-                }}
+{serverId ? (
+  <Box
+    sx={{
+      width: '250px',
+      bgcolor: '#2f3136',
+      display: 'flex',
+      flexDirection: 'column',
+      position: 'relative',
+    }}
+  >
+    {/* Header */}
+    <Box
+      sx={{
+        p: 2,
+        fontWeight: 'bold',
+        borderBottom: '1px solid #26282c',
+        cursor: 'pointer',
+        color: 'white',
+      }}
+    >
+      {server?.name ?? 'Channels'}
+    </Box>
+
+    {/* Channel List */}
+    <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
+      {server?.channels?.map((channel) => {
+        const isSelected = selectedChannel?.id === channel.id;
+
+        return (
+          <Box
+            key={channel.id}
+            onClick={() => setSelectedChannel(channel)}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              px: 2,
+              py: 1,
+              mx: 1,
+              borderRadius: '4px',
+              cursor: 'pointer',
+              color: isSelected ? 'white' : '#b9bbbe',
+              bgcolor: isSelected ? '#393c43' : 'transparent',
+              '&:hover': {
+                bgcolor: '#34373c',
+                color: 'white',
+              },
+            }}
+          >
+            {/* Icon */}
+            <Box sx={{ mr: 1.5, color: '#8e9297' }}>
+              {channel.type === ChannelType.TEXT ? (
+                <TagIcon fontSize="small" />
+              ) : (
+                <VolumeUpIcon fontSize="small" />
+              )}
+            </Box>
+
+            {/* Channel Name */}
+            <Box
+              sx={{
+                fontSize: '14px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
             >
-                <Box sx={{ p: 2, borderBottom: 1, borderColor: 'grey.700' }}>
-                    <Typography variant="h6" noWrap component="div">
-                        {server?.name}
-                    </Typography>
-                </Box>
-                <List>
-                    {server?.channels?.map((channel) => (
-                        <ListItem key={channel.id} disablePadding>
-                            <ListItemButton
-                                selected={selectedChannel?.id === channel.id}
-                                onClick={() => setSelectedChannel(channel)}
-                            >
-                                <ListItemIcon sx={{ color: 'grey.400' }}>
-                                    {channel.type === ChannelType.TEXT ? <TagIcon /> : <VolumeUpIcon />}
-                                </ListItemIcon>
-                                <ListItemText primary={channel.name} />
-                            </ListItemButton>
-                        </ListItem>
-                    ))}
-                    <ListItem disablePadding>
-                        <ListItemButton>
-                            <ListItemIcon sx={{ color: 'grey.400' }}>
-                                <AddIcon />
-                            </ListItemIcon>
-                            <ListItemText primary="Add Channel" />
-                        </ListItemButton>
-                    </ListItem>
-                </List>
-            </Drawer>
+              {channel.name}
+            </Box>
+          </Box>
+        );
+      })}
+
+      {/* Add Channel */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          px: 2,
+          py: 1,
+          mx: 1,
+          mt: 1,
+          borderRadius: '4px',
+          cursor: 'pointer',
+          color: '#b9bbbe',
+          '&:hover': {
+            bgcolor: '#34373c',
+            color: 'white',
+          },
+        }}
+      >
+        <Box sx={{ mr: 1.5 }}>
+          <AddIcon fontSize="small" />
+        </Box>
+        <Box sx={{ fontSize: '14px' }}>Add Channel</Box>
+      </Box>
+    </Box>
+
+    {/* Bottom user profile (optional later) */}
+  </Box>
+) : null}
+
             <Box component="main" sx={{ flexGrow: 1 }}>
                 {selectedChannel && (
                     <ChatArea  

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Box, Typography, Avatar, InputBase, IconButton } from '@mui/material';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Box, Typography, Avatar} from '@mui/material';
+import {useLocation, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
-
+import HomeIcon from '@mui/icons-material/Home';
+import CreateServerModal from '../servers/CreateServerModel';
 import UserProfile from '../user/UserProfile';
-import { StatusUpdate, UserStatus } from '../../types/status';
+import { UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
 import authService from '../../services/auth.service';
 import { useStatus } from '../../hooks/useStatus';
@@ -13,18 +14,16 @@ import HomeView from './HomeView';
 // import { useWebSocket } from '../../services/WebSocketProvider';
 
 const dummyServers = [
-  { id: 1, name: 'Home', initial: 'D' },
-  { id: 2, name: 'Awesome Server', initial: 'AS' },
-  { id: 3, name: 'Cool Group', initial: 'CG' },
+  { id:0, name: 'Home', initial: 'Hjj' },
+  { id:1, name: 'Default Server', initial: 'DS' }
 ];
 
 export default function MainLayout() {
-  const [showFriendsList, setShowFriendsList] = useState<boolean>(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const location = useLocation();
   const navigate = useNavigate();
   const {  friendStatuses } = useStatus();
   const getUserStatus = (id: number) => friendStatuses[id] || UserStatus.OFFLINE;
+  const [open, setOpen] = useState(false);
 
   useEffect( () => {
     setCurrentUser(authService.getCurrentUser());
@@ -34,14 +33,14 @@ export default function MainLayout() {
  
 
   const handleServerClick = (serverId: number) => {
-    if(serverId==1)
+    if(serverId==0)
       navigate(`/channels/@me`);
     else
     navigate(`/channels/${serverId}`);
   };
 
   const handleAddServer = () => {
-    // navigate('/channels/servers/new');
+   setOpen(true); 
   };
 
 
@@ -92,10 +91,25 @@ export default function MainLayout() {
               }
             }}
           >
-            {server.initial}
+          {server?.initial === "Hjj" ? <HomeIcon /> : server?.initial}
+
           </Avatar>
         ))}
-        
+
+<CreateServerModal
+  open={open}
+  onClose={() => setOpen(false)}
+  onCreate={(data) => {
+    // call backend API
+    // POST /servers
+    console.log(data);
+  }}
+  onJoin={(inviteCode) => {
+    // call backend API
+    // POST /servers/join
+    console.log(inviteCode);
+      }}
+/>
         <Avatar 
           onClick={handleAddServer}
           sx={{ 
