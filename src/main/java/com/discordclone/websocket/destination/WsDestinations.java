@@ -1,4 +1,4 @@
-package com.discordclone.websocket.event;
+package com.discordclone.websocket.destination;
 
 public class WsDestinations {
     public static final String FRIENDS = "/queue/friends";

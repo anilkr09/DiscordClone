@@ -8,9 +8,10 @@ import com.discordclone.payload.FriendDTO;
 import com.discordclone.payload.FriendshipDTO;
 import com.discordclone.repository.*;
 import com.discordclone.service.FriendshipService;
+import com.discordclone.websocket.destination.WsDestinations;
 import com.discordclone.websocket.event.WsEvent;
 import com.discordclone.websocket.event.WsEventType;
-import com.discordclone.websocket.publisher.FriendEventPublisher;
+import com.discordclone.websocket.publisher.WebSocketPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -28,28 +29,19 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
-    private final DmChannelRepository dmChannelRepository;
-    private final ChannelRepository channelRepository;
-    private final ServerRepository serverRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final FriendEventPublisher friendEventPublisher;
+    private final WebSocketPublisher webSocketPublisher;
     @Autowired
     public FriendshipServiceImpl(
             FriendshipRepository friendshipRepository,
             SimpMessagingTemplate messagingTemplate,
             UserRepository userRepository,
-            DmChannelRepository dmChannelRepository,
-            ChannelRepository channelRepository,
-            ServerRepository serverRepository,
-            FriendEventPublisher friendEventPublisher
+            WebSocketPublisher webSocketPublisher
     ) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
-        this.dmChannelRepository = dmChannelRepository;
-        this.channelRepository = channelRepository;
         this.messagingTemplate = messagingTemplate;
-        this.serverRepository = serverRepository;
-        this.friendEventPublisher = friendEventPublisher;
+        this.webSocketPublisher = webSocketPublisher;
     }
 
     @Override
@@ -128,7 +120,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         response.setReceiverUsername(friendship.getReceiver().getUsername());
         response.setStatus(friendship.getStatus());
         response.setCreatedAt(friendship.getCreatedAt());
-        friendEventPublisher.send(response.getReceiverUsername(),new WsEvent(
+        webSocketPublisher.sendToUser(response.getReceiverUsername(), WsDestinations.FRIENDS,new WsEvent(
                 WsEventType.FRIEND_REQUEST_RECEIVED,  Map.of("request",response)
         ));
         return response;
@@ -170,7 +162,7 @@ public class FriendshipServiceImpl implements FriendshipService {
 
 
 
-        friendEventPublisher.send(friendship.getSender().getUsername(),new WsEvent(
+        webSocketPublisher.sendToUser(friendship.getSender().getUsername(), WsDestinations.FRIENDS,new WsEvent(
                 WsEventType.FRIEND_ACCEPTED,  Map.of("friend",senderNotificationDto,"requestId",requestId)
         ));
 
@@ -204,7 +196,8 @@ public class FriendshipServiceImpl implements FriendshipService {
         response.setReceiverUsername(friendship.getReceiver().getUsername());
         response.setStatus(friendship.getStatus());
         response.setCreatedAt(friendship.getCreatedAt());
-        friendEventPublisher.send(friendship.getSender().getUsername(),new WsEvent(
+        webSocketPublisher.sendToUser(friendship.getSender().getUsername(), WsDestinations.FRIENDS,
+        new WsEvent(
                 WsEventType.FRIEND_REJECTED,  Map.of("id",requestId)
         ));
         return response;
@@ -235,7 +228,9 @@ public class FriendshipServiceImpl implements FriendshipService {
             throw new ConflictException("You are not friends with this user");
         }
         friendshipRepository.delete(friendship);
-        friendEventPublisher.send(friend.getUsername(),new WsEvent(
+
+        webSocketPublisher.sendToUser(friend.getUsername(), WsDestinations.FRIENDS,
+      new WsEvent(
                 WsEventType.FRIEND_REMOVED,  Map.of("friendId",userId)
         ));
         return response;
