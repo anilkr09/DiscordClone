@@ -1,13 +1,19 @@
 package com.discordclone.websocket.listener;
 
+import com.discordclone.model.UserStatus;
+import com.discordclone.security.UserPrincipal;
+import com.discordclone.service.UserStatusService;
 import com.discordclone.websocket.destination.WsDestinations;
 import com.discordclone.websocket.event.WsEvent;
 import com.discordclone.websocket.event.WsEventType;
 import com.discordclone.websocket.publisher.WebSocketPublisher;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -20,6 +26,7 @@ import java.security.Principal;
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
+    private final UserStatusService userStatusService;
     private final WebSocketPublisher publisher;
 
     /**
@@ -30,16 +37,23 @@ public class WebSocketEventListener {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        Principal user = accessor.getUser();
+        Authentication authentication = (Authentication) accessor.getUser();
 
-        if (user == null) {
+        if (authentication == null) {
             return;
         }
 
-        String username = user.getName();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+        Long userId = userPrincipal.getId();
+        String username = userPrincipal.getUsername();
 
         log.info("User connected: {}", username);
 
+        // 1. Update database status
+        userStatusService.updateUserStatus(userId, UserStatus.ONLINE);
+
+        // 2. Broadcast presence event
         WsEvent wsEvent = WsEvent.builder()
                 .type(WsEventType.USER_ONLINE)
                 .payload(username)
@@ -59,16 +73,23 @@ public class WebSocketEventListener {
 
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        Principal user = accessor.getUser();
+        Authentication authentication = (Authentication) accessor.getUser();
 
-        if (user == null) {
+        if (authentication == null) {
             return;
         }
 
-        String username = user.getName();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+        Long userId = userPrincipal.getId();
+        String username = userPrincipal.getUsername();
 
         log.info("User disconnected: {}", username);
 
+        // 1. Update database status
+        userStatusService.updateUserStatus(userId, UserStatus.OFFLINE);
+
+        // 2. Broadcast presence event
         WsEvent wsEvent = WsEvent.builder()
                 .type(WsEventType.USER_OFFLINE)
                 .payload(username)
@@ -81,7 +102,7 @@ public class WebSocketEventListener {
     }
 
     /**
-     * Fired when user subscribes to a destination (optional)
+     * Optional: Track subscriptions
      */
     @EventListener
     public void handleSessionSubscribe(SessionSubscribeEvent event) {
@@ -95,7 +116,6 @@ public class WebSocketEventListener {
         }
 
         String username = user.getName();
-
         String destination = accessor.getDestination();
 
         log.info("User subscribed: {} -> {}", username, destination);
