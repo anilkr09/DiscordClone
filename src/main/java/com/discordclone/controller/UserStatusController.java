@@ -5,9 +5,7 @@ import com.discordclone.model.UserStatus;
 import com.discordclone.model.UserStatusEntity;
 import com.discordclone.payload.StatusResponse;
 import com.discordclone.payload.StatusUpdatePayload;
-import com.discordclone.security.CurrentUser;
 import com.discordclone.security.UserPrincipal;
-import com.discordclone.service.RedisUserStatusService;
 import com.discordclone.service.UserService;
 import com.discordclone.service.UserStatusService;
 import com.discordclone.repository.UserStatusRepository;
@@ -17,7 +15,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,28 +23,23 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/users")
 public class UserStatusController {
 
-    private final UserService userService;
     private final UserStatusService userStatusService;
     private final UserStatusRepository userStatusRepository;
-    private  final  RedisUserStatusService redisUserStatusService;
 
     @Autowired
     public UserStatusController(UserService userService,
                                 UserStatusService userStatusService,
-                                UserStatusRepository userStatusRepository, RedisUserStatusService redisUserStatusService) {
-        this.userService = userService;
+                                UserStatusRepository userStatusRepository) {
         this.userStatusService = userStatusService;
         this.userStatusRepository = userStatusRepository;
-        this.redisUserStatusService = redisUserStatusService;
     }
 
     @GetMapping("/status")
     public ResponseEntity<?> getAllUserStatus() {
-//            List<UserStatusEntity> statuses = userStatusService.getAllUserStatus();
-                Map<Long,String> statuses = redisUserStatusService.getAllUserStatuses();
-            List<StatusResponse> res =statuses.entrySet().stream().map(status -> {
-                return new StatusResponse( status.getKey(),
-                        status.getValue()
+            List<UserStatusEntity> statuses = userStatusService.getAllUserStatus();
+            List<StatusResponse> res =statuses.stream().map(status -> {
+                return new StatusResponse( status.getUser().getId(),
+                        status.getCurrentStatus().toString()
                 );
 
             }).collect(Collectors.toList());

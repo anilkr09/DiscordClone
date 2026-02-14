@@ -2,17 +2,13 @@ package com.discordclone.controller;
 
 import com.discordclone.model.UserStatus;
 import com.discordclone.payload.StatusUpdatePayload;
-import com.discordclone.security.CurrentUser;
 import com.discordclone.security.UserPrincipal;
-import com.discordclone.service.RedisUserStatusService;
 import com.discordclone.service.UserStatusService;
-import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -21,12 +17,11 @@ import org.springframework.stereotype.Controller;
 public class StatusWebSocketController {
     private final UserStatusService userStatusService;
     private static final Logger logger = LoggerFactory.getLogger(StatusWebSocketController.class);
-    private final RedisUserStatusService redisUserStatusService;
 
     @Autowired
-    public StatusWebSocketController(UserStatusService userStatusService, RedisUserStatusService redisUserStatusService) {
+    public StatusWebSocketController(UserStatusService userStatusService) {
         this.userStatusService = userStatusService;
-        this.redisUserStatusService = redisUserStatusService;
+
     }
 
     @MessageMapping("/status")
@@ -46,7 +41,7 @@ public class StatusWebSocketController {
                 );
             }
             else
-                redisUserStatusService.updateUserStatus(currentUser.getId(), UserStatus.valueOf(statusUpdate.getCurrentStatus()));
+                userStatusService.updateUserStatus(currentUser.getId(), UserStatus.valueOf(statusUpdate.getCurrentStatus()));
 
 
         }
