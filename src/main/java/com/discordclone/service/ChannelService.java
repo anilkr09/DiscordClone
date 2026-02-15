@@ -6,9 +6,11 @@ import com.discordclone.model.Server;
 import com.discordclone.model.User;
 import com.discordclone.repository.ChannelRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -47,22 +49,39 @@ public class ChannelService {
     }
     @Transactional
     public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
+
         Long min = Math.min(userId1, userId2);
         Long max = Math.max(userId1, userId2);
+
         String channelName = "dm-" + min + "-" + max;
-        System.out.println("custom channel name - "+channelName);
-        return channelRepository.findByNameAndType(channelName, ChannelType.DM)
-                .orElseGet(() -> {
-                    User user1 = userService.getUserById(min);
-                    User user2 = userService.getUserById(max);
-                    Server server = serverService.getServerById(1L);
-                    Channel dmChannel = new Channel();
-                    dmChannel.setName(channelName);
-                    dmChannel.setType(ChannelType.DM);
-                    dmChannel.setServer(server);
-                    return channelRepository.save(dmChannel);
-                });
+
+        Optional<Channel> existing =
+                channelRepository.findByNameAndType(channelName, ChannelType.DM);
+
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        try {
+
+            Server server = serverService.getServerById(1L);
+
+            Channel dmChannel = new Channel();
+            dmChannel.setName(channelName);
+            dmChannel.setType(ChannelType.DM);
+            dmChannel.setServer(server);
+
+            return channelRepository.save(dmChannel);
+
+        } catch (DataIntegrityViolationException ex) {
+
+            // Another thread created it between find and save
+            return channelRepository
+                    .findByNameAndType(channelName, ChannelType.DM)
+                    .orElseThrow(() -> ex);
+        }
     }
+
 
     @Transactional(readOnly = true)
     public Channel getChannelById(Long id, Long userId) {

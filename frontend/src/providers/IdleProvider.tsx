@@ -13,7 +13,7 @@ export const IdleProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (status === UserStatus.ONLINE && customStatus.status === UserStatus.ONLINE) {
         setStatus(UserStatus.IDLE);
       }
-    }, 60_000);
+    }, 30000);
   };
 
   const resetIdleTimer = () => {
@@ -23,8 +23,12 @@ export const IdleProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startIdleTimer();
   };
 
-  useEffect(() => {
-    const handler = debounce(resetIdleTimer, 3000);
+
+    useEffect(() => {
+    const handler = debounce(resetIdleTimer, 250, {
+  leading: true,
+  trailing: true
+});
 
     window.addEventListener("mousemove", handler);
     window.addEventListener("keydown", handler);
