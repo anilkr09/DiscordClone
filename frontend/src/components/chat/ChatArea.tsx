@@ -58,11 +58,12 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
           p: 2,
           borderBottom: 1,
           borderColor: "divider",
-          bgcolor: "background.paper",
+          color: "white",
+          bgcolor: "#62636484",
         }}
       >
         <Typography variant="h6">
-          {isDM ? `@${name}` : `# ${name}`}
+          {isDM ? `${name}` : ` ${name}`}
         </Typography>
       </Box>
 

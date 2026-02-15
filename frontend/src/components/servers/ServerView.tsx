@@ -21,7 +21,7 @@ export default function ServerView() {
             console.log("Server ID:", serverId);
             loadServer(parseInt(serverId));
             const myChannel: Channel = {
-                name: "myChannel",
+                name: "Default Channel",
                 id:1,
                 serverId: 1,
                 messages: [

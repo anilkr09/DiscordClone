@@ -36,11 +36,12 @@ const location = useLocation();
   if (isLoading) {
     return <div>Loading...</div>; // You can replace this with a spinner component
   }
+const capitalizeFirst = str => str.charAt(0).toUpperCase() + str.slice(1);
 
   return (
     <ChatArea
       id={channelId||""}
-      name={`Friend #${friendNameFromState}`} // Ideally fetch the friend's name
+      name={` ${capitalizeFirst(friendNameFromState)}`} // Ideally fetch the friend's name
       isDM={true}     
     />
   );

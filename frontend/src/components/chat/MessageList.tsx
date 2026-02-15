@@ -1,14 +1,14 @@
 import { forwardRef } from 'react';
 import { Box, Typography, Avatar, Paper } from '@mui/material';
 import { Message } from '../../types/message';
-
+import { useAuth } from '../../providers/AuthProvider'; 
 interface MessageListProps {
     messages: Message[];
     isLoading: boolean;
 }
 
 const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, isLoading }, ref) => {
-
+    const { username } = useAuth(); // Get current user's username from Auth context
     console.log("current message list size: " + messages.length);
 
     return (
@@ -42,7 +42,9 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, is
                             <Box sx={{ flex: 1 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Typography variant="subtitle1" fontWeight="bold">
-                                        {message.author.username}
+                                         {message.author.username === username
+    ? "You"
+    : message.author.username}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
                                         {new Date(message.timestamp).toLocaleString()}
