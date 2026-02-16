@@ -65,7 +65,7 @@ const isTokenExpired = (token) => {
     if (!base64Url) throw new Error("Invalid token format");
 
     const payload = JSON.parse(atob(token.split(".")[1])); // Decode payload
-    const expiry = payload.exp * 1000; // Convert to milliseconds
+    const expiry = payload.exp * 1000; // 
     return Date.now() > expiry; // If current time > expiry, token is expired
 };
 

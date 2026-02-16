@@ -105,7 +105,6 @@ public class SecurityConfig {
         corsConfig.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "http://localhost:4173",
                         "https://discord-clone-eight-mocha.vercel.app/"
                 )
         );
