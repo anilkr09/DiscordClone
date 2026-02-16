@@ -107,8 +107,7 @@ public class SecurityConfig {
                         "http://localhost:5173",
                         "http://localhost:4173",
 
-                        "https://discord-clone-eight-mocha.vercel.app/"
-                )
+                        "https://discord-clone-eight-mocha.vercel.app"                )
         );
 
         corsConfig.setAllowedMethods(
