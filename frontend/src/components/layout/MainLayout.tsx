@@ -147,15 +147,15 @@ export default function MainLayout() {
         borderLeft: '1px solid #26282c' 
       }}>
         <Typography sx={{ fontSize: '20px', fontWeight: 'bold', mb: 3 }}>
-          Active Now
+          {/* Active Now */}
         </Typography>
         
         <Box sx={{ textAlign: 'center', mt: 6 }}>
           <Typography sx={{ fontSize: '16px', fontWeight: 'bold', mb: 1 }}>
-            It's quiet for now...
+            
           </Typography>
           <Typography sx={{ color: '#96989d', fontSize: '14px', lineHeight: 1.4 }}>
-            When a friend starts an activity - like playing a game or hanging out on voice - we'll show it here!
+            {/* When a friend starts an activity - like playing a game or hanging out on voice - we'll show it here! */}
           </Typography>
         </Box>
       </Box>
