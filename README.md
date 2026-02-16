@@ -55,15 +55,14 @@ Unit & integration tests
 ## Demo
 <img width="1464" height="855" alt="image" src="https://github.com/user-attachments/assets/05fe74fe-ee37-45e4-88c2-01f301e01575" />
 
-<img width="1464" height="855" alt="image" src="https://github.com/user-attachments/assets/95723d2d-981f-49c0-b60f-a5ec1ccb12e3" />
-<img width="1464" height="855" alt="image" src="https://github.com/user-attachments/assets/1854b273-cc88-4e13-a6d2-5e4d09e0e892" />
+<img width="1415" height="860" alt="image" src="https://github.com/user-attachments/assets/ece67323-61f6-4b86-be31-9d4b886c2692" />
+<img width="1415" height="860" alt="image" src="https://github.com/user-attachments/assets/0517a2bb-e8e9-4b72-bb57-62869506c76f" />
 
 
 
 ## Architecture
 - **Backend:** Java 17, Spring Boot, Spring Security, JPA, WebSocket, Redis, PostgreSQL
 - **Frontend:** React, TypeScript, Vite, MUI, React Query, WebSocket
-- **DevOps:** Docker, Docker Compose, Nginx (for frontend static serving), Jenkins agent (optional)
 
 ---
 
@@ -73,7 +72,6 @@ Unit & integration tests
 - Java 17+
 - Gradle
 - PostgreSQL (default: `localhost:5432`, DB: `discord_clone`)
-- Redis (default: `localhost:6379`)
 
 ### Running Locally
 1. Clone the repository:
