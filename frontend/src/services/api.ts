@@ -25,7 +25,7 @@ api.interceptors.request.use(
 
                 try {
                     const response = await axios.post(
-                        "http://localhost:8082/api/refresh-token",
+                        API_BASE_URL + "/api/refresh-token",
                         {},
                         { withCredentials: true }
                     );
