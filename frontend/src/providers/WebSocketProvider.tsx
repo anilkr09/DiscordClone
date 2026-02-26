@@ -9,6 +9,7 @@ import { WS_BASE_URL } from "../config/api";
 // WebSocket Context Type
 interface WebSocketContextType {
     connected: boolean;
+    client:Client|null;
     subscribeToTopic: (topic: string) => StompSubscription | null;
     unsubscribeFromTopic: (topic: string) => void;
     sendMessage: (destination: string, message: any) => void;
@@ -153,7 +154,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     );
 
     return (
-        <WebSocketContext.Provider value={{ connected, subscribeToTopic, unsubscribeFromTopic, sendMessage, messageStore }}>
+        <WebSocketContext.Provider value={{ connected,client, subscribeToTopic, unsubscribeFromTopic, sendMessage, messageStore }}>
             {children}
         </WebSocketContext.Provider>
     );

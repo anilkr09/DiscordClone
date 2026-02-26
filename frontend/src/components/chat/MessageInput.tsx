@@ -6,14 +6,17 @@ import { useWebSocketTopic } from '../../providers/WebSocketProvider';
 interface MessageInputProps {
     channelId: string;
     channelName: string;
+    isDM:boolean;
+    receiver?:string;
 }
 
-export default function MessageInput({ channelId, channelName }: MessageInputProps) {
+export default function MessageInput({ channelId, channelName,isDM,receiver }: MessageInputProps) {
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     console.log("MessageInput rendered for channelId:", channelId, "channelName:", channelName);
     const { sendMessage, connected } = useWebSocketTopic("/app/chat.send");
-   
+           console.log("isDM inside message input"+isDM);
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,8 +25,10 @@ export default function MessageInput({ channelId, channelName }: MessageInputPro
         try {
             setIsSending(true);
             const messageRequest: MessageRequest = {
+                dm:isDM,
                 content: message,
                 channelId: channelId,
+                receiver:(isDM?receiver:"")
             };
             
             sendMessage(messageRequest);

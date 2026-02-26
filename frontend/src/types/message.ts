@@ -10,8 +10,10 @@ export interface Message {
 }
 
 export interface MessageRequest {
+    dm: boolean;
     content: string;
     channelId: string;
+    receiver?:string;
     attachments?: string[];
 }
 
