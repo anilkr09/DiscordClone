@@ -1,10 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Box, Typography } from "@mui/material";
 import { useParams } from "react-router-dom";
-
+import { useWebSocket } from "../../providers/WebSocketProvider"; 
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
-
+import { registerGroupMessageSocket } from "../../websocket/message.socket";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { fetchMessages } from "../../store/messages/messages.thunks";
 
@@ -15,8 +15,12 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
+  const {connected,client} = useWebSocket();
+  if(isDM==false)
+  registerGroupMessageSocket(client,id);
   const dispatch = useAppDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+        console.log("isDM inside chat area"+isDM);
 
   // 🔥 Redux: get channel messages
   const channel = useAppSelector(
@@ -63,10 +67,9 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
         }}
       >
         <Typography variant="h6">
-          {isDM ? `${name}` : ` ${name}`}
+          {isDM ? `User: ${name}` : `Channel: ${name}`}
         </Typography>
       </Box>
-
       {/* Messages */}
       <MessageList
         ref={messagesEndRef}
@@ -75,7 +78,7 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
       />
 
       {/* Input */}
-      <MessageInput channelId={id} channelName={name} />
+      <MessageInput channelId={id} channelName={name} isDM={isDM} receiver={name.toLowerCase().trim()}/>
     </Box>
   );
 }

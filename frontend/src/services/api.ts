@@ -1,7 +1,7 @@
 import axios from "axios";
-
+import { API_BASE_URL } from "../config/api";
 const api = axios.create({
-    baseURL: 'http://localhost:8082/api',
+    baseURL: API_BASE_URL + '/api',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -25,7 +25,7 @@ api.interceptors.request.use(
 
                 try {
                     const response = await axios.post(
-                        "http://localhost:8082/api/refresh-token",
+                        API_BASE_URL + "/api/refresh-token",
                         {},
                         { withCredentials: true }
                     );
@@ -65,7 +65,7 @@ const isTokenExpired = (token) => {
     if (!base64Url) throw new Error("Invalid token format");
 
     const payload = JSON.parse(atob(token.split(".")[1])); // Decode payload
-    const expiry = payload.exp * 1000; // Convert to milliseconds
+    const expiry = payload.exp * 1000; // 
     return Date.now() > expiry; // If current time > expiry, token is expired
 };
 

@@ -15,3 +15,18 @@ export const registerMessageSocket = (socket) => {
     );
   });
 };
+
+export const registerGroupMessageSocket = (socket,channelId) => {
+  socket.subscribe(`/topic/channels/${channelId}/messages`, (msg) => {
+      console.log("🟢 WS message received:", msg.body);
+
+    const message: Message = JSON.parse(msg.body);
+
+    store.dispatch(
+      addMessage({
+        channelId: message.channelId,
+        message,
+      })
+    );
+  });
+};

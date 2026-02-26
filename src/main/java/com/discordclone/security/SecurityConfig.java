@@ -97,25 +97,24 @@ public class SecurityConfig {
     public WebSecurityCustomizer webSecurityCustomizer() {
         return web -> web.ignoring().requestMatchers("/error");
     }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration corsConfig = new CorsConfiguration();
 
-        corsConfig.setAllowedOrigins(
-                List.of(
-                        "http://localhost:5173",
-                        "http://localhost:4173"
-                )
-        );
+        corsConfig.setAllowedOriginPatterns(List.of(
+                "http://localhost:*",
+                "https://discord-clone-eight-mocha.vercel.app"
+        ));
 
-        corsConfig.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
-        );
+        corsConfig.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        ));
 
-        corsConfig.setAllowedHeaders(
-                List.of("Authorization", "Content-Type")
-        );
+        corsConfig.setAllowedHeaders(List.of("*"));
+
+        corsConfig.setExposedHeaders(List.of("Authorization"));
 
         corsConfig.setAllowCredentials(true);
 
@@ -126,4 +125,5 @@ public class SecurityConfig {
 
         return source;
     }
+
 }

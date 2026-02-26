@@ -4,9 +4,12 @@ import { useAuth} from "./AuthProvider.tsx";
 import { registerMessageSocket } from "../websocket/message.socket.ts";
 import { queryClient } from "../lib/reactQuery.ts";
 import { handleFriendEvent } from "../websocket/friends.events.ts";
+import { WS_BASE_URL } from "../config/api";
+
 // WebSocket Context Type
 interface WebSocketContextType {
     connected: boolean;
+    client:Client|null;
     subscribeToTopic: (topic: string) => StompSubscription | null;
     unsubscribeFromTopic: (topic: string) => void;
     sendMessage: (destination: string, message: any) => void;
@@ -27,7 +30,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     const [subscriptions, setSubscriptions] = useState<Record<string, StompSubscription>>({});
     const [messageStore, setMessageStore] = useState<Record<string, any[]>>({});
     const { jwt,isLoggedIn } = useAuth();
-
     const accessToken = localStorage.getItem("accessToken");
 
     useEffect(() => {
@@ -36,7 +38,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
         if (!accessToken) return; // Don't connect if user is not logged in
         console.log("accessToken", accessToken);
         console.log("Initializing WebSocket connection...");
-        const socketUrl = `ws://localhost:8082/ws`;
+        const socketUrl = `${WS_BASE_URL}/ws`;
 
         const stompClient = new Client({
             brokerURL: socketUrl,
@@ -152,7 +154,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     );
 
     return (
-        <WebSocketContext.Provider value={{ connected, subscribeToTopic, unsubscribeFromTopic, sendMessage, messageStore }}>
+        <WebSocketContext.Provider value={{ connected,client, subscribeToTopic, unsubscribeFromTopic, sendMessage, messageStore }}>
             {children}
         </WebSocketContext.Provider>
     );
