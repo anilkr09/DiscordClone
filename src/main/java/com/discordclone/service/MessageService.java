@@ -59,27 +59,34 @@ public class MessageService {
                 .content(savedMessage.getContent())
                 .timestamp(savedMessage.getTimestamp())
                 .build();
-        log.info("➡️ queue msg user {}", user.getUsername());
-        log.info(
-                "Sending WS message to user={} channelId={}",
-                user.getUsername(),
-                channel.getId()
-        );
-        messagingTemplate.convertAndSendToUser(
-                user.getUsername(),
-                "/queue/messages",
-                messageResponse
-        );
+        log.info("➡️ isDM value request {}", request.toString());
 
-//        messagingTemplate.convertAndSendToUser(
-//                dto.getUserB(),
-//                "/queue/messages",
-//                messageResponse
-//        );
-//        messagingTemplate.convertAndSend(
-//            "/topic/channels/" + message.getChannel().getId() + "/messages",
-//            messageResponse
-//        );
+        if(request.isDm()) {
+            log.info("➡️ queue msg user {}", user.getUsername());
+            log.info(
+                    "Sending WS message to user={} channelId={}",
+                    request.getReceiver(),
+                    channel.getId()
+            );
+            messagingTemplate.convertAndSendToUser(
+                    user.getUsername(),
+                    "/queue/messages",
+                    messageResponse
+            );
+
+
+            messagingTemplate.convertAndSendToUser(
+                    request.getReceiver(),
+                    "/queue/messages",
+                    messageResponse
+            );
+        }
+        else {
+        messagingTemplate.convertAndSend(
+            "/topic/channels/" + message.getChannel().getId() + "/messages",
+            messageResponse
+        );
+        }
         return savedMessage;
     }
 

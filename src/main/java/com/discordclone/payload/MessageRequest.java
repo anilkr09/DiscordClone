@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MessageRequest {
+    boolean dm;
     String content;
     Long channelId;
+    String receiver;
 }
