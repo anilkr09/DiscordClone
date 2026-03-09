@@ -94,10 +94,12 @@ public class ChannelService {
 
     @Transactional(readOnly = true)
     public List<Channel> getServerChannels(Long serverId, Long userId) {
-        if (!serverService.isUserMember(serverId, userId)) {
+        Server server = serverService.getServerById(serverId);
+
+        if (!serverService.isUserMember(serverId, userId)&& !server.getName().equals("Default Server")) {
             throw new RuntimeException("Unauthorized: User is not a member of this server");
         }
-        Server server = serverService.getServerById(serverId);
+
         return channelRepository.findByServerOrderByName(server);
     }
 

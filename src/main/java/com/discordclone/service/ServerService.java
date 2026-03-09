@@ -1,6 +1,7 @@
 package com.discordclone.service;
 
 import com.discordclone.model.*;
+import com.discordclone.payload.ServerPayload;
 import com.discordclone.repository.MemberRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
@@ -21,11 +22,12 @@ public class ServerService {
     private final MemberRepository memberRepository;
 
     @Transactional
-    public Server createServer(Server server, Long userId) {
+    public Server createServer(ServerPayload payload, Long userId) {
         User owner = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+        Server server = Server.builder().name(payload.getName())
+                .description(payload.getDescription()).owner(owner).type(payload.getType()).build();
 
-        server.setOwner(owner);
         Server savedServer = serverRepository.save(server);
 
         Member ownerMember = Member.builder()

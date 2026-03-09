@@ -24,7 +24,7 @@ public class Server {
     private String name;
 
     private String description;
-
+    private ServerType type;
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonManagedReference
     @JoinColumn(name = "owner_id", nullable = false)

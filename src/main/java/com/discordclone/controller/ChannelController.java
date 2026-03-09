@@ -80,7 +80,7 @@ public class ChannelController {
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(channelService.getServerChannels(serverId, userPrincipal.getId())
                 .stream()
-                .map(ChannelDTO::fromEntity)
+                .map(ChannelDTO::fromEntityWithoutMessages)
                 .collect(Collectors.toList()));
     }
 
