@@ -1,4 +1,5 @@
 package com.discordclone.service;
+import lombok.extern.slf4j.Slf4j;
 
 import com.discordclone.model.*;
 import com.discordclone.payload.ServerPayload;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+@Slf4j
 
 @Service
 @RequiredArgsConstructor
@@ -25,14 +27,17 @@ public class ServerService {
     public Server createServer(ServerPayload payload, Long userId) {
         User owner = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+//        Server server = Server.builder().name(payload.getName())
+//                .description(payload.getDescription()).owner(owner).type(payload.getType()).build();
         Server server = Server.builder().name(payload.getName())
-                .description(payload.getDescription()).owner(owner).type(payload.getType()).build();
-
+                .description(payload.getDescription()).owner(owner).build();
         Server savedServer = serverRepository.save(server);
 
+        log.info("Created Server: {}", savedServer);
+        MemberId memberId = new MemberId(userId, savedServer.getId());
+
         Member ownerMember = Member.builder()
-                .userId(owner.getId())
-                .serverId(savedServer.getId())
+                .id(memberId)
                 .user(owner)
                 .server(savedServer)
                 .nickname(owner.getUsername())
@@ -41,21 +46,23 @@ public class ServerService {
                 .build();
 
         memberRepository.save(ownerMember);
+        log.info("Created Member: {}", ownerMember);
         return savedServer;
     }
 
     @Transactional(readOnly = true)
     public Server getServerById(Long id) {
         System.out.println("called findfullserver");
-        return serverRepository.findWithChannelsById(id)
+        Server server = serverRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Server not found"));
-
+        return server;
 
 
     }
 
     @Transactional(readOnly = true)
     public List<Server> getUserServers(Long userId) {
+        log.info("called getuserservers");
         return memberRepository.findServersByUserId(userId);
     }
 
@@ -68,17 +75,14 @@ public class ServerService {
         if (memberRepository.existsById(memberId)) {
             throw new RuntimeException("User is already a member of this server");
         }
-
         Member member = Member.builder()
-                .userId(userId)
-                .serverId(serverId)
+                .id(memberId)
                 .user(user)
                 .server(server)
                 .nickname(user.getUsername())
                 .role(Role.MEMBER)
                 .joinedAt(LocalDateTime.now())
                 .build();
-
         memberRepository.save(member);
         return server;
     }
