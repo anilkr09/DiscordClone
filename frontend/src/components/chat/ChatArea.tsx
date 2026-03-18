@@ -17,6 +17,7 @@ interface ChatAreaProps {
 export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
   const {connected,client} = useWebSocket();
   if(isDM==false)
+  if(connected)
   registerGroupMessageSocket(client,id);
   const dispatch = useAppDispatch();
   const messagesEndRef = useRef<HTMLDivElement>(null);

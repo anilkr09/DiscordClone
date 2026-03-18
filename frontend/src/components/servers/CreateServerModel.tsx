@@ -11,13 +11,14 @@ import {
   IconButton
 } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
+import { ServerType } from "../../types/server";
 
 type Step = "entry" | "customize" | "join";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (data: { name: string; icon?: File }) => void;
+  onCreate: (data: { name: string ;description:string;type:ServerType;icon?: File}) => void;
   onJoin: (inviteLink: string) => void;
 }
 
@@ -29,6 +30,8 @@ export default function CreateServerModal({
 }: Props) {
   const [step, setStep] = useState<Step>("entry");
   const [name, setName] = useState("");
+  const [type,setType] = useState<ServerType>(ServerType.PUBLIC);
+  const [description,setDescription] = useState("");
   const [icon, setIcon] = useState<File | undefined>();
   const [invite, setInvite] = useState("");
 
@@ -37,6 +40,7 @@ export default function CreateServerModal({
     if (open) {
       setStep("entry");
       setName("");
+      setDescription("");
       setIcon(undefined);
       setInvite("");
     }
@@ -133,12 +137,29 @@ export default function CreateServerModal({
 
             <TextField
               label="Server Name"
-              placeholder="My Awesome Server"
+              placeholder="My Server"
               value={name}
               onChange={(e) => setName(e.target.value)}
               fullWidth
               autoFocus
             />
+            <TextField
+              label="Description"
+              placeholder="My Awesome Server"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label="Type"
+              placeholder="My Awesome Server"
+              value={type}
+              onChange={(e) => setType(ServerType.PUBLIC)}
+              fullWidth
+              autoFocus
+            />
+
 
             <Box display="flex" justifyContent="space-between">
               <Button onClick={() => setStep("entry")}>Back</Button>
@@ -147,7 +168,7 @@ export default function CreateServerModal({
                 variant="contained"
                 disabled={!name.trim()}
                 onClick={() => {
-                  onCreate({ name, icon });
+                  onCreate({ name,description,type});
                   onClose();
                 }}
               >

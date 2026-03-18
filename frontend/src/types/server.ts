@@ -1,14 +1,18 @@
+import { User } from './auth';
 import { Message } from './message';
 
 export interface Server {
-    id?: number;
+    id: number;
     name: string;
     description?: string;
-    ownerId?: number;
-    members?: number[];
-    channels?: Channel[];
+    owser: User;
     createdAt?: string;
-    updatedAt?: string;
+}
+export interface ServerPayload {
+    name:string;
+    description:string;
+    type:ServerType;
+    icon?: File;
 }
 
 export interface Channel {
@@ -25,4 +29,8 @@ export enum ChannelType {
     TEXT = 'TEXT',
     VOICE = 'VOICE',
     DM = 'DM'
+}
+export enum ServerType{
+    PUBLIC='PUBLIC',
+    PRIVATE='PRIVATE'
 }

@@ -3,14 +3,16 @@ import { Server } from '../types/server';
 import { ServerPayload } from '../types/server';
 
 class ServerService {
-    async createServer(name: string): Promise<Server> {
-        const response = await api.post<Server>('/servers', name);
+    async createServer(server: ServerPayload): Promise<Server> {
+        const response = await api.post<Server>('/servers', server);
         return response.data;
     }
 
     async getUserServers(): Promise<Server[]> {
         const response = await api.get<Server[]>('/servers');
-        return response.data;
+        const result = response.data;
+        console.log("server list response"+result);
+        return result;
     }
 
     async getServer(serverId: number): Promise<Server> {

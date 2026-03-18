@@ -10,6 +10,8 @@ import { User } from '../../types/auth';
 import authService from '../../services/auth.service';
 import { useStatus } from '../../hooks/useStatus';
 import HomeView from './HomeView';
+import serverService from '../../services/server.service';
+import { useServers } from '../../hooks/useServers';
 // Dummy data for the layout
 // import { useWebSocket } from '../../services/WebSocketProvider';
 
@@ -24,6 +26,7 @@ export default function MainLayout() {
   const {  friendStatuses } = useStatus();
   const getUserStatus = (id: number) => friendStatuses[id] || UserStatus.OFFLINE;
   const [open, setOpen] = useState(false);
+      const {servers,createServer} = useServers();
 
   useEffect( () => {
     setCurrentUser(authService.getCurrentUser());
@@ -75,7 +78,7 @@ export default function MainLayout() {
         py: 2, 
         gap: 2 
       }}>
-        {dummyServers.map(server => (
+        {servers.data.map(server => (
           <Avatar 
             key={server.id}
             onClick={() => handleServerClick(server.id)}
@@ -91,8 +94,8 @@ export default function MainLayout() {
               }
             }}
           >
-          {server?.initial === "Hjj" ? <HomeIcon /> : server?.initial}
-
+          {server.name.substring(0,3)/* {server?.initial === "Hjj" ? <HomeIcon /> : server?.initial} */}
+            
           </Avatar>
         ))}
 
@@ -100,8 +103,14 @@ export default function MainLayout() {
   open={open}
   onClose={() => setOpen(false)}
   onCreate={(data) => {
-    // call backend API
-    // POST /servers
+    // serverService.createServer(data).then((response) => {
+    //   console.log('Server created:', response);
+    //   navigate(`/channels/${response.id}`);
+    // })
+    // .catch((error) => {
+    //   console.error('Failed to create server:', error);
+    // }); 
+    createServer.mutate(data);
     console.log(data);
   }}
   onJoin={(inviteCode) => {
