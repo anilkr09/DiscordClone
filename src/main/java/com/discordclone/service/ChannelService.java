@@ -1,9 +1,7 @@
 package com.discordclone.service;
 
-import com.discordclone.model.Channel;
-import com.discordclone.model.ChannelType;
-import com.discordclone.model.Server;
-import com.discordclone.model.User;
+import com.discordclone.model.*;
+import com.discordclone.payload.ChannelPayload;
 import com.discordclone.repository.ChannelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,11 +39,12 @@ public class ChannelService {
     }
 
     @Transactional
-    public Channel createChannel(Channel channel, Long serverId, Long userId) {
-//        checkUserIsAdmin(serverId, userId);
+    public ChannelDTO createChannel(ChannelPayload payload, Long serverId, Long userId) {
+        checkUserIsAdmin(serverId, userId);
         Server server = serverService.getServerById(serverId);
-        channel.setServer(server);
-        return channelRepository.save(channel);
+        Channel channel = Channel.builder().name(payload.getName()).server(server).description(payload.getDescription()).build();
+        channel = channelRepository.save(channel);
+        return ChannelDTO.fromEntity(channel);
     }
     @Transactional
     public Channel getOrCreateDmChannel(Long userId1, Long userId2) {

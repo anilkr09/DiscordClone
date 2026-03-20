@@ -2,8 +2,10 @@ package com.discordclone.controller;
 
 import com.discordclone.model.Channel;
 import com.discordclone.model.ChannelDTO;
+import com.discordclone.payload.ChannelPayload;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.ChannelService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,16 +17,16 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/servers/{serverId}/channels")
+@RequestMapping("/api/channels/{serverId}")
 @RequiredArgsConstructor
 public class ChannelController {
 
     private final ChannelService channelService;
 
     @PostMapping("")
-    public ResponseEntity<Channel> createChannel(
+    public ResponseEntity<ChannelDTO> createChannel(
             @PathVariable Long serverId,
-            @RequestBody Channel channel,
+            @Valid @RequestBody ChannelPayload channel,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(channelService.createChannel(channel, serverId, userPrincipal.getId()));
     }
