@@ -39,7 +39,7 @@ function App() {
           <Route path="@me" element={<FriendsList />} />
           <Route path="@me/:friendId" element={<DirectMessage />} />
           <Route path=":serverId" element={<ServerView />} />
-            <Route path=":serverId/:channelId" element={<ServerView />} />
+          <Route path=":serverId/:channelId" element={<ServerView />} />
 
           </Route>
           </Route>

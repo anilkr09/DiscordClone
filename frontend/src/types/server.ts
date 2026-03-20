@@ -14,6 +14,13 @@ export interface ServerPayload {
     type:ServerType;
     icon?: File;
 }
+export interface ChannelPayload {
+    name: string;
+    type: ChannelType;
+    description:string;
+
+    
+}
 
 export interface Channel {
     id?: number;

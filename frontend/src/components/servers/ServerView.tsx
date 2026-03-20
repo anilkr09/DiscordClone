@@ -7,7 +7,7 @@ import serverService from '../../services/server.service';
 import channelService from '../../services/channel.service';
 import ChatArea from '../chat/ChatArea';
 import CreateChannelModel from '../servers/CreateChannelModel';
-
+import { useChannels } from '../../hooks/useChannels';
 
   
 
@@ -15,10 +15,9 @@ export default function ServerView() {
  const { serverId } = useParams();  
    const [server, setServer] = useState<Server | null>(null);
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-
 const [open, setOpen] = useState(false);
-      // const {channel,createServer} = useChannels();
-
+      const {channels, createChannel} = useChannels( serverId ? parseInt(serverId):0); 
+const serverIdNum = serverId ? parseInt(serverId) : 0;
       const handleAddChannel = () => {
    setOpen(true); 
   };
@@ -38,19 +37,18 @@ const [open, setOpen] = useState(false);
                 updatedAt: "2025-04-11T09:00:00Z"
             };
 
-            setSelectedChannel(myChannel);
+            // setSelectedChannel(myChannel);
 
         }
-    }, [serverId]);
-
+    }, [serverId,channels]);
+    
     const loadServer = async (id: number) => {
         try {
-            const data = await serverService.getServer(id);
-            const channels = await channelService.getServerChannels(id);
-            data.channels = channels;
-            setServer(data);
-            if (data.channels && data.channels.length > 0) {
-                setSelectedChannel(data.channels[0]);
+            
+            // const data = await serverService.getServer(id);
+            
+            if (channels.length > 0) {
+                setSelectedChannel(channels[0]);
             }
         } catch (error) {
             console.error('Failed to load server:', error);
@@ -84,7 +82,7 @@ const [open, setOpen] = useState(false);
 
     {/* Channel List */}
     <Box sx={{ flex: 1, overflowY: 'auto', py: 1 }}>
-      {server?.channels?.map((channel) => {
+      {channels?.map((channel) => {
         const isSelected = selectedChannel?.id === channel.id;
 
         return (
@@ -171,17 +169,17 @@ const [open, setOpen] = useState(false);
     // .catch((error) => {
     //   console.error('Failed to create server:', error);
     // }); 
-    // createServer.mutate(data);
+    createChannel({serverId: serverIdNum, channel: data });
     console.log(data);
   }}
   
 />
 
             <Box component="main" sx={{ flexGrow: 1 }}>
-                {selectedChannel && (
+                {channels.length>0 && selectedChannel!=null&&selectedChannel.id!=null && (
                     <ChatArea  
                         // id={selectedChannel?.id?.toString()||"1"}
-                        id={"1"}
+                        id={selectedChannel.id.toString()}
                         name={selectedChannel.name}
                     isDM={false}
                 />
