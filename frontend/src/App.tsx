@@ -14,8 +14,11 @@ import { Provider } from "react-redux";
 import { store } from "./store/store";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/reactQuery";
+import { Toaster } from "react-hot-toast";
 function App() {
-  return (
+  return (<>
+          <Toaster position="bottom-right" />
+
     <AuthProvider>
       <Provider store={store}>  
     <WebSocketProvider>
@@ -48,6 +51,7 @@ function App() {
      </WebSocketProvider>
       </Provider>
     </AuthProvider>
+   </>
   );
 }
 
