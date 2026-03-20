@@ -14,7 +14,7 @@ import serverService from '../../services/server.service';
 import { useServers } from '../../hooks/useServers';
 // Dummy data for the layout
 // import { useWebSocket } from '../../services/WebSocketProvider';
-
+import toast from "react-hot-toast";
 const dummyServers = [
   { id:0, name: 'Home', initial: 'Hjj' },
   { id:1, name: 'Default Server', initial: 'DS' }
@@ -23,6 +23,7 @@ const dummyServers = [
 export default function MainLayout() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const navigate = useNavigate();
+  const [error, setError] = useState<string | null>(null);
   const {  friendStatuses } = useStatus();
   const getUserStatus = (id: number) => friendStatuses[id] || UserStatus.OFFLINE;
   const [open, setOpen] = useState(false);
@@ -103,15 +104,24 @@ export default function MainLayout() {
   open={open}
   onClose={() => setOpen(false)}
   onCreate={(data) => {
-    // serverService.createServer(data).then((response) => {
-    //   console.log('Server created:', response);
-    //   navigate(`/channels/${response.id}`);
-    // })
-    // .catch((error) => {
-    //   console.error('Failed to create server:', error);
-    // }); 
-    createServer.mutate(data);
-    console.log(data);
+    createServer.mutate(data, {
+      onSuccess: (server) => {
+        console.log("Server created:", server);
+        setOpen(false); // close modal
+        navigate(`/channels/${server.id}`);
+      },
+      onError: (error: any) => {
+        console.error("Failed to create server:", error);
+
+        const message =
+          error?.response?.data?.fieldErrors?.name ||
+          error?.response?.data?.message ||
+          "Failed to create server";
+        toast.error(message); // Show error toast
+        // 👇 pass to modal or show toast
+        setError(message);
+      }
+    });
   }}
   onJoin={(inviteCode) => {
     // call backend API

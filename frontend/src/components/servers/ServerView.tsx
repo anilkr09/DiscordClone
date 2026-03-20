@@ -6,16 +6,22 @@ import { Server, Channel, ChannelType } from '../../types/server';
 import serverService from '../../services/server.service';
 import channelService from '../../services/channel.service';
 import ChatArea from '../chat/ChatArea';
+import CreateChannelModel from '../servers/CreateChannelModel';
 
 
-
-
+  
 
 export default function ServerView() {
  const { serverId } = useParams();  
    const [server, setServer] = useState<Server | null>(null);
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
 
+const [open, setOpen] = useState(false);
+      // const {channel,createServer} = useChannels();
+
+      const handleAddChannel = () => {
+   setOpen(true); 
+  };
     useEffect(() => {
         if (serverId) {
             console.log("Server ID:", serverId);
@@ -146,13 +152,30 @@ export default function ServerView() {
         <Box sx={{ mr: 1.5 }}>
           <AddIcon fontSize="small" />
         </Box>
-        <Box sx={{ fontSize: '14px' }}>Add Channel</Box>
+        <Box           onClick={handleAddChannel}
+ sx={{ fontSize: '14px' }}>Add Channel</Box>
       </Box>
     </Box>
 
     {/* Bottom user profile (optional later) */}
   </Box>
 ) : null}
+<CreateChannelModel
+  open={open}
+  onClose={() => setOpen(false)}
+  onCreate={(data) => {
+    // serverService.createServer(data).then((response) => {
+    //   console.log('Server created:', response);
+    //   navigate(`/channels/${response.id}`);
+    // })
+    // .catch((error) => {
+    //   console.error('Failed to create server:', error);
+    // }); 
+    // createServer.mutate(data);
+    console.log(data);
+  }}
+  
+/>
 
             <Box component="main" sx={{ flexGrow: 1 }}>
                 {selectedChannel && (

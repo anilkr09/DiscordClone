@@ -1,4 +1,6 @@
 package com.discordclone.service;
+import com.discordclone.exception.DuplicateResourceException;
+import com.discordclone.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 import com.discordclone.model.*;
@@ -7,6 +9,7 @@ import com.discordclone.repository.MemberRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,15 +28,35 @@ public class ServerService {
 
     @Transactional
     public Server createServer(ServerPayload payload, Long userId) {
+
+        // 🔹 1. Fetch Owner
         User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-//        Server server = Server.builder().name(payload.getName())
-//                .description(payload.getDescription()).owner(owner).type(payload.getType()).build();
-        Server server = Server.builder().name(payload.getName())
-                .description(payload.getDescription()).owner(owner).build();
-        Server savedServer = serverRepository.save(server);
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // 🔹 2. Duplicate check (because name is unique)
+        if (serverRepository.existsByName(payload.getName())) {
+            throw new DuplicateResourceException("Server", "name", payload.getName());
+        }
+
+        // 🔹 3. Create Server
+        Server server = Server.builder()
+                .name(payload.getName())
+                .description(payload.getDescription())
+                .owner(owner)
+                // .type(payload.getType()) // keep if needed
+                .build();
+
+        Server savedServer;
+        try {
+            savedServer = serverRepository.save(server);
+        } catch (DataIntegrityViolationException ex) {
+            // handles race condition
+            throw new DuplicateResourceException("Server", "name", payload.getName());
+        }
 
         log.info("Created Server: {}", savedServer);
+
+        // 🔹 4. Create Member (Owner)
         MemberId memberId = new MemberId(userId, savedServer.getId());
 
         Member ownerMember = Member.builder()
@@ -47,6 +70,7 @@ public class ServerService {
 
         memberRepository.save(ownerMember);
         log.info("Created Member: {}", ownerMember);
+
         return savedServer;
     }
 

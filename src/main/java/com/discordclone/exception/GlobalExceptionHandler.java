@@ -5,6 +5,8 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.MessageDeliveryException;
@@ -32,6 +34,7 @@ public class GlobalExceptionHandler {
             ConflictException ex,
             HttpServletRequest request
     ) {
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse(
                         HttpStatus.CONFLICT.value(),
@@ -53,6 +56,69 @@ public class GlobalExceptionHandler {
                         "Invalid username or password",
                         request.getRequestURI(),
                         null
+                ));
+    }
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateResource(
+            DuplicateResourceException ex,
+            HttpServletRequest request
+    ) {
+        log.error(ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(
+                        HttpStatus.CONFLICT.value(),
+                        "CONFLICT",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                ));
+    }
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request
+    ) {
+        log.error(ex.getMessage(), ex);
+        String message = "Database constraint violation";
+        Map<String, String> fieldErrors = null;
+
+        Throwable root = ex.getRootCause();
+
+        if (root instanceof ConstraintViolationException constraintEx) {
+            String constraint = constraintEx.getConstraintName();
+
+            if (constraint != null) {
+                switch (constraint) {
+
+                    case "uk_username" -> {
+                        message = "Username already taken";
+                        fieldErrors = Map.of("username", "Username already taken");
+                    }
+
+                    case "uk_email" -> {
+                        message = "Email already registered";
+                        fieldErrors = Map.of("email", "Email already registered");
+                    }
+
+                    case "servers_name_key", "uk_server_name" -> {
+                        message = "Server name already exists";
+                        fieldErrors = Map.of("name", "Server name already exists");
+                    }
+
+                    default -> {
+                        message = "Duplicate or invalid data";
+                    }
+                }
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(
+                        HttpStatus.CONFLICT.value(),
+                        "CONFLICT",
+                        message,
+                        request.getRequestURI(),
+                        fieldErrors
                 ));
     }
 

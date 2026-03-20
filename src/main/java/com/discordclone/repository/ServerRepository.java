@@ -15,4 +15,5 @@ public interface ServerRepository extends JpaRepository<Server, Long> {
     @EntityGraph(attributePaths = {"owner"})
     Optional<Server> findWithOwnerById(Long id);
 
+    boolean existsByName(String name);
 }

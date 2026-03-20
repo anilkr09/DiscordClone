@@ -27,6 +27,7 @@ export default function Register() {
             await signup(formData.username, formData.email, formData.password);
             navigate('/channels/@me');
         } catch (err: any) {
+            console.log('Registration error:', err);
             setError(err.response?.data?.message || 'Registration failed');
         }
     };
