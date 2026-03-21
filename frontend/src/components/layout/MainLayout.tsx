@@ -15,11 +15,10 @@ import { useServers } from '../../hooks/useServers';
 // Dummy data for the layout
 // import { useWebSocket } from '../../services/WebSocketProvider';
 import toast from "react-hot-toast";
-const dummyServers = [
-  { id:0, name: 'Home', initial: 'Hjj' },
-  { id:1, name: 'Default Server', initial: 'DS' }
+const defaultServers = [
+  { id:0, name: 'Home',owner:{id:0,username:"Admin",email:"admin@example.com"} },
+  { id:1, name: 'Default Server',owner:{id:1,username:"User1",email:"user1@example.com"} }
 ];
-
 export default function MainLayout() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const navigate = useNavigate();
@@ -61,7 +60,7 @@ export default function MainLayout() {
   return (
     <Box sx={{ 
       height: '100vh',
-      width:'100%',
+      width: '100vw',
       display: 'flex', 
       bgcolor: '#36393f', 
       color: '#dcddde', 
@@ -79,7 +78,7 @@ export default function MainLayout() {
         py: 2, 
         gap: 2 
       }}>
-        {servers.data.map(server => (
+        {[...defaultServers, ...servers.data].map(server => (
           <Avatar 
             key={server.id}
             onClick={() => handleServerClick(server.id)}
@@ -95,7 +94,7 @@ export default function MainLayout() {
               }
             }}
           >
-          {server.name.substring(0,3)/* {server?.initial === "Hjj" ? <HomeIcon /> : server?.initial} */}
+          {server.id === 0 ? <HomeIcon /> : server.name.substring(0,3) }
             
           </Avatar>
         ))}
@@ -153,7 +152,7 @@ export default function MainLayout() {
 
 
       {/* Main content area */}
-      <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{  display: 'flex', flexDirection: 'column' }}>
       <HomeView></HomeView>
       </Box>
       

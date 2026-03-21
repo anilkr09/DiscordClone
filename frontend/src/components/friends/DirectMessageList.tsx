@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import StatusIndicator from '../user/StatusIndicator';
 import { Friend } from '../../types/friend';
 import { UserStatus } from '../../types/status';
-import friendService from '../../services/friend.service';
 import { useStatus } from '../../hooks/useStatus';
 import{useFriends} from"../../hooks/useFriends";
 interface DirectMessageListProps {
@@ -19,6 +18,7 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
   const getStatus = (userId: number) => {
     return friendStatuses[userId] || UserStatus.OFFLINE;
   };
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const navigate = useNavigate();
 
         const loading = allFriends.isLoading;
@@ -45,7 +45,8 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
    
 
   const handleFriendClick = (friend) => {
-    navigate(`/channels/@me/${friend.id}`,{state: { name: friend.username }});
+    setSelectedFriend(friend);
+    navigate(`/channels/@me/${friend.id}`);
   };
 
   const handleAddDM = () => {
@@ -88,7 +89,10 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
           <Typography variant="caption">No direct messages yet</Typography>
         </Box>
       ) : (
-        friends.map(friend => (
+        friends.map(friend => {
+          const isSelected = selectedFriend?.id === friend.id;
+          
+          return (
           <Box 
             key={friend.id}
             onClick={() => handleFriendClick(friend)}
@@ -121,11 +125,11 @@ export default function DirectMessageList({ onAddDM }: DirectMessageListProps) {
                 borderColor="#2f3136"
               />
             </Box>
-            <Typography sx={{ flexGrow: 1, fontSize: '14px' }}>
+            <Typography sx={{  color: isSelected ? 'white' : '#b9bbbe', flexGrow: 1, fontSize: '14px' }}>
               {friend.username}
             </Typography>
           </Box>
-        ))
+        );})
       )}
     </Box>
   );

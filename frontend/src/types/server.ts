@@ -1,3 +1,4 @@
+import { Description } from '@mui/icons-material';
 import { User } from './auth';
 import { Message } from './message';
 
@@ -5,7 +6,7 @@ export interface Server {
     id: number;
     name: string;
     description?: string;
-    owser: User;
+    owner: User;
     createdAt?: string;
 }
 export interface ServerPayload {
