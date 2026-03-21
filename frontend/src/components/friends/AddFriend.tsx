@@ -112,6 +112,7 @@ export default function AddFriend() {
         <Box sx={{ position: 'relative' }}>
           <TextField
             fullWidth
+
             placeholder="Enter a username"
             value={username}
             onChange={handleUsernameChange}
@@ -130,7 +131,7 @@ export default function AddFriend() {
                 </InputAdornment>
               )
             }}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2,textcolor: 'white',color: 'white',border: '3px solid #4f545c',borderRadius: '4px'}}
           />
 
           {suggestions.length > 0 && (
@@ -170,7 +171,7 @@ export default function AddFriend() {
           type="submit"
           variant="contained"
           disabled={!username.trim() || addFriend.isPending}
-          sx={{ bgcolor: '#5865f2' }}
+          sx={{ bgcolor: '#5865f2', color: 'white' }}
         >
           Send Friend Request
         </Button>

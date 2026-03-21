@@ -20,7 +20,6 @@ import CheckIcon from "@mui/icons-material/Check";
 
 import StatusIndicator from "../user/StatusIndicator";
 import AddFriend from "./AddFriend";
-import FriendRequest from "./FriendRequest";
 
 import { Friend, FriendRequest as FriendRequestType } from "../../types/friend";
 import { UserStatus } from "../../types/status";
@@ -98,7 +97,7 @@ export default function FriendsList() {
     
     if (visibleFriends.length === 0) {
       return (
-        <Box sx={{ p: 3, textAlign: "center", color: "#96989d" }}>
+        <Box sx={{ p: 3, textAlign: "center", color: "white" }}>
           <Typography>
             {activeTab === FriendTab.ONLINE
               ? "No one is around to play with..."
@@ -182,7 +181,7 @@ export default function FriendsList() {
                 <Typography sx={{ flexGrow: 1 }}>
                   {req.receiverUsername}
                 </Typography>
-                <Typography sx={{ color: "#96989d" }}>
+                <Typography sx={{ color: "white" }}>
                   Pending
                 </Typography>
               </Box>
@@ -209,17 +208,17 @@ export default function FriendsList() {
   };
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ height: "100%", display: "flex",color:"white", flexDirection: "column" }}>
       <Box sx={header}>
         <PersonAddIcon fontSize="small" />
         <Typography fontWeight="bold">Friends</Typography>
 
         <Divider orientation="vertical" flexItem />
 
-        <Tabs value={activeTab} onChange={handleTabChange}>
-          <Tab label="Online" value={FriendTab.ONLINE} />
-          <Tab label="All" value={FriendTab.ALL} />
-          <Tab
+        <Tabs sx={{color:"white" }} value={activeTab} onChange={handleTabChange}>
+          <Tab sx={{color:"white" }} label="Online" value={FriendTab.ONLINE} />
+          <Tab sx={{color:"white" }} label="All" value={FriendTab.ALL} />
+          <Tab sx={{color:"white" }}
             label={
               incoming.length > 0 ? (
                 <Badge badgeContent={incoming.length} color="error">
@@ -231,7 +230,7 @@ export default function FriendsList() {
             }
             value={FriendTab.PENDING}
           />
-          <Tab label="Add Friend" value={FriendTab.ADD_FRIEND} />
+          <Tab sx={{color:"white" }} label="Add Friend" value={FriendTab.ADD_FRIEND} />
         </Tabs>
       </Box>
 
@@ -255,8 +254,9 @@ const FriendItem = ({
 }) => (
   <Box sx={friendRow}>
     <Box sx={{ position: "relative" }}>
-      <Avatar src={friend.avatarUrl}>
+      <Avatar  sx={avatar} src={friend.avatarUrl}>
         {friend.username[0].toUpperCase()}
+       
       </Avatar>
       <StatusIndicator status={status} borderColor="#36393f" />
     </Box>
@@ -291,7 +291,7 @@ const header = {
 };
 
 const sectionTitle = {
-  color: "#96989d",
+  color: "white",
   fontSize: 12,
   fontWeight: "bold",
   mb: 2
@@ -314,3 +314,11 @@ const requestRow = {
   borderRadius: 1,
   "&:hover": { bgcolor: "#32353b" }
 };
+
+const avatar ={ 
+            width: 32, 
+            height: 32, 
+            bgcolor: '#ed4245',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }
