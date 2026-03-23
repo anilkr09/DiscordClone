@@ -118,7 +118,7 @@
                         return null; // Reject the message
                     }
 
-                    // Extract channelId from destination (e.g., "/topic/channels/1/messages")
+//                     Extract channelId from destination (e.g., "/topic/channels/1/messages")
 //                    if (destination.startsWith("/topic/channels/")) {
 //                        Long channelId = Long.valueOf(destination.substring("/topic/channels/".length(), destination.lastIndexOf("/")));
 //

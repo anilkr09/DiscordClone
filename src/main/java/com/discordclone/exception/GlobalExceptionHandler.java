@@ -292,7 +292,22 @@ public class GlobalExceptionHandler {
     /* =========================
        500 – Fallback
     ========================= */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntimeException(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        log.error("Unhandled exception", ex);
 
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "INTERNAL_SERVER_ERROR",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                ));
+    }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex,
