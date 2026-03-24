@@ -13,8 +13,7 @@ import { User } from '../../types/auth';
 import { UserStatus } from '../../types/status';
 import { useStatus } from '../../hooks/useStatus';
 const defaultServers = [
-  { id: 0, name: 'Home', owner: { id: 0, username: 'Admin', email: 'admin@example.com' } },
-  { id: 1, name: 'Default Server', owner: { id: 1, username: 'User1', email: 'user1@example.com' } },
+  { id: 0, name: 'Home', owner: { id: 0, username: 'Admin', email: 'admin@example.com' } }
 ];
 
 export default function MainLayout() {

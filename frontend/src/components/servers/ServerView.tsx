@@ -8,9 +8,8 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import AddIcon from '@mui/icons-material/Add';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Server, Channel, ChannelType } from '../../types/server';
-import serverService from '../../services/server.service';
 import ChatArea from '../chat/ChatArea';
 import CreateChannelModel from '../servers/CreateChannelModel';
 import { useChannels } from '../../hooks/useChannels';
@@ -18,10 +17,12 @@ import { useStatus } from '../../hooks/useStatus';
 import { UserStatus } from '../../types/status';
 import StatusIndicator from '../user/StatusIndicator';
 import { useServers } from '../../hooks/useServers';
+
 export default function ServerView() {
-  const { serverId } = useParams();
+  const { serverId, channelId } = useParams();
   const theme = useTheme();
   const { servers } = useServers();
+  const navigate = useNavigate();
   // Breakpoints
   // channel sidebar: inline on md+ (≥900px), Drawer on xs/sm
   const hideSidebar  = useMediaQuery(theme.breakpoints.down('md'));
@@ -36,37 +37,45 @@ export default function ServerView() {
   const [membersOpen, setMembersOpen]     = useState(false);  // members drawer
 
   const serverIdNum = serverId ? parseInt(serverId) : 0;
-  const { channels, createChannel } = useChannels(serverIdNum);
+  const channelIdNum = channelId ? parseInt(channelId) : 0;
+  const { channels, createChannel ,isLoading: channelsLoading 
+  } = useChannels(serverIdNum);
   const { friendStatuses } = useStatus();
   const getStatus = (id: number) => friendStatuses[id] || UserStatus.OFFLINE;
 
-  useEffect(() => {
-    if (serverId) loadServer(parseInt(serverId));
-    
-  }, [serverId, channels]);
+  const handleChannelClick = (channel: Channel) => () => {
+    navigate(`/channels/${serverId}/${channel.id}`);
+    setSelectedChannel(channel);
+  };
+  
   useEffect(() => {
     if(servers.isLoading || servers.data.length==0 ||servers.isError) return;
     const srv = servers.data?.find(s => s.id === serverIdNum) || null;
     setServer(srv);
+    
+  },[serverIdNum,channelIdNum,servers.data,servers.isLoading,servers.isError]);
 
 
-  },[servers.data,servers.isLoading,serverIdNum,servers.isError]);
+
+  useEffect(() => {
+    if (channelsLoading ) return;
+    const ch = channels?.find(c => c.id === channelIdNum) || null;
+    if(ch==null && channels!=null && channels.length>0) 
+   { setSelectedChannel(channels[0]);navigate(`/channels/${serverId}/${channels[0].id}`);}
+    else
+    setSelectedChannel(ch);
+
+  }, [channelIdNum, channels,channelsLoading]);
+
+
+
 
   // Auto-close channel drawer when a channel is selected on mobile
   useEffect(() => {
     if (hideSidebar) setSidebarOpen(false);
   }, [selectedChannel]);
 
-  const loadServer = async (id: number) => {
-    try {
-      // const data = await serverService.getServer(id);
-      if (channels.length > 0 && !selectedChannel) {
-        setSelectedChannel(channels[0]);
-      }
-    } catch (error) {
-      console.error('Failed to load server:', error);
-    }
-  };
+ 
 
   // ── Part 2: Channel Sidebar ──────────────────────────────────────────────
   const ChannelSidebar = (
@@ -103,7 +112,7 @@ export default function ServerView() {
           return (
             <Box
               key={channel.id}
-              onClick={() => setSelectedChannel(channel)}
+              onClick={handleChannelClick(channel)}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -304,7 +313,7 @@ export default function ServerView() {
               justifyContent: 'center', color: '#5c5f66',
             }}>
               <Typography sx={{ fontSize: 14 }}>
-                {channels.length === 0 ? 'No channels yet — add one!' : 'Select a channel'}
+                { server==null ? `Server Don't exist` :( channels.length === 0 ? 'No channels yet — add one!' : 'Select a channel')}
               </Typography>
             </Box>
           )}
