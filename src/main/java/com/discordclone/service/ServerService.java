@@ -78,7 +78,7 @@ public class ServerService {
     public Server getServerById(Long id) {
         System.out.println("called findfullserver");
         Server server = serverRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Server not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Server","ServerId",id));
         return server;
 
 

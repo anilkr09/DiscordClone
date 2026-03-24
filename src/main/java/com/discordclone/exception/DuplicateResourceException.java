@@ -1,10 +1,15 @@
 package com.discordclone.exception;
 
+import lombok.Getter;
+
+@Getter
 public class DuplicateResourceException extends RuntimeException {
 
+    // Optional getters (useful for logging / error response)
     private String resourceName;
     private String fieldName;
     private Object fieldValue;
+
 
     public DuplicateResourceException(String resourceName, String fieldName, Object fieldValue) {
         super(String.format("%s already exists with %s : '%s'", resourceName, fieldName, fieldValue));
@@ -21,16 +26,4 @@ public class DuplicateResourceException extends RuntimeException {
         super(message, cause);
     }
 
-    // Optional getters (useful for logging / error response)
-    public String getResourceName() {
-        return resourceName;
-    }
-
-    public String getFieldName() {
-        return fieldName;
-    }
-
-    public Object getFieldValue() {
-        return fieldValue;
-    }
 }

@@ -177,6 +177,19 @@ public class GlobalExceptionHandler {
                         null
                 ));
     }
+
+        @ExceptionHandler(UnauthorizedException.class)
+        public ResponseEntity<?> handleUnauthorized(UnauthorizedException ex,HttpServletRequest request) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse(
+                            HttpStatus.UNAUTHORIZED.value(),
+                            "UNAUTHORIZED",
+                            ex.getMessage(),
+                            request.getRequestURI(),
+                            null
+                    ));
+        }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex,

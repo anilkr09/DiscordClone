@@ -1,5 +1,7 @@
 package com.discordclone.service;
 
+import com.discordclone.exception.ResourceNotFoundException;
+import com.discordclone.exception.UnauthorizedException;
 import com.discordclone.model.*;
 import com.discordclone.payload.ChannelPayload;
 import com.discordclone.repository.ChannelRepository;
@@ -23,7 +25,7 @@ public class ChannelService {
     // Authorization for admin actions (create, update, delete)
     private void checkUserIsAdmin(Long serverId, Long userId) {
         if (!serverService.isUserAdmin(serverId, userId)) {
-            throw new RuntimeException("Unauthorized: User is not an admin of this server");
+            throw new UnauthorizedException("Unauthorized: User is not an admin of this server");
         }
     }
 
@@ -35,13 +37,14 @@ public class ChannelService {
 
     private Channel getChannelByIdInternal(Long channelId) {
         return channelRepository.findById(channelId)
-                .orElseThrow(() -> new RuntimeException("Channel not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Channel","channelId",channelId));
     }
 
     @Transactional
     public ChannelDTO createChannel(ChannelPayload payload, Long serverId, Long userId) {
-        checkUserIsAdmin(serverId, userId);
+
         Server server = serverService.getServerById(serverId);
+        checkUserIsAdmin(serverId, userId);
         Channel channel = Channel.builder().name(payload.getName()).server(server).description(payload.getDescription()).build();
         channel = channelRepository.save(channel);
         return ChannelDTO.fromEntity(channel);
@@ -49,13 +52,15 @@ public class ChannelService {
     @Transactional
     public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
 
-        Long min = Math.min(userId1, userId2);
-        Long max = Math.max(userId1, userId2);
+        User user1 = userService.getUserById(userId1);
+        User user2 = userService.getUserById(userId2);
+        long min = Math.min(userId1, userId2);
+        long max = Math.max(userId1, userId2);
 
-        String channelName = "dm-" + min + "-" + max;
+        String dmKey = "dm-" + min + "-" + max;
 
         Optional<Channel> existing =
-                channelRepository.findByNameAndType(channelName, ChannelType.DM);
+                channelRepository.findBydmKeyAndType(dmKey, ChannelType.DM);
 
         if (existing.isPresent()) {
             return existing.get();
@@ -66,8 +71,8 @@ public class ChannelService {
             Server server = serverService.getServerById(1L);
 
             Channel dmChannel = new Channel();
-            dmChannel.setName(channelName);
             dmChannel.setType(ChannelType.DM);
+            dmChannel.setDmKey(dmKey);
             dmChannel.setServer(server);
 
             return channelRepository.save(dmChannel);
@@ -76,7 +81,7 @@ public class ChannelService {
 
             // Another thread created it between find and save
             return channelRepository
-                    .findByNameAndType(channelName, ChannelType.DM)
+                    .findBydmKeyAndType(dmKey, ChannelType.DM)
                     .orElseThrow(() -> ex);
         }
     }
@@ -86,7 +91,7 @@ public class ChannelService {
     public Channel getChannelById(Long id, Long userId) {
         Channel channel = getChannelByIdInternal(id);
         if (!serverService.isUserMember(channel.getServer().getId(), userId)) {
-            throw new RuntimeException("Unauthorized: User is not a member of this server");
+            throw new UnauthorizedException("Unauthorized: User is not a member of this server");
         }
         return channel;
     }
@@ -95,8 +100,8 @@ public class ChannelService {
     public List<Channel> getServerChannels(Long serverId, Long userId) {
         Server server = serverService.getServerById(serverId);
 
-        if (!serverService.isUserMember(serverId, userId)&& !server.getName().equals("Default Server")) {
-            throw new RuntimeException("Unauthorized: User is not a member of this server");
+        if (!serverService.isUserMember(serverId, userId)) {
+            throw new UnauthorizedException("Unauthorized: User is not a member of this server");
         }
 
         return channelRepository.findByServerOrderByName(server);
