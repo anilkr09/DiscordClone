@@ -12,4 +12,6 @@ public interface ChannelRepository extends JpaRepository<Channel, Long> {
     List<Channel> findByServerOrderByName(Server server);
 
     Optional<Channel> findByNameAndType(String channelName, ChannelType channelType);
-} 
+
+    Optional<Channel> findBydmKeyAndType(String dmKey, ChannelType channelType);
+}
