@@ -24,10 +24,12 @@ export const useChannels = (serverId: number) => {
   const createMutation = useMutation({
     mutationFn: channelService.createChannel,
     onSuccess: (newChannel) => {
-      queryClient.setQueryData(queryKey, (old: any[] = []) => [
+      queryClient.setQueryData(queryKey, (old: any[] = []) => {
+         if (old.some(c => c.id === newChannel.id)) return old;
+        return [
         ...old,
         newChannel,
-      ]);
+      ]});
     },
   });
 
@@ -46,14 +48,19 @@ export const useChannels = (serverId: number) => {
     if (!connected) return;
     if (!client) return;
     const handler = (event: any) => {
+
       switch (event.type) {
         case "CHANNEL_CREATED":
+          console.log("channel created event called");
           if (event.payload.serverId !== serverId) return;
 
-          queryClient.setQueryData(queryKey, (old: any[] = []) => [
+          queryClient.setQueryData(queryKey, (old: any[] = []) => {
+            
+           
+            return [
             ...old,
             event.payload,
-          ]);
+          ]});
           break;
 
         case "CHANNEL_DELETED":
@@ -76,7 +83,9 @@ export const useChannels = (serverId: number) => {
       }
     };
 
-    client.subscribe(`SERVER_${serverId}_CHANNEL`, handler);
+    // client.subscribe(`SERVER_${serverId}_CHANNEL`, handler);
+        client.subscribe(`/topic/channels`, (msg)=>handler(JSON.parse(msg.body)));
+
   }, [serverId, queryClient, connected, client]);
 
   // 🎯 exposed API
