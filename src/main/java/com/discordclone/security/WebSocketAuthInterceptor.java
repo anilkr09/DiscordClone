@@ -2,7 +2,7 @@
 
     import org.slf4j.Logger;
     import org.slf4j.LoggerFactory;
-    import com.discordclone.service.ChannelService;
+
     import org.springframework.messaging.Message;
     import org.springframework.messaging.MessageChannel;
     import org.springframework.messaging.simp.stomp.StompCommand;
@@ -21,11 +21,9 @@
         private static final Logger logger = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
         private final JwtService jwtService;
-        private final ChannelService channelService;
 
-        public WebSocketAuthInterceptor(JwtService jwtService, ChannelService channelService) {
+        public WebSocketAuthInterceptor(JwtService jwtService) {
             this.jwtService = jwtService;
-            this.channelService = channelService;
         }
 
         @Override

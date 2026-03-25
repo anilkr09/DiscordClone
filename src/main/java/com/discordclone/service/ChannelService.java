@@ -5,11 +5,16 @@ import com.discordclone.exception.UnauthorizedException;
 import com.discordclone.model.*;
 import com.discordclone.payload.ChannelPayload;
 import com.discordclone.repository.ChannelRepository;
+import com.discordclone.websocket.destination.WsDestinations;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
+import com.discordclone.websocket.publisher.WebSocketPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -21,7 +26,7 @@ public class ChannelService {
     private final ChannelRepository channelRepository;
     private final ServerService serverService;
     private final UserService userService;
-
+    private final WebSocketPublisher webSocketPublisher;
     // Authorization for admin actions (create, update, delete)
     private void checkUserIsAdmin(Long serverId, Long userId) {
         if (!serverService.isUserAdmin(serverId, userId)) {
@@ -47,7 +52,11 @@ public class ChannelService {
         checkUserIsAdmin(serverId, userId);
         Channel channel = Channel.builder().name(payload.getName()).server(server).description(payload.getDescription()).build();
         channel = channelRepository.save(channel);
-        return ChannelDTO.fromEntity(channel);
+        ChannelDTO channelDTO = ChannelDTO.fromEntity(channel);
+        webSocketPublisher.sendToTopic( WsDestinations.CHANNELS,new WsEvent(
+                WsEventType.CHANNEL_CREATED,channelDTO )
+        );
+        return channelDTO;
     }
     @Transactional
     public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
