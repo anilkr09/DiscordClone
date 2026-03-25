@@ -27,7 +27,7 @@ export default function MainLayout() {
   const [open, setOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false); // mobile Drawer for server rail
   const [error, setError] = useState<string | null>(null);
-  const { servers, createServer } = useServers();
+  const { servers, createServer,joinServer } = useServers();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
    useEffect(() => {
       setCurrentUser(authService.getCurrentUser());
@@ -109,7 +109,7 @@ export default function MainLayout() {
             },
           });
         }}
-        onJoin={(inviteCode) => { console.log(inviteCode); }}
+        onJoin={(inviteCode) => { joinServer.mutate(inviteCode); }}
       />
     </Box>
   );

@@ -38,7 +38,8 @@ class ServerService {
     }
 
     async joinServer(inviteCode: string): Promise<Server> {
-        return api.post(`/servers/join`, { inviteCode });
+        const response = await api.post(`/invites/join/${inviteCode}`);
+        return response.data;
     }   
 }
 

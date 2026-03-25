@@ -88,8 +88,8 @@ export default function CreateServerModal({
         {step === "join" && (
           <Box display="flex" flexDirection="column" gap={2}>
             <TextField
-              label="Invite Link"
-              placeholder="https://yourapp.gg/invite/abc123"
+              label="Invite Code"
+              placeholder="invite code"
               value={invite}
               onChange={(e) => setInvite(e.target.value)}
               fullWidth
