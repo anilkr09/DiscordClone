@@ -14,7 +14,7 @@ public class Invite {
     @Id
     private String code;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "server_id", nullable = false)
     private Server server;
 

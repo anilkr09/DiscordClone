@@ -58,9 +58,10 @@ public class InviteService {
         if (alreadyJoined) {
             throw new RuntimeException("User is already a member");
         }
+        MemberId memberId = new MemberId(userId, server.getId());
 
         Member member = Member.builder()
-
+                .id(memberId)
                 .user(user)
                 .server(server)
                 .nickname(user.getUsername())
