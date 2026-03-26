@@ -7,6 +7,7 @@ import TagIcon from '@mui/icons-material/Tag';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import AddIcon from '@mui/icons-material/Add';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
+import ShareIcon from '@mui/icons-material/Share';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Server, Channel, ChannelType } from '../../types/server';
@@ -17,6 +18,8 @@ import { useStatus } from '../../hooks/useStatus';
 import { UserStatus } from '../../types/status';
 import StatusIndicator from '../user/StatusIndicator';
 import { useServers } from '../../hooks/useServers';
+import { Share } from '@mui/icons-material';
+import InviteDialog from './InviteDialog';
 
 export default function ServerView() {
   const { serverId, channelId } = useParams();
@@ -29,7 +32,7 @@ export default function ServerView() {
   // members panel: inline on xl+ (≥1536px), Drawer on lg, hidden on md and below
   const hideMembers  = useMediaQuery(theme.breakpoints.down('xl'));
   const showMembers  = useMediaQuery(theme.breakpoints.up('md')); // don't even show toggle below md
-
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [server, setServer]               = useState<Server | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [createOpen, setCreateOpen]       = useState(false);
@@ -104,6 +107,22 @@ export default function ServerView() {
       }}>
         {server?.name ?? 'Channels'}
       </Box>
+  
+          <Box
+onClick={() => setInviteOpen(true)}          sx={{
+            display: 'flex', alignItems: 'center',
+            px: 2, py: 0.75, mx: 1, mt: 0.5,
+            borderRadius: 1, cursor: 'pointer',
+            color: '#949ba4',
+            '&:hover': { bgcolor: '#35373c', color: '#f2f3f5' },
+          }}
+        >
+          <ShareIcon sx={{ fontSize: 18, mr: 1.5 }} />
+
+          <Box  sx={{ fontSize: 14 }}>Invite</Box>
+          
+        </Box>
+          {serverId!=undefined &&<InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} serverId={serverId} />  }
 
       {/* Channel list */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', py: 1 }}>
@@ -144,7 +163,7 @@ export default function ServerView() {
         })}
 
         {/* Add Channel */}
-        <Box
+            <Box
           onClick={() => setCreateOpen(true)}
           sx={{
             display: 'flex', alignItems: 'center',
@@ -156,6 +175,7 @@ export default function ServerView() {
         >
           <AddIcon sx={{ fontSize: 18, mr: 1.5 }} />
           <Box sx={{ fontSize: 14 }}>Add Channel</Box>
+          
         </Box>
       </Box>
     </Box>
@@ -287,7 +307,7 @@ export default function ServerView() {
             </Box>
 
             {/* Right: open members panel (md–xl) */}
-            {hideMembers && showMembers && (
+            {/* {hideMembers && showMembers && (
               <IconButton
                 size="small"
                 onClick={() => setMembersOpen(true)}
@@ -295,7 +315,7 @@ export default function ServerView() {
               >
                 <PeopleAltIcon fontSize="small" />
               </IconButton>
-            )}
+            )} */}
           </Box>
         )}
 
