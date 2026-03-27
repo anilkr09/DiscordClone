@@ -1,6 +1,16 @@
 HELP.md
 .gradle
+# Ignore everything in build
 build/
+
+# But allow libs folder
+!build/libs/
+
+# But ignore everything inside libs
+build/libs/*
+
+# Allow only jar file
+!build/libs/app.jar
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
