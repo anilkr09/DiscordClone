@@ -3,6 +3,8 @@ import { Box, Avatar, useMediaQuery, useTheme, Drawer, IconButton } from '@mui/m
 import { Outlet, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import HomeIcon from '@mui/icons-material/Home';
+import { Tooltip } from "@mui/material";
+
 import MenuIcon from '@mui/icons-material/Menu';
 import CreateServerModal from '../servers/CreateServerModel';
 import authService from '../../services/auth.service';
@@ -56,24 +58,33 @@ export default function MainLayout() {
       gap: { xs: 1, sm: 1.5 },
       overflowX: { xs: 'auto', sm: 'visible' },
     }}>
-      {[...defaultServers, ...servers.data].map(server => (
-        <Avatar
-          key={server.id}
-          onClick={() => handleServerClick(server.id)}
-          sx={{
-            width: { xs: 40, sm: 48 },
-            height: { xs: 40, sm: 48 },
-            flexShrink: 0,
-            bgcolor: '#36393f',
-            cursor: 'pointer',
-            fontSize: { xs: '11px', sm: '13px' },
-            transition: 'border-radius .15s, background .15s',
-            '&:hover': { bgcolor: '#5865f2', borderRadius: '16px' },
-          }}
-        >
-          {server.id === 0 ? <HomeIcon sx={{ fontSize: { xs: 18, sm: 22 } }} /> : server.name.substring(0, 3)}
-        </Avatar>
-      ))}
+
+{[...defaultServers, ...servers.data].map(server => (
+  <Tooltip
+    key={server.id}
+    title={server.id === 0 ? "Home" : server.name}
+    placement="right-start"
+    arrow
+  >
+    <Avatar
+      onClick={() => handleServerClick(server.id)}
+      sx={{
+        width: { xs: 40, sm: 48 },
+        height: { xs: 40, sm: 48 },
+        flexShrink: 0,
+        bgcolor: '#36393f',
+        cursor: 'pointer',
+        fontSize: { xs: '11px', sm: '13px' },
+        transition: 'border-radius .15s, background .15s',
+        '&:hover': { bgcolor: '#5865f2', borderRadius: '16px' },
+      }}
+    >
+      {server.id === 0
+        ? <HomeIcon sx={{ fontSize: { xs: 18, sm: 22 } }} />
+        : server.name.substring(0, 3)}
+    </Avatar>
+  </Tooltip>
+))}
 
       <Avatar
         onClick={() => setOpen(true)}
