@@ -34,12 +34,21 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({ messages, is
                             '&:hover': { bgcolor: 'action.hover' }
                         }}
                     >
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Avatar 
-                                src={message.author?.avatarUrl || ""} 
-                                alt={message.author.username}
-                            />
-                            <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: 'flex', gap: 2,justifyContent: message.author.username === username ? 'flex-end' : 'flex-start', width: '100%'}}>
+                            
+                             <Avatar 
+                                      src={message.author?.avatarUrl || ""}
+                                      sx={{ 
+                                        width: 32, 
+                                        height: 32, 
+                                        bgcolor: '#ed4245',
+                                        fontSize: '14px',
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      {message.author.username.charAt(0).toUpperCase() || "?"}
+                                    </Avatar>
+                            <Box sx={{ maxWidth: '70%' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                     <Typography variant="subtitle1" fontWeight="bold">
                                          {message.author.username === username
