@@ -91,7 +91,7 @@ export default function HomeView() {
 
       {/* Part 3 — FriendsList or DirectMessage via Outlet */}
       <Box sx={{
-        flex: 1,
+        flex: 2,
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -132,6 +132,9 @@ export default function HomeView() {
         </Box>
 
       </Box>
+      {/* Part 4 — User profile on the right */}
+      <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#2b2d31', display: { xs: 'none', lg: 'flex' }, flexDirection: 'column', borderLeft: '1px solid #1e1f22' }}>
+       {<div></div>} </Box>
     </Box>
   );
 }

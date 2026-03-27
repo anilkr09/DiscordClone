@@ -69,8 +69,8 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
       >
         {/* <Typography variant="h6">
         </Typography> */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, px: 1 }}>
-                      <TagIcon sx={{ fontSize: 18, color: '#80848e' }} />
+        <Box sx={{ display: 'flex', alignItems: 'center',  flex: 1, px: 1 }}>
+                      {/* <TagIcon sx={{ fontSize: 18, color: '#80848e' }} /> */}
                       <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#f2f3f5' }}>
                                  {isDM ? `Friend: ${name}` : `Channel: ${name}`}
 

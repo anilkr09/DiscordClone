@@ -2,9 +2,6 @@ import api from './api';
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest, User } from '../types/auth';
-import { Client, Stomp } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
-import { AuthProvider } from '../providers/AuthProvider.tsx';
 
 class AuthService {
 

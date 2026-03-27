@@ -28,20 +28,20 @@ export default function ServerView() {
   const navigate = useNavigate();
   // Breakpoints
   // channel sidebar: inline on md+ (≥900px), Drawer on xs/sm
-  const hideSidebar  = useMediaQuery(theme.breakpoints.down('md'));
+  const hideSidebar = useMediaQuery(theme.breakpoints.down('md'));
   // members panel: inline on xl+ (≥1536px), Drawer on lg, hidden on md and below
-  const hideMembers  = useMediaQuery(theme.breakpoints.down('xl'));
-  const showMembers  = useMediaQuery(theme.breakpoints.up('md')); // don't even show toggle below md
+  const hideMembers = useMediaQuery(theme.breakpoints.down('xl'));
+  const showMembers = useMediaQuery(theme.breakpoints.up('md')); // don't even show toggle below md
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [server, setServer]               = useState<Server | null>(null);
+  const [server, setServer] = useState<Server | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [createOpen, setCreateOpen]       = useState(false);
-  const [sidebarOpen, setSidebarOpen]     = useState(false);  // mobile channel drawer
-  const [membersOpen, setMembersOpen]     = useState(false);  // members drawer
+  const [createOpen, setCreateOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);  // mobile channel drawer
+  const [membersOpen, setMembersOpen] = useState(false);  // members drawer
 
   const serverIdNum = serverId ? parseInt(serverId) : 0;
   const channelIdNum = channelId ? parseInt(channelId) : 0;
-  const { channels, createChannel ,isLoading: channelsLoading 
+  const { channels, createChannel, isLoading: channelsLoading
   } = useChannels(serverIdNum);
   const { friendStatuses } = useStatus();
   const getStatus = (id: number) => friendStatuses[id] || UserStatus.OFFLINE;
@@ -50,25 +50,24 @@ export default function ServerView() {
     navigate(`/channels/${serverId}/${channel.id}`);
     setSelectedChannel(channel);
   };
-  
+
   useEffect(() => {
-    if(servers.isLoading || servers.data.length==0 ||servers.isError) return;
+    if (servers.isLoading || servers.data.length == 0 || servers.isError) return;
     const srv = servers.data?.find(s => s.id === serverIdNum) || null;
     setServer(srv);
-    
-  },[serverIdNum,channelIdNum,servers.data,servers.isLoading,servers.isError]);
+
+  }, [serverIdNum, channelIdNum, servers.data, servers.isLoading, servers.isError]);
 
 
 
   useEffect(() => {
-    if (channelsLoading ) return;
+    if (channelsLoading) return;
     const ch = channels?.find(c => c.id === channelIdNum) || null;
-    if(ch==null && channels!=null && channels.length>0) 
-   { setSelectedChannel(channels[0]);navigate(`/channels/${serverId}/${channels[0].id}`);}
+    if (ch == null && channels != null && channels.length > 0) { setSelectedChannel(channels[0]); navigate(`/channels/${serverId}/${channels[0].id}`); }
     else
-    setSelectedChannel(ch);
+      setSelectedChannel(ch);
 
-  }, [channelIdNum, channels,channelsLoading]);
+  }, [channelIdNum, channels, channelsLoading]);
 
 
 
@@ -78,12 +77,12 @@ export default function ServerView() {
     if (hideSidebar) setSidebarOpen(false);
   }, [selectedChannel]);
 
- 
+
 
   // ── Part 2: Channel Sidebar ──────────────────────────────────────────────
   const ChannelSidebar = (
     <Box sx={{
-      width: { xs: 280, md: 240 },
+      width: { xs: 280, md: 250 },
       flexShrink: 0,
       bgcolor: '#2b2d31',
       display: 'flex',
@@ -107,22 +106,22 @@ export default function ServerView() {
       }}>
         {server?.name ?? 'Channels'}
       </Box>
-  
-          <Box
-onClick={() => setInviteOpen(true)}          sx={{
-            display: 'flex', alignItems: 'center',
-            px: 2, py: 0.75, mx: 1, mt: 0.5,
-            borderRadius: 1, cursor: 'pointer',
-            color: '#949ba4',
-            '&:hover': { bgcolor: '#35373c', color: '#f2f3f5' },
-          }}
-        >
-          <ShareIcon sx={{ fontSize: 18, mr: 1.5 }} />
 
-          <Box  sx={{ fontSize: 14 }}>Invite</Box>
-          
-        </Box>
-          {serverId!=undefined &&<InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} serverId={serverId} />  }
+      <Box
+        onClick={() => setInviteOpen(true)} sx={{
+          display: 'flex', alignItems: 'center',
+          px: 2, py: 0.75, mx: 1, mt: 0.5,
+          borderRadius: 1, cursor: 'pointer',
+          color: '#949ba4',
+          '&:hover': { bgcolor: '#35373c', color: '#f2f3f5' },
+        }}
+      >
+        <ShareIcon sx={{ fontSize: 18, mr: 1.5 }} />
+
+        <Box sx={{ fontSize: 14 }}>Invite</Box>
+
+      </Box>
+      {serverId != undefined && <InviteDialog open={inviteOpen} onClose={() => setInviteOpen(false)} serverId={serverId} />}
 
       {/* Channel list */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', py: 1 }}>
@@ -163,7 +162,7 @@ onClick={() => setInviteOpen(true)}          sx={{
         })}
 
         {/* Add Channel */}
-            <Box
+        <Box
           onClick={() => setCreateOpen(true)}
           sx={{
             display: 'flex', alignItems: 'center',
@@ -175,7 +174,7 @@ onClick={() => setInviteOpen(true)}          sx={{
         >
           <AddIcon sx={{ fontSize: 18, mr: 1.5 }} />
           <Box sx={{ fontSize: 14 }}>Add Channel</Box>
-          
+
         </Box>
       </Box>
     </Box>
@@ -186,15 +185,7 @@ onClick={() => setInviteOpen(true)}          sx={{
   const serverMembers: any[] = [];
 
   const MembersPanel = (
-    <Box sx={{
-      width: { xs: 280, xl: 240 },
-      flexShrink: 0,
-      bgcolor: '#2b2d31',
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100%',
-      borderLeft: '1px solid #1e1f22',
-    }}>
+    <Box sx={{ flex: 1, minWidth: 0, bgcolor: '#2b2d31', display: { xs: 'none', lg: 'flex' }, flexDirection: 'column', borderLeft: '1px solid #1e1f22' }}>
       {/* Header */}
       <Box sx={{
         height: 48,
@@ -299,8 +290,11 @@ onClick={() => setInviteOpen(true)}          sx={{
             )}
 
             {/* Channel name */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, px: 1 }}>
-              <TagIcon sx={{ fontSize: 18, color: '#80848e' }} />
+            <Box sx={{
+              display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: 1, flex: 1, px: 1
+            }}>
+              {/* <TagIcon sx={{ fontSize: 18, color: '#80848e' }} /> */}
               <Typography sx={{ fontSize: 14, fontWeight: 600, color: '#f2f3f5' }}>
                 {server?.name ? `Server: ${server.name}` : 'Select a channel'}
               </Typography>
@@ -333,7 +327,7 @@ onClick={() => setInviteOpen(true)}          sx={{
               justifyContent: 'center', color: '#5c5f66',
             }}>
               <Typography sx={{ fontSize: 14 }}>
-                { server==null ? `Server Don't exist` :( channels.length === 0 ? 'No channels yet — add one!' : 'Select a channel')}
+                {server == null ? `Server Don't exist` : (channels.length === 0 ? 'No channels yet — add one!' : 'Select a channel')}
               </Typography>
             </Box>
           )}
