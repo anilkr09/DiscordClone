@@ -2,12 +2,6 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.2.2'
 	id 'io.spring.dependency-management' version '1.1.4'
-	id 'jacoco'
-//	id 'checkstyle'
-	id 'pmd'
-	id "org.sonarqube" version "6.0.1.5171"
-
-
 }
 
 group = 'com.discordclone'
@@ -17,24 +11,12 @@ java {
 	toolchain {
 		languageVersion = JavaLanguageVersion.of(17)
 	}
-	sourceCompatibility = JavaVersion.VERSION_17
-
 }
 
-sonar {
-	properties {
-		property "sonar.projectKey", "discord-clone"
-		property "sonar.organization", "anilkr09"
-		property "sonar.host.url", "https://sonarcloud.io"
-		property "sonar.token", "07d85ed23560c71b29a01f13ee8a7b0c8694bdc7"
-
-	}
-}
-
-
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
+bootJar {
+	archiveFileName = 'app.jar'
+	layered {
+		enabled = true
 	}
 }
 
@@ -43,83 +25,38 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-
-	implementation 'org.springframework.security:spring-security-messaging'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	// JWT Dependencies
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.security:spring-security-messaging'
+
+	// JWT
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
 	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// In-memory DB
 	runtimeOnly 'com.h2database:h2'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
-//	runtimeOnly 'com.mysql:mysql-connector-j'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
 
+tasks.withType(JavaCompile) {
+	options.encoding = 'UTF-8'
+	options.incremental = true
 }
 
 test {
 	useJUnitPlatform()
-	finalizedBy jacocoTestReport
 }
-
-jacocoTestReport {
-	dependsOn test
-	reports {
-		xml.required = true
-		html.required = true
-	}
-}
-//checkstyle {
-//	toolVersion = '10.12.1'
-//	ignoreFailures = false
-//	showViolations = true
-//
-//
-//	configDirectory = file("${rootDir}/config/checkstyle")
-
-//}
-
-pmd {
-	toolVersion = '6.55.0'
-	ruleSets = [] // empty to allow custom ruleSet file
-	ruleSetFiles = files("${rootDir}/config/pmd/pmd-ruleset.xml")
-	ignoreFailures = true
-}
-
-//tasks.withType(Checkstyle) {
-//	reports {
-//		xml.required = false
-//		html.required = true
-//	}
-//}
-
-tasks.withType(Pmd) {
-	reports {
-		xml.required = false
-		html.required = true
-	}
-}
-
-check.dependsOn  pmdMain, pmdTest
-
-//check.dependsOn checkstyleMain, checkstyleTest, pmdMain, pmdTest
 
 jar {
 	enabled = false
-}
-
-bootJar {
-	archiveBaseName = 'discord-clone'
-	archiveVersion = '0.0.1-SNAPSHOT'
-	mainClass = 'com.discordclone.DiscordCloneApplication'
 }
