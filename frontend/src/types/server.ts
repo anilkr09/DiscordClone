@@ -1,14 +1,26 @@
+import { Description } from '@mui/icons-material';
+import { User } from './auth';
 import { Message } from './message';
 
 export interface Server {
-    id?: number;
+    id: number;
     name: string;
     description?: string;
-    ownerId?: number;
-    members?: number[];
-    channels?: Channel[];
+    owner: User;
     createdAt?: string;
-    updatedAt?: string;
+}
+export interface ServerPayload {
+    name:string;
+    description:string;
+    type:ServerType;
+    icon?: File;
+}
+export interface ChannelPayload {
+    name: string;
+    type: ChannelType;
+    description:string;
+
+    
 }
 
 export interface Channel {
@@ -25,4 +37,8 @@ export enum ChannelType {
     TEXT = 'TEXT',
     VOICE = 'VOICE',
     DM = 'DM'
+}
+export enum ServerType{
+    PUBLIC='PUBLIC',
+    PRIVATE='PRIVATE'
 }

@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import com.discordclone.payload.ServerPayload;
 import com.discordclone.model.Server;
 import com.discordclone.model.ServerDTO;
 import com.discordclone.security.UserPrincipal;
@@ -20,7 +21,7 @@ public class ServerController {
 
     @PostMapping
     public ResponseEntity<Server> createServer(
-            @RequestBody Server server,
+            @RequestBody ServerPayload server,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         return ResponseEntity.ok(serverService.createServer(server, currentUser.getId()));

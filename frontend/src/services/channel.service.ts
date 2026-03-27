@@ -1,14 +1,15 @@
 import api from './api';
-import { Channel } from '../types/server';
+import { Channel, ChannelPayload } from '../types/server';
 
 class ChannelService {
-    async createChannel(serverId: number, channel: Channel): Promise<Channel> {
-        const response = await api.post<Channel>(`/channels/servers/${serverId}`, channel);
+    async createChannel(data: { serverId: number; channel: ChannelPayload }): Promise<Channel> {
+        const { serverId, channel } = data;
+        const response = await api.post<Channel>(`/channels/${serverId}`, channel);
         return response.data;
     }
 
-    async getServerChannels(serverId: number): Promise<Channel[]> {
-        const response = await api.get<Channel[]>(`/servers/${serverId}/channels`);
+    async getChannels(serverId: number): Promise<Channel[]> {
+        const response = await api.get<Channel[]>(`/channels/${serverId}`);
         return response.data;
     }
 

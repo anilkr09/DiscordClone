@@ -40,9 +40,7 @@ public class ChannelDTO {
                 .description(channel.getDescription())
                 .type(channel.getType())
                 .serverId(channel.getServer() != null ? channel.getServer().getId() : null)
-                 .messages(channel.getMessages().stream()
-                         .map(MessageDTO::fromEntity)
-                         .collect(Collectors.toList()))
+
                 .build();
     }
 
@@ -58,22 +56,6 @@ public class ChannelDTO {
                 .description(channel.getDescription())
                 .type(channel.getType())
                 .serverId(channel.getServer() != null ? channel.getServer().getId() : null)
-                .build();
-    }
-    public static ChannelDTO fromEntityWithMessages(Channel channel) {
-        if (channel == null) {
-            return null;
-        }
-
-        return ChannelDTO.builder()
-                .id(channel.getId())
-                .name(channel.getName())
-                .description(channel.getDescription())
-                .type(channel.getType())
-                .serverId(channel.getServer() != null ? channel.getServer().getId() : null)
-                .messages(channel.getMessages().stream()
-                        .map(MessageDTO::fromEntity)
-                        .collect(Collectors.toList()))
                 .build();
     }
 }

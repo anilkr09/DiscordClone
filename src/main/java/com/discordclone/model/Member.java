@@ -1,10 +1,8 @@
 package com.discordclone.model;
+
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -13,30 +11,27 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@IdClass(MemberId.class)
 @Builder
 public class Member {
 
-    @Id
-    @Column(name = "user_id")
-    private Long userId;
+    @EmbeddedId
+    private MemberId id;
 
-    @Id
-    @Column(name = "server_id")
-    private Long serverId;
-
+    // 🔗 USER RELATION
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonBackReference // Prevent recursive serialization
-
-    @JoinColumn(name = "id", insertable = false, updatable = false)
+    @MapsId("userId")
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
     private User user;
 
+    // 🔗 SERVER RELATION
     @ManyToOne(fetch = FetchType.LAZY)
-    @JsonBackReference // Prevent recursive serialization
-
-    @JoinColumn(name = "id", insertable = false, updatable = false)
+    @MapsId("serverId")
+    @JoinColumn(name = "server_id", nullable = false)
+    @JsonBackReference
     private Server server;
 
+    // 🧾 EXTRA FIELDS
     @Column(name = "nickname", length = 100)
     private String nickname;
 
@@ -44,9 +39,7 @@ public class Member {
     @Column(name = "role", nullable = false)
     private Role role;
 
-    @Column(name = "joined_at")
+    @Column(name = "joined_at", nullable = false)
     @Builder.Default
     private LocalDateTime joinedAt = LocalDateTime.now();
-
-    // Getters and Setters
 }

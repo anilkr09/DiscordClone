@@ -32,6 +32,7 @@ export interface AuthResponse {
     profilePicture: string;
 }
 
+
 export interface RefreshTokenRequest {
     refreshToken: string;
 }

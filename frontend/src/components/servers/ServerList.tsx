@@ -4,24 +4,45 @@ import { Add as AddIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import serverService from '../../services/server.service';
 import { Server } from '../../types/server';
+import { useServers } from '../../hooks/useServers';
+import{useFriends} from"../../hooks/useFriends";
+
+
+
+
+
+
+
+
 
 export default function ServerList() {
-    const [servers, setServers] = useState<Server[]>([]);
+    // const [servers, setServers] = useState<Server[]>([]);
+    const {servers} = useServers();
+
     const navigate = useNavigate();
     const { serverId } = useParams();
+    
+      const { friends } = useFriends();
+      
+    
+            const loading = servers.isLoading;
+    
+    
+    
+    
+       
+    // useEffect(() => {
+    //     loadServers();
+    // }, []);
 
-    useEffect(() => {
-        loadServers();
-    }, []);
-
-    const loadServers = async () => {
-        try {
-            const data = await serverService.getUserServers();
-            setServers(data);
-        } catch (error) {
-            console.error('Failed to load servers:', error);
-        }
-    };
+    // const loadServers = async () => {
+    //     try {
+    //         const data = await serverService.getUserServers();
+    //         setServers(data);
+    //     } catch (error) {
+    //         console.error('Failed to load servers:', error);
+    //     }
+    // };
 
     return (
         <Box sx={{
@@ -34,7 +55,7 @@ export default function ServerList() {
             pt: 2,
         }}>
             <List>
-                {servers.map((server) => (
+                {servers.data.map((server) => (
                     <ListItem key={server.id} sx={{ mb: 1, p: 0 }}>
                         <Tooltip title={server.name} placement="right">
                             <IconButton

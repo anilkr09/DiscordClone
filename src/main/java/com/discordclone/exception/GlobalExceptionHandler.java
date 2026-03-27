@@ -5,14 +5,18 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.messaging.MessageDeliveryException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.security.SignatureException;
@@ -32,6 +36,7 @@ public class GlobalExceptionHandler {
             ConflictException ex,
             HttpServletRequest request
     ) {
+        log.error(ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ErrorResponse(
                         HttpStatus.CONFLICT.value(),
@@ -55,6 +60,103 @@ public class GlobalExceptionHandler {
                         null
                 ));
     }
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateResource(
+            DuplicateResourceException ex,
+            HttpServletRequest request
+    ) {
+        log.error(ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(
+                        HttpStatus.CONFLICT.value(),
+                        "CONFLICT",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                ));
+    }
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "MALFORMED_JSON",
+                        "Request body is invalid or malformed",
+                        request.getRequestURI(),
+                        null
+                ));
+    }
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request
+    ) {
+        String message = String.format(
+                "Invalid value '%s' for parameter '%s'",
+                ex.getValue(),
+                ex.getName()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "INVALID_PARAMETER",
+                        message,
+                        request.getRequestURI(),
+                        null
+                ));
+    }
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request
+    ) {
+        log.error(ex.getMessage(), ex);
+        String message = "Database constraint violation";
+        Map<String, String> fieldErrors = null;
+
+        Throwable root = ex.getRootCause();
+
+        if (root instanceof ConstraintViolationException constraintEx) {
+            String constraint = constraintEx.getConstraintName();
+
+            if (constraint != null) {
+                switch (constraint) {
+
+                    case "uk_username" -> {
+                        message = "Username already taken";
+                        fieldErrors = Map.of("username", "Username already taken");
+                    }
+
+                    case "uk_email" -> {
+                        message = "Email already registered";
+                        fieldErrors = Map.of("email", "Email already registered");
+                    }
+
+                    case "servers_name_key", "uk_server_name" -> {
+                        message = "Server name already exists";
+                        fieldErrors = Map.of("name", "Server name already exists");
+                    }
+
+                    default -> {
+                        message = "Duplicate or invalid data";
+                    }
+                }
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(
+                        HttpStatus.CONFLICT.value(),
+                        "CONFLICT",
+                        message,
+                        request.getRequestURI(),
+                        fieldErrors
+                ));
+    }
 
     /* =========================
        400 – Validation Errors
@@ -75,6 +177,19 @@ public class GlobalExceptionHandler {
                         null
                 ));
     }
+
+        @ExceptionHandler(UnauthorizedException.class)
+        public ResponseEntity<?> handleUnauthorized(UnauthorizedException ex,HttpServletRequest request) {
+
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ErrorResponse(
+                            HttpStatus.UNAUTHORIZED.value(),
+                            "UNAUTHORIZED",
+                            ex.getMessage(),
+                            request.getRequestURI(),
+                            null
+                    ));
+        }
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex,
@@ -190,7 +305,22 @@ public class GlobalExceptionHandler {
     /* =========================
        500 – Fallback
     ========================= */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorResponse> handleRuntimeException(
+            Exception ex,
+            HttpServletRequest request
+    ) {
+        log.error("Unhandled exception", ex);
 
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ErrorResponse(
+                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "INTERNAL_SERVER_ERROR",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                ));
+    }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex,

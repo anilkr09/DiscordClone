@@ -1,5 +1,6 @@
 package com.discordclone.service;
 
+import com.discordclone.exception.DuplicateResourceException;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
 import com.discordclone.repository.UserRepository;
@@ -21,12 +22,12 @@ public class UserService {
     @Transactional
     public User createUser(User user) {
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new RuntimeException("Username is already taken");
-        }
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email is already registered");
+            throw new DuplicateResourceException("Username already taken");
         }
 
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new DuplicateResourceException("Email already registered");
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 //        user.setStatus(UserStatus.OFFLINE);
         return userRepository.save(user);

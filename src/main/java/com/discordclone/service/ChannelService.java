@@ -1,15 +1,20 @@
 package com.discordclone.service;
 
-import com.discordclone.model.Channel;
-import com.discordclone.model.ChannelType;
-import com.discordclone.model.Server;
-import com.discordclone.model.User;
+import com.discordclone.exception.ResourceNotFoundException;
+import com.discordclone.exception.UnauthorizedException;
+import com.discordclone.model.*;
+import com.discordclone.payload.ChannelPayload;
 import com.discordclone.repository.ChannelRepository;
+import com.discordclone.websocket.destination.WsDestinations;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
+import com.discordclone.websocket.publisher.WebSocketPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -21,11 +26,11 @@ public class ChannelService {
     private final ChannelRepository channelRepository;
     private final ServerService serverService;
     private final UserService userService;
-
+    private final WebSocketPublisher webSocketPublisher;
     // Authorization for admin actions (create, update, delete)
     private void checkUserIsAdmin(Long serverId, Long userId) {
         if (!serverService.isUserAdmin(serverId, userId)) {
-            throw new RuntimeException("Unauthorized: User is not an admin of this server");
+            throw new UnauthorizedException("Unauthorized: User is not an admin of this server");
         }
     }
 
@@ -37,26 +42,34 @@ public class ChannelService {
 
     private Channel getChannelByIdInternal(Long channelId) {
         return channelRepository.findById(channelId)
-                .orElseThrow(() -> new RuntimeException("Channel not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Channel","channelId",channelId));
     }
 
     @Transactional
-    public Channel createChannel(Channel channel, Long serverId, Long userId) {
-//        checkUserIsAdmin(serverId, userId);
+    public ChannelDTO createChannel(ChannelPayload payload, Long serverId, Long userId) {
+
         Server server = serverService.getServerById(serverId);
-        channel.setServer(server);
-        return channelRepository.save(channel);
+        checkUserIsAdmin(serverId, userId);
+        Channel channel = Channel.builder().name(payload.getName()).server(server).description(payload.getDescription()).build();
+        channel = channelRepository.save(channel);
+        ChannelDTO channelDTO = ChannelDTO.fromEntity(channel);
+        webSocketPublisher.sendToTopic( WsDestinations.CHANNELS,new WsEvent(
+                WsEventType.CHANNEL_CREATED,channelDTO )
+        );
+        return channelDTO;
     }
     @Transactional
     public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
 
-        Long min = Math.min(userId1, userId2);
-        Long max = Math.max(userId1, userId2);
+        User user1 = userService.getUserById(userId1);
+        User user2 = userService.getUserById(userId2);
+        long min = Math.min(userId1, userId2);
+        long max = Math.max(userId1, userId2);
 
-        String channelName = "dm-" + min + "-" + max;
+        String dmKey = "dm-" + min + "-" + max;
 
         Optional<Channel> existing =
-                channelRepository.findByNameAndType(channelName, ChannelType.DM);
+                channelRepository.findBydmKeyAndType(dmKey, ChannelType.DM);
 
         if (existing.isPresent()) {
             return existing.get();
@@ -67,8 +80,8 @@ public class ChannelService {
             Server server = serverService.getServerById(1L);
 
             Channel dmChannel = new Channel();
-            dmChannel.setName(channelName);
             dmChannel.setType(ChannelType.DM);
+            dmChannel.setDmKey(dmKey);
             dmChannel.setServer(server);
 
             return channelRepository.save(dmChannel);
@@ -77,7 +90,7 @@ public class ChannelService {
 
             // Another thread created it between find and save
             return channelRepository
-                    .findByNameAndType(channelName, ChannelType.DM)
+                    .findBydmKeyAndType(dmKey, ChannelType.DM)
                     .orElseThrow(() -> ex);
         }
     }
@@ -87,17 +100,19 @@ public class ChannelService {
     public Channel getChannelById(Long id, Long userId) {
         Channel channel = getChannelByIdInternal(id);
         if (!serverService.isUserMember(channel.getServer().getId(), userId)) {
-            throw new RuntimeException("Unauthorized: User is not a member of this server");
+            throw new UnauthorizedException("Unauthorized: User is not a member of this server");
         }
         return channel;
     }
 
     @Transactional(readOnly = true)
     public List<Channel> getServerChannels(Long serverId, Long userId) {
-        if (!serverService.isUserMember(serverId, userId)) {
-            throw new RuntimeException("Unauthorized: User is not a member of this server");
-        }
         Server server = serverService.getServerById(serverId);
+
+        if (!serverService.isUserMember(serverId, userId)) {
+            throw new UnauthorizedException("Unauthorized: User is not a member of this server");
+        }
+
         return channelRepository.findByServerOrderByName(server);
     }
 
