@@ -2,7 +2,7 @@
 
 🚀 Discord Clone – Real-Time Chat Application
 
-A full-stack Discord-like real-time chat application featuring user authentication, friend management, group chats, WebSocket-based messaging, and Redis caching. Built with Spring Boot on the backend and React + TypeScript on the frontend,
+A full-stack Discord-like real-time chat application  
 ---
 
 
@@ -26,30 +26,16 @@ One-to-one (DM) messaging
 
 Channel-based group chats
 
-WebSocket (STOMP) real-time communication
+real-time online/offline status
 
-online/offline status
+reatl-time Send / accept / reject friend requests
 
-👥 Friends System
-
-Send / accept / reject friend requests
-
-Remove friends
+real-tiem Remove friends
 
 Real-time friend status updates
-
-🧠 Performance & Scalability
-
-Redis caching for frequently accessed data
+Real-time create/remove  channel
 
 
-🛠 Developer Friendly
-
-Clean layered architecture
-
-Dockerized setup
-
-Unit & integration tests
 
 ---
 ## Demo
@@ -109,18 +95,6 @@ See [frontend/README.md](frontend/README.md) for full details.
 
 ---
 
-## Running with Docker
-
-### Prerequisites
-- Docker
-- Docker Compose
-
-### Steps
-1. Build and start all services:
-   ```bash
-   docker-compose  up -d
-   ```
-2. The backend will be available at [http://localhost:8082](http://localhost:8082), and the frontend at [http://localhost:4173](http://localhost:4173).
 
 ---
 
