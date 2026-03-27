@@ -54,14 +54,14 @@ public class InviteService {
         Server server = invite.getServer();
         User user = userService.getUserById(userId);
 
-        boolean alreadyJoined = memberRepository.existsByUserIdAndServerId(userId, server.getId());
+        boolean alreadyJoined = memberRepository.existsByIdUserIdAndIdServerId(userId, server.getId());
         if (alreadyJoined) {
             throw new RuntimeException("User is already a member");
         }
+        MemberId memberId = new MemberId(userId, server.getId());
 
         Member member = Member.builder()
-                .userId(user.getId())
-                .serverId(server.getId())
+                .id(memberId)
                 .user(user)
                 .server(server)
                 .nickname(user.getUsername())

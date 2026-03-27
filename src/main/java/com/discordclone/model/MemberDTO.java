@@ -29,10 +29,14 @@ public class MemberDTO {
         }
 
         MemberDTO dto = new MemberDTO();
-        dto.setUserId(member.getUserId());
-        dto.setServerId(member.getServerId());
 
-        // Include user details if user is loaded
+        // ✅ FIX: get IDs from embedded key
+        if (member.getId() != null) {
+            dto.setUserId(member.getId().getUserId());
+            dto.setServerId(member.getId().getServerId());
+        }
+
+        // ✅ Safe user loading (important for LAZY)
         if (member.getUser() != null) {
             dto.setUsername(member.getUser().getUsername());
             dto.setEmail(member.getUser().getEmail());
@@ -43,5 +47,4 @@ public class MemberDTO {
         dto.setJoinedAt(member.getJoinedAt());
 
         return dto;
-    }
-}
+    }}

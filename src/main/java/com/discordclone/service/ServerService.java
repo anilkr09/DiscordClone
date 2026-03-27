@@ -1,15 +1,21 @@
 package com.discordclone.service;
+import com.discordclone.exception.DuplicateResourceException;
+import com.discordclone.exception.ResourceNotFoundException;
+import lombok.extern.slf4j.Slf4j;
 
 import com.discordclone.model.*;
+import com.discordclone.payload.ServerPayload;
 import com.discordclone.repository.MemberRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+@Slf4j
 
 @Service
 @RequiredArgsConstructor
@@ -21,16 +27,40 @@ public class ServerService {
     private final MemberRepository memberRepository;
 
     @Transactional
-    public Server createServer(Server server, Long userId) {
-        User owner = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Server createServer(ServerPayload payload, Long userId) {
 
-        server.setOwner(owner);
-        Server savedServer = serverRepository.save(server);
+        // 🔹 1. Fetch Owner
+        User owner = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // 🔹 2. Duplicate check (because name is unique)
+        if (serverRepository.existsByName(payload.getName())) {
+            throw new DuplicateResourceException("Server", "name", payload.getName());
+        }
+
+        // 🔹 3. Create Server
+        Server server = Server.builder()
+                .name(payload.getName())
+                .description(payload.getDescription())
+                .owner(owner)
+                // .type(payload.getType()) // keep if needed
+                .build();
+
+        Server savedServer;
+        try {
+            savedServer = serverRepository.save(server);
+        } catch (DataIntegrityViolationException ex) {
+            // handles race condition
+            throw new DuplicateResourceException("Server", "name", payload.getName());
+        }
+
+        log.info("Created Server: {}", savedServer);
+
+        // 🔹 4. Create Member (Owner)
+        MemberId memberId = new MemberId(userId, savedServer.getId());
 
         Member ownerMember = Member.builder()
-                .userId(owner.getId())
-                .serverId(savedServer.getId())
+                .id(memberId)
                 .user(owner)
                 .server(savedServer)
                 .nickname(owner.getUsername())
@@ -39,21 +69,24 @@ public class ServerService {
                 .build();
 
         memberRepository.save(ownerMember);
+        log.info("Created Member: {}", ownerMember);
+
         return savedServer;
     }
 
     @Transactional(readOnly = true)
     public Server getServerById(Long id) {
         System.out.println("called findfullserver");
-        return serverRepository.findWithChannelsById(id)
-                .orElseThrow(() -> new RuntimeException("Server not found"));
-
+        Server server = serverRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Server","ServerId",id));
+        return server;
 
 
     }
 
     @Transactional(readOnly = true)
     public List<Server> getUserServers(Long userId) {
+        log.info("called getuserservers");
         return memberRepository.findServersByUserId(userId);
     }
 
@@ -66,17 +99,14 @@ public class ServerService {
         if (memberRepository.existsById(memberId)) {
             throw new RuntimeException("User is already a member of this server");
         }
-
         Member member = Member.builder()
-                .userId(userId)
-                .serverId(serverId)
+                .id(memberId)
                 .user(user)
                 .server(server)
                 .nickname(user.getUsername())
                 .role(Role.MEMBER)
                 .joinedAt(LocalDateTime.now())
                 .build();
-
         memberRepository.save(member);
         return server;
     }

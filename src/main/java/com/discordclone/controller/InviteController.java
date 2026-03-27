@@ -31,7 +31,7 @@ public class InviteController {
         Invite invite = inviteService.createInvite(serverId, maxUses, Duration.ofMinutes(validMinutes), currentUser.getId());
 
         String baseUrl = request.getRequestURL().toString().replace(request.getRequestURI(), "");
-        String inviteUrl = baseUrl + "/invite/" + invite.getCode();
+        String inviteUrl = baseUrl + "/api/invites/join/" + invite.getCode();
 
         InviteResponse response = new InviteResponse(
                 inviteUrl,

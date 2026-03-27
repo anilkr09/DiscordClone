@@ -61,13 +61,16 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin()) // ✅ THIS FIXES YOUR SCREEN
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Allow error dispatches
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 
                         // Allow preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
 
                         // Public endpoints
                         .requestMatchers(

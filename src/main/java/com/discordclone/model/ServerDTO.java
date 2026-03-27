@@ -16,8 +16,6 @@ public class ServerDTO {
     private String name;
     private String description;
     private UserDTO owner;
-    private Set<ChannelDTO> channels;
-
     // Constructors, getters, setters
 
     public static ServerDTO fromEntity(Server server) {
@@ -27,9 +25,7 @@ public class ServerDTO {
         dto.setDescription(server.getDescription());
         dto.setOwner(UserDTO.fromEntity(server.getOwner()));
 
-        dto.setChannels(server.getChannels().stream()
-                .map(ChannelDTO::fromEntity)
-                .collect(Collectors.toSet()));
+
         return dto;
     }
 
