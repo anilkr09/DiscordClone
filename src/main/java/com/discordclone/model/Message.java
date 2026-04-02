@@ -13,26 +13,26 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Setter
 @Getter
+
 public class Message {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
+    private String id; // ✅ now String
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
-    
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JsonBackReference // Prevent recursive serialization
 
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "channel_id", nullable = false)
     private Channel channel;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User sender;
-    
+
     @Column(nullable = false)
     private LocalDateTime timestamp = LocalDateTime.now();
-    
+
+
     private boolean edited = false;
-} 
+}

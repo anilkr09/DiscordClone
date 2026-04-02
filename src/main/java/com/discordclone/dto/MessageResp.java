@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 
 public class MessageResp {
-    private Long id;
+    private String id;
     private String content;
     private Long channelId;
     private Long senderId;
