@@ -1,6 +1,10 @@
+
 services:
+  # ---------------------------
+  # 🐘 PostgreSQL
+  # ---------------------------
   db:
-    image: postgres:16-alpine # Alpine version is smaller and faster
+    image: postgres:16-alpine
     container_name: postgres_dev
     restart: always
     environment:
@@ -11,13 +15,15 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-#      - ./postgres/init:/docker-entrypoint-initdb.d # Automate schema setup
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dev_user -d dev_database"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # ---------------------------
+  # 🌐 pgAdmin
+  # ---------------------------
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin_dev
@@ -29,6 +35,9 @@ services:
     depends_on:
       - db
 
+  # ---------------------------
+  # ⚡ Redis
+  # ---------------------------
   redis:
     image: redis:7-alpine
     container_name: redis_dev
@@ -44,6 +53,72 @@ services:
       timeout: 5s
       retries: 5
 
+  # ---------------------------
+  # 🧠 Zookeeper
+  # ---------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # ---------------------------
+  # 📡 Kafka
+  # ---------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # 🔥 Dual listeners (IMPORTANT)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_NUM_PARTITIONS: 4
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - kafka
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: |
+      "
+      sleep 10
+      kafka-topics --create --if-not-exists \
+        --topic message-events \
+        --bootstrap-server kafka:29092 \
+        --partitions 4 \
+        --replication-factor 1
+      "
+  # ---------------------------
+  # 📊 Kafka UI
+  # ---------------------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8085:8080"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+# ---------------------------
+# 📦 Volumes
+# ---------------------------
 volumes:
   pgdata:
   redis-data:
