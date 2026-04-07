@@ -52,8 +52,7 @@ public class MessageService {
         message.setChannel(channel);
         message.setContent(request.getContent());
 
-        // ✅ DB save only in LOCAL profile
-        Message savedMessage = persistenceService.save(message);
+
 
         UserDTO userDTO = UserDTO.builder()
                 .avatarUrl("")
@@ -68,30 +67,10 @@ public class MessageService {
                 .content(message.getContent())
                 .timestamp(message.getTimestamp())
                 .build();
+        // 🔥 Delegate everything to profile-based publisher
+        eventPublisher.publish(message, messageResponse, request, user);
 
-        if (request.isDm()) {
-            messagingTemplate.convertAndSendToUser(
-                    user.getUsername(),
-                    "/queue/messages",
-                    messageResponse
-            );
-
-            messagingTemplate.convertAndSendToUser(
-                    request.getReceiver(),
-                    "/queue/messages",
-                    messageResponse
-            );
-        } else {
-            messagingTemplate.convertAndSend(
-                    "/topic/channels/" + channel.getId() + "/messages",
-                    messageResponse
-            );
-        }
-
-        //  2. Persistance only
-        eventPublisher.publish(messageResponse);
-
-        return savedMessage;
+        return message;
     }
     @Transactional(readOnly = true)
     public Page<Message> getChannelMessages(Channel channel, Pageable pageable) {
