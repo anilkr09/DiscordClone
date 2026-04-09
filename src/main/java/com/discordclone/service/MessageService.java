@@ -19,6 +19,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -28,68 +32,46 @@ public class MessageService {
     private final SimpMessagingTemplate messagingTemplate;
     private  final UserRepository userRepository;
     private final ChannelRepository channelRepository;
-
+    private final MessagePersistenceService persistenceService;
+    private final MessageEventPublisher eventPublisher;
     @Transactional
-    public Message sendMessage(MessageRequest request , Long userId ) {
+    public Message sendMessage(MessageRequest request, Long userId) {
 
         Message message = new Message();
-        System.out.println("current msg " + request.toString());
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
         Channel channel = channelRepository.findById(request.getChannelId())
                 .orElseThrow(() -> new ResourceNotFoundException("Channel", "id", userId));
 
-
+        // 🔥 Generate ID in producer (important for kafka mode)
+        message.setId(UUID.randomUUID().toString());
+        message.setTimestamp(LocalDateTime.now());
         message.setSender(user);
         message.setChannel(channel);
         message.setContent(request.getContent());
 
-        Message savedMessage = messageRepository.save(message);
+
+
         UserDTO userDTO = UserDTO.builder()
                 .avatarUrl("")
                 .username(user.getUsername())
                 .id(user.getId())
                 .build();
 
-
         MessageResponse messageResponse = MessageResponse.builder()
+                .id(message.getId()) // use generated ID
                 .author(userDTO)
-                .id(savedMessage.getId())
-                .channelId(savedMessage.getChannel().getId())
-                .content(savedMessage.getContent())
-                .timestamp(savedMessage.getTimestamp())
+                .channelId(channel.getId())
+                .content(message.getContent())
+                .timestamp(message.getTimestamp())
                 .build();
-        log.info("➡️ isDM value request {}", request.toString());
+        // 🔥 Delegate everything to profile-based publisher
+        eventPublisher.publish(message, messageResponse, request, user);
 
-        if(request.isDm()) {
-            log.info("➡️ queue msg user {}", user.getUsername());
-            log.info(
-                    "Sending WS message to user={} channelId={}",
-                    request.getReceiver(),
-                    channel.getId()
-            );
-            messagingTemplate.convertAndSendToUser(
-                    user.getUsername(),
-                    "/queue/messages",
-                    messageResponse
-            );
-
-
-            messagingTemplate.convertAndSendToUser(
-                    request.getReceiver(),
-                    "/queue/messages",
-                    messageResponse
-            );
-        }
-        else {
-        messagingTemplate.convertAndSend(
-            "/topic/channels/" + message.getChannel().getId() + "/messages",
-            messageResponse
-        );
-        }
-        return savedMessage;
+        return message;
     }
-
     @Transactional(readOnly = true)
     public Page<Message> getChannelMessages(Channel channel, Pageable pageable) {
 

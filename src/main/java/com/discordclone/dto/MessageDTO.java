@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MessageDTO {
-    private Long id;
+    private String id;
     private String content;
     private UserDTO author;
     private Long channelId;
