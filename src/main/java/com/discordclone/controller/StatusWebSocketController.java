@@ -1,50 +1,38 @@
 package com.discordclone.controller;
 
-import com.discordclone.model.UserStatus;
-import com.discordclone.payload.StatusUpdatePayload;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.UserStatusService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 @Controller
+@RequiredArgsConstructor
+@Slf4j
 public class StatusWebSocketController {
+
     private final UserStatusService userStatusService;
-    private static final Logger logger = LoggerFactory.getLogger(StatusWebSocketController.class);
 
-    @Autowired
-    public StatusWebSocketController(UserStatusService userStatusService) {
-        this.userStatusService = userStatusService;
-
+    @MessageMapping("/heartbeat")
+    public void heartbeat(SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
+        if (userId != null) userStatusService.handleHeartbeat(userId);
     }
 
-    @MessageMapping("/status")
-//    @SendTo("/topic/status")
+    @MessageMapping("/activity")
+    public void activity(SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = extractUserId(headerAccessor);
+        if (userId != null) userStatusService.handleActivity(userId);
+    }
 
-    public void handleStatusUpdate(@Payload StatusUpdatePayload statusUpdate, SimpMessageHeaderAccessor headerAccessor) {
-        Authentication authentication = (Authentication) headerAccessor.getUser();
-        if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
-            UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
-            logger.info("status update -- {}",statusUpdate.getCurrentStatus());
-
-            // If custom status is provided
-            if (statusUpdate.getCustomStatus() != null ) {
-                userStatusService.updateCustomStatus(
-                    currentUser.getId(),
-                    UserStatus.valueOf(statusUpdate.getCustomStatus())
-                );
-            }
-            else
-                userStatusService.updateUserStatus(currentUser.getId(), UserStatus.valueOf(statusUpdate.getCurrentStatus()));
-
-
+    private Long extractUserId(SimpMessageHeaderAccessor headerAccessor) {
+        Authentication auth = (Authentication) headerAccessor.getUser();
+        if (auth != null && auth.getPrincipal() instanceof UserPrincipal u) {
+            return u.getId();
         }
+        return null;
     }
-
-} 
+}
