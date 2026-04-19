@@ -79,4 +79,6 @@ public interface FriendshipService {
      * @return true if they are friends, false otherwise
      */
     boolean areFriends(Long userId, Long friendId);
+
+    List<Long> getFriendIds(Long userId);
 } 

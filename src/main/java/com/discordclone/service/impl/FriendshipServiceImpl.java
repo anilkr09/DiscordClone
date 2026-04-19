@@ -379,4 +379,25 @@ public class FriendshipServiceImpl implements FriendshipService {
 
         return friendshipRepository.existsFriendship(user, friend);
     }
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> getFriendIds(Long userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        List<Friendship> friendships =
+                friendshipRepository.findAcceptedFriendships(user);
+
+        return friendships.stream()
+                .map(friendship -> {
+                    // determine the "other" user
+                    if (friendship.getSender().getId().equals(userId)) {
+                        return friendship.getReceiver().getId();
+                    } else {
+                        return friendship.getSender().getId();
+                    }
+                })
+                .toList();
+    }
 }
