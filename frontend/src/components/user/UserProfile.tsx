@@ -12,10 +12,9 @@ import LogoutIcon from '@mui/icons-material/Logout';
 interface UserProfileProps {
   user: User;
   status: UserStatus;
-  customStatus: UserStatus;
 }
 
-export default function UserProfile({ user, status, customStatus }: UserProfileProps) {
+export default function UserProfile({ user, status }: UserProfileProps) {
   const [statusAnchorEl, setStatusAnchorEl] = useState<HTMLElement | null>(null);
   
   const handleStatusClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -66,7 +65,7 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
           {avatarText}
         </Avatar>
         <StatusIndicator 
-          status={customStatus} 
+          status={status} 
           borderColor="#292b2f"
         />
       </Box>
@@ -75,17 +74,17 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
         <Typography sx={{ fontSize: '14px', fontWeight: 'bold' }}>
           {user.username}
         </Typography>
-        {customStatus ? (
+        {/* {customStatus ? (
           <Typography sx={{ fontSize: '12px', color: '#96989d' }}>
             {customStatus}
           </Typography>
-        ) : (
+        ) : ( */}
           <Typography sx={{ fontSize: '12px', color: '#96989d' }}>
             {status === UserStatus.ONLINE ? 'Online' : 
              status === UserStatus.IDLE ? 'Idle' : 
              status === UserStatus.DO_NOT_DISTURB ? 'Do Not Disturb' : 'Offline'}
           </Typography>
-        )}
+        {/* )} */}
       </Box>
       
       <IconButton size="small" sx={{ color: '#b9bbbe' } }   onClick={handleLogout}>
@@ -93,7 +92,7 @@ export default function UserProfile({ user, status, customStatus }: UserProfileP
       </IconButton>
 
       <UserStatusSelector 
-        currentStatus={customStatus}
+        currentStatus={status}
         anchorEl={statusAnchorEl}
         onClose={handleStatusClose}
       />

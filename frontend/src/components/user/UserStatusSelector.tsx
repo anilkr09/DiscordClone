@@ -26,60 +26,35 @@ interface UserStatusSelectorProps {
 }
 
 export default function UserStatusSelector({ 
-  currentStatus, 
   anchorEl, 
   onClose 
 }: UserStatusSelectorProps) {
-  const [customStatus, setCustomStatus] = useState<string>('');
-  const [showCustomInput, setShowCustomInput] = useState<boolean>(false);
-  const {  friendStatuses,updateCustomStatus } = useStatus();
-
-  const { messages } = useWebSocketTopic("/topic/status");
+  const {  updateCustomStatus, clearCustomStatus} = useStatus();
 
 
-  useEffect(() => {
-    console.log("messages", messages);
-  }, [messages]);
 
-  const handleStatusChange =  (status: UserStatus) => {
-    console.log("status click", status);
-    try {
 
-       updateCustomStatus(status);
 
-      onClose();
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
-  };
+const handleStatusChange = (status: UserStatus) => {
+  console.log("status click", status);
 
-  const handleCustomStatusSubmit = async () => {
-    if (!customStatus.trim()) {
-      setShowCustomInput(false);
-      return;
-    }
+  try {
+    // Close menu first
+    onClose();
 
-    try {
-      const customStatusObj: CustomStatus = {
-        text: customStatus.trim()
-      };
-          // await useStatusService.updateCustomStatus(currentStatus, customStatusObj);
-      setShowCustomInput(false);
-      onClose();
-    } catch (error) {
-      console.error('Failed to update custom status:', error);
-    }
-  };
+    // Then update after focus cleanup
+    requestAnimationFrame(() => {
+      if(status==UserStatus.ONLINE)
+        clearCustomStatus();
+      else
+      updateCustomStatus(status);
+    });
 
-  const handleClearCustomStatus = async () => {
-    try {
-      // await useStatusService.clearCustomStatus();
-      setCustomStatus('');
-      setShowCustomInput(false);
-    } catch (error) {
-      console.error('Failed to clear custom status:', error);
-    }
-  };
+  } catch (error) {
+    console.error('Failed to update status:', error);
+  }
+};
+  
 
   return (
     <Menu
@@ -138,63 +113,7 @@ export default function UserStatusSelector({
 
       <Divider sx={{ my: 1, bgcolor: '#2f3136' }} />
 
-      {showCustomInput ? (
-        <Box sx={{ p: 2 }}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="What's happening?"
-            value={customStatus}
-            onChange={(e) => setCustomStatus(e.target.value)}
-            size="small"
-            InputProps={{
-              sx: {
-                color: 'white',
-                bgcolor: '#2f3136',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#40444b'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#40444b'
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#5865f2'
-                }
-              }
-            }}
-            sx={{ mb: 1 }}
-          />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Button 
-              variant="text" 
-              onClick={() => setShowCustomInput(false)}
-              sx={{ color: '#dcddde' }}
-            >
-              Cancel
-            </Button>
-            <Box>
-              <Button 
-                variant="text" 
-                onClick={handleClearCustomStatus}
-                sx={{ color: '#dcddde', mr: 1 }}
-              >
-                Clear
-              </Button>
-              <Button 
-                variant="contained" 
-                onClick={handleCustomStatusSubmit}
-                sx={{ bgcolor: '#5865f2', '&:hover': { bgcolor: '#4752c4' } }}
-              >
-                Save
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      ) : (
-        <MenuItem onClick={() => setShowCustomInput(true)}>
-          <ListItemText>Set a custom status</ListItemText>
-        </MenuItem>
-      )}
+     
     </Menu>
   );
 } 
