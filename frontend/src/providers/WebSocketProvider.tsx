@@ -272,3 +272,24 @@ export const useWebSocketTopic = (topic: string) => {
     sendMessage: sendMessageToTopic,
   };
 };
+
+export const useWebSocketSender = () => {
+  const { client, connected } = useWebSocket();
+
+  const sendMessage = useCallback(
+    ( payload,destination ) => {
+      if (!client || !connected) {
+        console.warn("WebSocket not connected");
+        return;
+      }
+
+      client.publish({
+        destination,
+        body: JSON.stringify(payload ?? {}),
+      });
+    },
+    [client, connected]
+  );
+
+  return { sendMessage, connected };
+};
