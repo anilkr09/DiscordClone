@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserStatus } from "../types/status";
 import { useWebSocketTopic } from "./WebSocketProvider";
-import api from "../services/api.ts";
+import api from "../services/api";
 import { useAuth } from "./AuthProvider";
 
 interface FriendStatusMap {
@@ -20,21 +20,28 @@ export const FriendStatusProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { messages, connected } = useWebSocketTopic("/topic/status");
   const { isLoggedIn } = useAuth();
 
+  // ✅ initial load (friends only)
   useEffect(() => {
     if (!isLoggedIn) return;
 
     (async () => {
-      const { data } = await api.get("/users/status");
+      const { data } = await api.get("/users/friends/status");
       const map: FriendStatusMap = {};
       data.forEach((s: any) => (map[s.userId] = s.status));
       setFriendStatuses(map);
     })();
   }, [isLoggedIn]);
 
+  // ✅ realtime updates
   useEffect(() => {
     if (!connected || messages.length === 0) return;
+
     const last = messages[messages.length - 1];
-    setFriendStatuses(prev => ({ ...prev, [last.userId]: last.status }));
+
+    setFriendStatuses(prev => ({
+      ...prev,
+      [last.userId]: last.status
+    }));
   }, [messages, connected]);
 
   const getStatus = (id: number) => friendStatuses[id] ?? UserStatus.OFFLINE;

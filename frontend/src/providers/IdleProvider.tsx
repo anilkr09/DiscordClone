@@ -1,49 +1,47 @@
 import React, { useEffect, useRef } from "react";
 import { debounce } from "lodash";
-import { UserStatus } from "../types/status";
 import { usePresence } from "./PresenceProvider";
 
 export const IdleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { status, setStatus, customStatus } = usePresence();
+
+  const { sendActivity } = usePresence();
   const idleTimer = useRef<NodeJS.Timeout | null>(null);
+  const isIdle = useRef(false);
 
-  const startIdleTimer = () => {
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => {
-      if (status === UserStatus.ONLINE && customStatus.status === UserStatus.ONLINE) {
-        setStatus(UserStatus.IDLE);
-      }
-    }, 30000);
+  const markIdle = () => {
+    isIdle.current = true;
   };
 
-  const resetIdleTimer = () => {
-    if (status !== UserStatus.ONLINE && customStatus.status === UserStatus.ONLINE) {
-      setStatus(UserStatus.ONLINE);
+  const handleActivity = () => {
+
+    if (isIdle.current) {
+      sendActivity(); // 🔥 transition idle → active
+      isIdle.current = false;
     }
-    startIdleTimer();
+
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+
+    idleTimer.current = setTimeout(markIdle, 30000);
   };
 
+  useEffect(() => {
 
-    useEffect(() => {
-    const handler = debounce(resetIdleTimer, 250, {
-  leading: true,
-  trailing: true
-});
+    const handler = debounce(handleActivity, 5000);
 
-    window.addEventListener("mousemove", handler);
-    window.addEventListener("keydown", handler);
-    window.addEventListener("click", handler);
+    ["mousemove", "keydown", "click"].forEach(event =>
+      window.addEventListener(event, handler)
+    );
 
-    startIdleTimer();
+    handleActivity(); // initial
 
     return () => {
       handler.cancel();
-      window.removeEventListener("mousemove", handler);
-      window.removeEventListener("keydown", handler);
-      window.removeEventListener("click", handler);
+      ["mousemove", "keydown", "click"].forEach(event =>
+        window.removeEventListener(event, handler)
+      );
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
-  }, [status, customStatus.status]);
+  }, []);
 
   return <>{children}</>;
 };
