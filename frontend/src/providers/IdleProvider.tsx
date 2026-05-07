@@ -1,47 +1,152 @@
-import React, { useEffect, useRef } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+
 import { debounce } from "lodash";
+
 import { usePresence } from "./PresenceProvider";
+import { UserStatus } from "../types/status";
 
-export const IdleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const IdleProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
 
-  const { sendActivity } = usePresence();
-  const idleTimer = useRef<NodeJS.Timeout | null>(null);
-  const isIdle = useRef(false);
+  const { sendActivity, status } =
+    usePresence();
 
-  const markIdle = () => {
-    isIdle.current = true;
-  };
+  const idleTimer =
+    useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
 
-  const handleActivity = () => {
+  // =========================================
+  // MARK USER AS IDLE
+  // =========================================
+  const markIdle = useCallback(() => {
 
-    if (isIdle.current) {
-      sendActivity(); // 🔥 transition idle → active
-      isIdle.current = false;
-    }
-
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-
-    idleTimer.current = setTimeout(markIdle, 30000);
-  };
-
-  useEffect(() => {
-
-    const handler = debounce(handleActivity, 5000);
-
-    ["mousemove", "keydown", "click"].forEach(event =>
-      window.addEventListener(event, handler)
+    console.log(
+      "###idle - user became idle"
     );
 
-    handleActivity(); // initial
+  }, []);
+
+  // =========================================
+  // HANDLE USER ACTIVITY
+  // =========================================
+  const handleActivity = useCallback(() => {
+
+    console.log(
+      "###idle - activity detected | status:",
+      status
+    );
+
+    // only notify server if user
+    // is not already ONLINE
+    if (
+      status !== UserStatus.ONLINE
+    ) {
+
+      console.log(
+        "###idle - sending activity event"
+      );
+
+      sendActivity();
+
+      console.log(
+        "###idle - user marked active"
+      );
+    }
+
+    // reset idle timer
+    if (idleTimer.current) {
+
+      console.log(
+        "###idle - clearing old idle timer"
+      );
+
+      clearTimeout(idleTimer.current);
+    }
+
+    console.log(
+      "###idle - starting new idle timer"
+    );
+
+    idleTimer.current = setTimeout(
+      markIdle,
+      30000
+    );
+
+  }, [
+    markIdle,
+    sendActivity,
+    status,
+  ]);
+
+  // =========================================
+  // REGISTER EVENT LISTENERS
+  // =========================================
+  useEffect(() => {
+
+    console.log(
+      "###idle - provider mounted"
+    );
+
+    const handler = debounce(
+      handleActivity,
+      1000
+    );
+
+    const events = [
+      "mousemove",
+      "keydown",
+      "click",
+      "touchstart",
+    ];
+
+    console.log(
+      "###idle - registering events",
+      events
+    );
+
+    events.forEach((event) => {
+
+      window.addEventListener(
+        event,
+        handler
+      );
+    });
 
     return () => {
-      handler.cancel();
-      ["mousemove", "keydown", "click"].forEach(event =>
-        window.removeEventListener(event, handler)
+
+      console.log(
+        "###idle - provider cleanup"
       );
-      if (idleTimer.current) clearTimeout(idleTimer.current);
+
+      handler.cancel();
+
+      events.forEach((event) => {
+
+        window.removeEventListener(
+          event,
+          handler
+        );
+      });
+
+      if (idleTimer.current) {
+
+        console.log(
+          "###idle - clearing idle timer"
+        );
+
+        clearTimeout(
+          idleTimer.current
+        );
+      }
     };
-  }, []);
+
+  }, [handleActivity]);
 
   return <>{children}</>;
 };

@@ -1,98 +1,330 @@
-import React, { createContext, useContext,useState, useEffect, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+
 import api from "../services/api";
+
 import { useAuth } from "./AuthProvider";
-import { useWebSocketSender } from "./WebSocketProvider";
+
+import {
+  useWebSocketSender,
+  useWebSocketTopic,
+} from "./WebSocketProvider";
+
 import { UserStatus } from "../types/status";
-import { useWebSocketTopic } from "./WebSocketProvider";
 
 interface PresenceContextType {
   status: UserStatus;
+
   sendHeartbeat: () => void;
+
   sendActivity: () => void;
 
-  updateCustomStatus: (s: UserStatus) => Promise<void>;
+  updateCustomStatus: (
+    s: UserStatus
+  ) => Promise<void>;
+
   clearCustomStatus: () => Promise<void>;
 }
 
-const PresenceContext = createContext<PresenceContextType | null>(null);
+const PresenceContext =
+  createContext<PresenceContextType | null>(
+    null
+  );
 
-export const PresenceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { messages } = useWebSocketTopic("/topic/status");
+export const PresenceProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
 
-const [status,setStatus]= useState(UserStatus.ONLINE);
-const { isLoggedIn, id } = useAuth();
-  const { sendMessage, connected } = useWebSocketSender();
-useEffect(() => {
-  if (!isLoggedIn) return;
+  const { messages } =
+    useWebSocketTopic("/topic/status");
 
-  (async () => {
-    try {
-      const { data } = await api.get("/users/me/status");
+  const [status, setStatus] =
+    useState<UserStatus>(
+      UserStatus.ONLINE
+    );
 
-      setStatus(
-        data.status);
+  const { isLoggedIn, id } = useAuth();
 
-    } catch (err) {
-      console.error("Failed to fetch self status", err);
+  const { sendMessage, connected } =
+    useWebSocketSender();
+
+  // =========================================
+  // FETCH SELF STATUS
+  // =========================================
+  useEffect(() => {
+
+    if (!isLoggedIn) return;
+
+    const fetchStatus = async () => {
+
+      try {
+
+        console.log(
+          "###status - fetching self status"
+        );
+
+        const { data } =
+          await api.get(
+            "/users/me/status"
+          );
+
+        console.log(
+          "###status - fetched self status",
+          data
+        );
+
+        setStatus(data.status);
+
+      } catch (err) {
+
+        console.error(
+          "###status - failed to fetch self status",
+          err
+        );
+      }
+    };
+
+    fetchStatus();
+
+  }, [isLoggedIn]);
+
+  // =========================================
+  // WEBSOCKET STATUS UPDATES
+  // =========================================
+  useEffect(() => {
+
+    if (
+      messages.length === 0 ||
+      !id
+    ) {
+      return;
     }
-  })();
-}, [isLoggedIn]);
 
+    const last =
+      messages[messages.length - 1];
 
- useEffect(() => {
-  if (messages.length === 0 || !id) return;
+    console.log(
+      "###status - websocket message",
+      last
+    );
 
-  const last = messages[messages.length - 1];
-console.log("user id from status"+last.userId+ " current user id"+ id );
-  // only self updates
-  if (last.userId != id) return;
+    console.log(
+      "###status - websocket userId:",
+      last.userId,
+      "current userId:",
+      id
+    );
 
- 
-      setStatus(
-        last.status); 
-  console.log("set new status "+last.status);
-}, [messages, id]);
+    if (
+      String(last.userId) !==
+      String(id)
+    ) {
 
+      console.log(
+        "###status - ignoring other user's status"
+      );
+
+      return;
+    }
+
+    console.log(
+      "###status - applying new status:",
+      last.status
+    );
+
+    setStatus(last.status);
+
+  }, [messages, id]);
+
+  // =========================================
+  // DEBUG WEBSOCKET MESSAGES
+  // =========================================
   useEffect(() => {
-    console.log("messages", messages);
+
+    console.log(
+      "###status - all websocket messages",
+      messages
+    );
+
   }, [messages]);
-  // =========================
+
+  // =========================================
   // HEARTBEAT LOOP
-  // =========================
+  // =========================================
   useEffect(() => {
 
+    if (
+      !connected ||
+      !isLoggedIn
+    ) {
+      return;
+    }
 
-    if (!connected || !isLoggedIn) return;
+    console.log(
+      "###status - heartbeat loop started"
+    );
 
-    const interval = setInterval(() => {
-      sendMessage({}, "/app/heartbeat");
-    }, 10000);
+    const interval =
+      setInterval(() => {
 
-    return () => clearInterval(interval);
-  }, [connected, isLoggedIn]);
+        sendMessage(
+          {},
+          "/app/heartbeat"
+        );
 
-  // =========================
-  // METHODS
-  // =========================
-  const sendHeartbeat = () => {
-    sendMessage({}, "/app/heartbeat");
-  };
+        console.log(
+          "###status - heartbeat auto sent"
+        );
 
-  const sendActivity = () => {
-    sendMessage({}, "/app/activity");
-  };
+      }, 10000);
 
-  const updateCustomStatus = async (status: string) => {
-    await api.post(`/users/status/custom?status=${status}`);
-  };
+    return () => {
 
-  const clearCustomStatus = async () => {
-    await api.delete(`/users/status/custom`);
-  };
+      console.log(
+        "###status - heartbeat loop stopped"
+      );
+
+      clearInterval(interval);
+    };
+
+  }, [
+    connected,
+    isLoggedIn,
+    sendMessage,
+  ]);
+
+  // =========================================
+  // MEMOIZED METHODS
+  // =========================================
+
+  const sendHeartbeat =
+    useCallback(() => {
+
+      console.log(
+        "###status - manual heartbeat sending"
+      );
+
+      sendMessage(
+        {},
+        "/app/heartbeat"
+      );
+
+      console.log(
+        "###status - manual heartbeat sent"
+      );
+
+    }, [sendMessage]);
+
+  const sendActivity =
+    useCallback(() => {
+
+      console.log(
+        "###status - sending activity"
+      );
+
+      sendMessage(
+        {},
+        "/app/activity"
+      );
+
+      console.log(
+        "###status - activity sent"
+      );
+
+    }, [sendMessage]);
+
+  const updateCustomStatus =
+    useCallback(
+      async (
+        status: UserStatus
+      ) => {
+
+        try {
+
+          console.log(
+            "###status - updating custom status:",
+            status
+          );
+
+          const response =
+            await api.post(
+              `/users/status/custom?status=${status}`
+            );
+
+          console.log(
+            "###status - custom status updated",
+            response.data
+          );
+
+        } catch (error) {
+
+          console.error(
+            "###status - failed to update custom status",
+            error
+          );
+        }
+      },
+      []
+    );
+
+  const clearCustomStatus =
+    useCallback(async () => {
+
+      try {
+
+        console.log(
+          "###status - clearing custom status"
+        );
+
+        const response =
+          await api.delete(
+            "/users/status/custom"
+          );
+
+        console.log(
+          "###status - custom status cleared",
+          response.data
+        );
+
+      } catch (error) {
+
+        console.error(
+          "###status - failed to clear custom status",
+          error
+        );
+      }
+
+    }, []);
+
+  // =========================================
+  // MEMOIZED CONTEXT VALUE
+  // =========================================
+  const value = useMemo(
+    () => ({
+      status,
+      sendHeartbeat,
+      sendActivity,
+      updateCustomStatus,
+      clearCustomStatus,
+    }),
+    [
+      status,
+      sendHeartbeat,
+      sendActivity,
+      updateCustomStatus,
+      clearCustomStatus,
+    ]
+  );
 
   return (
     <PresenceContext.Provider
-      value={{status,sendHeartbeat, sendActivity, updateCustomStatus, clearCustomStatus }}
+      value={value}
     >
       {children}
     </PresenceContext.Provider>
@@ -100,7 +332,16 @@ console.log("user id from status"+last.userId+ " current user id"+ id );
 };
 
 export const usePresence = () => {
-  const ctx = useContext(PresenceContext);
-  if (!ctx) throw new Error("usePresence must be used within PresenceProvider");
+
+  const ctx =
+    useContext(PresenceContext);
+
+  if (!ctx) {
+
+    throw new Error(
+      "usePresence must be used within PresenceProvider"
+    );
+  }
+
   return ctx;
 };
