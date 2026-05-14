@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -45,17 +46,12 @@ public class UserStatusController {
 
         UserStatus status = userStatusService.getUserStatus(user.getId());
 
-        UserStatusEntity entity = userStatusService.getUserStatusEntity(user.getId());
 
         return ResponseEntity.ok(
                 new SelfStatusResponse(
                         status.name(),
-                        entity != null && entity.getCustomStatus() != null
-                                ? entity.getCustomStatus().name()
-                                : null,
-                        entity != null && entity.getStatusExpiresAt() != null
-                                ? entity.getStatusExpiresAt().toString()
-                                : null
+                        status.name(),
+                        ""
                 )
         );
     }
