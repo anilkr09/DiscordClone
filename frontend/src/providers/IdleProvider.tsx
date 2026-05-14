@@ -93,10 +93,7 @@ export const IdleProvider: React.FC<{
       "###idle - provider mounted"
     );
 
-    const handler = debounce(
-      handleActivity,
-      1000
-    );
+    const handler = debounce(handleActivity, 1000, { leading: true })
 
     const events = [
       "mousemove",
