@@ -18,4 +18,8 @@ public class PresenceKeys {
     public static String status(Long userId) {
         return "presence:status:" + userId;
     }
+
+    public static String heartbeat(Long userId) {
+        return "presence:heartbeat:" + userId;
+    }
 }
