@@ -41,9 +41,15 @@ public class UserStatusServiceImpl implements UserStatusService {
     public void handleHeartbeat(Long userId) {
 
         redisTemplate.opsForValue().set(
-                PresenceKeys.lastSeen(userId),
+                PresenceKeys.heartbeat(userId),
                 String.valueOf(System.currentTimeMillis()),
-                Duration.ofSeconds(60)
+                Duration.ofSeconds(30)
+
+        );
+        redisTemplate.opsForValue().set(
+                PresenceKeys.lastSeen(userId),
+                String.valueOf(System.currentTimeMillis())
+
         );
 
         updateAndBroadcast(userId);
@@ -74,9 +80,15 @@ public class UserStatusServiceImpl implements UserStatusService {
 
         // also ensure last_seen stays fresh
         redisTemplate.opsForValue().set(
+                PresenceKeys.heartbeat(userId),
+                String.valueOf(System.currentTimeMillis()),
+                Duration.ofSeconds(30)
+
+        );
+        redisTemplate.opsForValue().set(
                 PresenceKeys.lastSeen(userId),
-                String.valueOf(now),
-                Duration.ofSeconds(60)
+                String.valueOf(System.currentTimeMillis())
+
         );
 
         updateAndBroadcast(userId);
@@ -93,13 +105,10 @@ public class UserStatusServiceImpl implements UserStatusService {
             return UserStatus.valueOf(custom);
         }
 
-        String lastSeen = redisTemplate.opsForValue().get(PresenceKeys.lastSeen(userId));
+        long now = System.currentTimeMillis();
+        String lastSeen = redisTemplate.opsForValue().get(PresenceKeys.heartbeat(userId));
         if (lastSeen == null) return UserStatus.OFFLINE;
 
-        long now = System.currentTimeMillis();
-
-        long seenDiff = now - Long.parseLong(lastSeen);
-        if (seenDiff > 60_000) return UserStatus.OFFLINE;
 
         String lastActivity = redisTemplate.opsForValue().get(PresenceKeys.lastActivity(userId));
         if (lastActivity == null) return UserStatus.IDLE;
@@ -108,6 +117,12 @@ public class UserStatusServiceImpl implements UserStatusService {
 
         if (activityDiff < 30_000) return UserStatus.ONLINE;
         if (activityDiff < 300_000) return UserStatus.IDLE;
+
+
+
+
+        long seenDiff = now - Long.parseLong(lastSeen);
+        if (seenDiff > 60_000) return UserStatus.OFFLINE;
 
         return UserStatus.IDLE;
     }
@@ -267,6 +282,16 @@ public class UserStatusServiceImpl implements UserStatusService {
         userStatusRepository.save(entity);
     }
 
+    @Override
+    public void setOfflineAndBroadCast(Long userId, UserStatus status)
+    {
+        redisTemplate.opsForValue().set(
+                PresenceKeys.status(userId),
+                String.valueOf(UserStatus.OFFLINE),
+                Duration.ofSeconds(60)
+        );
+        broadcastStatusChange(userId, status);
+    }
     // =========================
     // WS broadcast
     // =========================

@@ -20,7 +20,7 @@ public interface UserStatusService {
     // custom status (REST)
     User updateCustomStatus(Long userId, UserStatus customStatus);
     User clearCustomStatus(Long userId);
-
+    void setOfflineAndBroadCast(Long userId, UserStatus status);
     // admin/reset
     void resetPresence(Long userId);
 
