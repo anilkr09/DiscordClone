@@ -1,131 +1,311 @@
 package com.discordclone.service.impl;
 
+import com.discordclone.constants.PresenceKeys;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
 import com.discordclone.model.UserStatusEntity;
+import com.discordclone.payload.StatusResponse;
 import com.discordclone.repository.UserRepository;
 import com.discordclone.repository.UserStatusRepository;
+import com.discordclone.service.FriendshipService;
 import com.discordclone.service.UserStatusService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import org.slf4j.Logger;
+
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class UserStatusServiceImpl implements UserStatusService {
 
     private final UserRepository userRepository;
     private final UserStatusRepository userStatusRepository;
+    private final FriendshipService friendService;
     private final SimpMessagingTemplate messagingTemplate;
-    private static final Logger logger = LoggerFactory.getLogger(UserStatusServiceImpl.class);
+    private final StringRedisTemplate redisTemplate;
 
-    @Autowired
-    public UserStatusServiceImpl(UserRepository userRepository, 
-                               UserStatusRepository userStatusRepository,
-                               SimpMessagingTemplate messagingTemplate) {
-        this.userRepository = userRepository;
-        this.userStatusRepository = userStatusRepository;
-        this.messagingTemplate = messagingTemplate;
+    // =========================
+    // HEARTBEAT (connection alive)
+    // =========================
+    @Override
+    public void handleHeartbeat(Long userId) {
+
+        redisTemplate.opsForValue().set(
+                PresenceKeys.heartbeat(userId),
+                String.valueOf(System.currentTimeMillis()),
+                Duration.ofSeconds(30)
+
+        );
+        redisTemplate.opsForValue().set(
+                PresenceKeys.lastSeen(userId),
+                String.valueOf(System.currentTimeMillis())
+
+        );
+
+        updateAndBroadcast(userId);
     }
 
+    // =========================
+    // ACTIVITY (user interaction)
+    // =========================
     @Override
-    @Transactional
-    public User updateUserStatus(Long userId, UserStatus status) {
-        logger.info("Updating status for user {} to {}", userId, status);
-        
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        
-        UserStatusEntity statusEntity = userStatusRepository.findById(userId.toString())
-                .orElse(new UserStatusEntity());
-        
-//        statusEntity.setUserId(userId.toString());
-        statusEntity.setCurrentStatus(status);
-        userStatusRepository.save(statusEntity);
-        
-        // Broadcast status change
-        broadcastStatusChange(userId, status);
-        
-        return user;
+    public void handleActivity(Long userId) {
+
+        long now = System.currentTimeMillis();
+
+        String key = PresenceKeys.lastActivity(userId);
+        String existing = redisTemplate.opsForValue().get(key);
+
+        // skip noisy updates (<5s)
+        if (existing != null) {
+            long diff = now - Long.parseLong(existing);
+            if (diff < 5000) return;
+        }
+
+        redisTemplate.opsForValue().set(
+                key,
+                String.valueOf(now),
+                Duration.ofMinutes(10)
+        );
+
+        // also ensure last_seen stays fresh
+        redisTemplate.opsForValue().set(
+                PresenceKeys.heartbeat(userId),
+                String.valueOf(System.currentTimeMillis()),
+                Duration.ofSeconds(30)
+
+        );
+        redisTemplate.opsForValue().set(
+                PresenceKeys.lastSeen(userId),
+                String.valueOf(System.currentTimeMillis())
+
+        );
+
+        updateAndBroadcast(userId);
     }
 
-    @Transactional(readOnly = true)
-    @Override
-    public List<UserStatusEntity> getAllUserStatus() {
-        return userStatusRepository.findAll();
+    // =========================
+    // STATUS RESOLUTION
+    // =========================
+    private UserStatus resolveStatus(Long userId) {
+
+        // custom override
+        String custom = redisTemplate.opsForValue().get(PresenceKeys.custom(userId));
+        if (custom != null) {
+            return UserStatus.valueOf(custom);
+        }
+
+        long now = System.currentTimeMillis();
+        String lastSeen = redisTemplate.opsForValue().get(PresenceKeys.heartbeat(userId));
+        if (lastSeen == null) return UserStatus.OFFLINE;
+
+
+        String lastActivity = redisTemplate.opsForValue().get(PresenceKeys.lastActivity(userId));
+        if (lastActivity == null) return UserStatus.IDLE;
+
+        long activityDiff = now - Long.parseLong(lastActivity);
+
+        if (activityDiff < 30_000) return UserStatus.ONLINE;
+        if (activityDiff < 300_000) return UserStatus.IDLE;
+
+
+
+
+        long seenDiff = now - Long.parseLong(lastSeen);
+        if (seenDiff > 60_000) return UserStatus.OFFLINE;
+
+        return UserStatus.IDLE;
     }
 
-    @Override
-    @Transactional
-    public User updateCustomStatus(Long userId,UserStatus customStatus) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        
-        UserStatusEntity statusEntity = userStatusRepository.findById(userId.toString())
-                .orElse(new UserStatusEntity());
-        
-        statusEntity.setCustomStatus(customStatus);
-        
+    private void updateAndBroadcast(Long userId) {
 
-            LocalDateTime expiryTime = LocalDateTime.now().plusDays(1);
+        UserStatus newStatus = resolveStatus(userId);
 
+        String cached = redisTemplate.opsForValue().get(PresenceKeys.status(userId));
 
-            statusEntity.setStatusExpiresAt(expiryTime);
+        // skip if no change
+        if (cached != null && cached.equals(newStatus.name())) {
+            return;
+        }
 
-        
-        userStatusRepository.save(statusEntity);
-        
-        // Broadcast status change
+        redisTemplate.opsForValue().set(
+                PresenceKeys.status(userId),
+                newStatus.name(),
+                Duration.ofSeconds(60)
+        );
 
-        broadcastStatusChange(userId, customStatus);
-        
-        return user;
+        broadcastStatusChange(userId, newStatus);
     }
 
+    // =========================
+    // GET STATUS
+    // =========================
     @Override
-    @Transactional(readOnly = true)
     public UserStatus getUserStatus(Long userId) {
-        return userStatusRepository.findById(userId.toString())
-                .map(UserStatusEntity::getCurrentStatus)
-                .orElse(UserStatus.OFFLINE);
+
+        String cached = redisTemplate.opsForValue().get(PresenceKeys.status(userId));
+
+        if (cached != null) {
+            return UserStatus.valueOf(cached);
+        }
+
+        return resolveStatus(userId);
+    }
+
+    // =========================
+    // FRIEND STATUS (BATCH)
+    // =========================
+    @Override
+    public List<StatusResponse> getFriendsStatus(Long userId) {
+
+        List<Long> friendIds = friendService.getFriendIds(userId);
+
+        List<String> keys = friendIds.stream()
+                .map(PresenceKeys::status)
+                .toList();
+
+        List<String> values = redisTemplate.opsForValue().multiGet(keys);
+
+        List<StatusResponse> result = new ArrayList<>();
+
+        for (int i = 0; i < friendIds.size(); i++) {
+
+            Long fid = friendIds.get(i);
+            String val = values.get(i);
+
+            UserStatus status = (val != null)
+                    ? UserStatus.valueOf(val)
+                    : resolveStatus(fid);
+
+            result.add(new StatusResponse(fid, status.name()));
+        }
+
+        return result;
+    }
+
+    // =========================
+    // CUSTOM STATUS
+    // =========================
+    @Override
+    @Transactional
+    public User updateCustomStatus(Long userId, UserStatus customStatus) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+
+        // special rule
+        if (customStatus == UserStatus.ONLINE) {
+            return clearCustomStatus(userId);
+        }
+
+        // Redis
+        redisTemplate.opsForValue().set(
+                PresenceKeys.custom(userId),
+                customStatus.name(),
+                Duration.ofHours(24)
+        );
+
+        // DB
+        UserStatusEntity entity = userStatusRepository.findByUserId(userId)
+                .orElse(new UserStatusEntity());
+
+        entity.setUserId(userId);
+        entity.setCustomStatus(customStatus);
+        entity.setStatusExpiresAt(LocalDateTime.now().plusDays(1));
+
+        userStatusRepository.save(entity);
+
+        updateAndBroadcast(userId);
+
+        return user;
     }
 
     @Override
     @Transactional
     public User clearCustomStatus(Long userId) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        
-        UserStatusEntity statusEntity = userStatusRepository.findById(userId.toString())
-                .orElse(new UserStatusEntity());
-        
-        statusEntity.setCustomStatus(null);
-        statusEntity.setStatusExpiresAt(null);
-        userStatusRepository.save(statusEntity);
-        
+
+        redisTemplate.delete(PresenceKeys.custom(userId));
+
+        userStatusRepository.findByUserId(userId).ifPresent(entity -> {
+            entity.setCustomStatus(null);
+            entity.setStatusExpiresAt(null);
+            userStatusRepository.save(entity);
+        });
+
+        updateAndBroadcast(userId);
+
         return user;
     }
 
+    // =========================
+    // RESET
+    // =========================
+    @Override
+    public void resetPresence(Long userId) {
+
+        redisTemplate.delete(PresenceKeys.lastSeen(userId));
+        redisTemplate.delete(PresenceKeys.lastActivity(userId));
+        redisTemplate.delete(PresenceKeys.status(userId));
+        redisTemplate.delete(PresenceKeys.custom(userId));
+
+        broadcastStatusChange(userId, UserStatus.OFFLINE);
+
+        persistLastSeen(userId);
+    }
+
+    // =========================
+    // DB persistence
+    // =========================
+    @Override
+    @Async
+    public void persistLastSeen(Long userId) {
+
+        UserStatusEntity entity = userStatusRepository.findByUserId(userId)
+                .orElse(new UserStatusEntity());
+
+        entity.setUserId(userId);
+        entity.setLastActivity(LocalDateTime.now());
+
+        userStatusRepository.save(entity);
+    }
+
+    @Override
+    public void setOfflineAndBroadCast(Long userId, UserStatus status)
+    {
+        redisTemplate.opsForValue().set(
+                PresenceKeys.status(userId),
+                String.valueOf(UserStatus.OFFLINE),
+                Duration.ofSeconds(60)
+        );
+        broadcastStatusChange(userId, status);
+    }
+    // =========================
+    // WS broadcast
+    // =========================
     @Override
     public void broadcastStatusChange(Long userId, UserStatus status) {
-        Map<String, Object> statusUpdate = new HashMap<>();
-        statusUpdate.put("userId", userId);
-        statusUpdate.put("status", status);
-        logger.info("broadcast msg {}",statusUpdate);
-        logger.info("broadcast msg inside status service{}",statusUpdate);
 
+        var payload = new java.util.HashMap<String, Object>();
+        payload.put("userId", userId);
+        payload.put("status", status);
 
-        messagingTemplate.convertAndSend("/topic/status", statusUpdate);
+        messagingTemplate.convertAndSend("/topic/status", payload);
     }
-} 
+    @Override
+    public UserStatusEntity getUserStatusEntity(Long userId) {
+        return userStatusRepository.findByUserId(userId).orElse(null);
+    }
+}

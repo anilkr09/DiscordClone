@@ -1,91 +1,53 @@
-import { useState, useEffect } from 'react';
-import { useWebSocketTopic } from '../../providers/WebSocketProvider';
-// import { useStatusContext  } from '../../services/StatusProvider';
-import { 
-  Box, 
-  Menu, 
-  MenuItem, 
-  ListItemIcon, 
-  ListItemText, 
-  TextField, 
-  Button, 
-  Typography,
-  Divider
-} from '@mui/material';
-import { UserStatus, STATUS_COLORS, CustomStatus } from '../../types/status';
+import { Menu, MenuItem, ListItemIcon, ListItemText, Divider, ListSubheader } from '@mui/material';
+
 import CircleIcon from '@mui/icons-material/Circle';
 import NightsStayIcon from '@mui/icons-material/NightsStay';
 import DoNotDisturbOnIcon from '@mui/icons-material/DoNotDisturbOn';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-// import { useAuth } from '../../hooks/useAuth';
+
 import { useStatus } from '../../hooks/useStatus';
+import { UserStatus, STATUS_COLORS } from '../../types/status';
+
 interface UserStatusSelectorProps {
   currentStatus: UserStatus;
   anchorEl: HTMLElement | null;
   onClose: () => void;
 }
 
-export default function UserStatusSelector({ 
-  currentStatus, 
-  anchorEl, 
-  onClose 
+export default function UserStatusSelector({
+  anchorEl,
+  onClose,
 }: UserStatusSelectorProps) {
-  const [customStatus, setCustomStatus] = useState<string>('');
-  const [showCustomInput, setShowCustomInput] = useState<boolean>(false);
-  const {  friendStatuses,updateCustomStatus } = useStatus();
 
-  const { messages } = useWebSocketTopic("/topic/status");
+  const { updateCustomStatus, clearCustomStatus } = useStatus();
 
+ const handleStatusChange = (status: UserStatus) => {
+  console.log("status click", status);
 
-  useEffect(() => {
-    console.log("messages", messages);
-  }, [messages]);
+  try {
+    // Close menu first
+    onClose();
 
-  const handleStatusChange =  (status: UserStatus) => {
-    console.log("status click", status);
-    try {
+    // Then update after focus cleanup
+    requestAnimationFrame(() => {
+      if(status==UserStatus.ONLINE)
+        clearCustomStatus();
+      else
+        updateCustomStatus(status);
+    });
 
-       updateCustomStatus(status);
-
-      onClose();
-    } catch (error) {
-      console.error('Failed to update status:', error);
-    }
-  };
-
-  const handleCustomStatusSubmit = async () => {
-    if (!customStatus.trim()) {
-      setShowCustomInput(false);
-      return;
-    }
-
-    try {
-      const customStatusObj: CustomStatus = {
-        text: customStatus.trim()
-      };
-          // await useStatusService.updateCustomStatus(currentStatus, customStatusObj);
-      setShowCustomInput(false);
-      onClose();
-    } catch (error) {
-      console.error('Failed to update custom status:', error);
-    }
-  };
-
-  const handleClearCustomStatus = async () => {
-    try {
-      // await useStatusService.clearCustomStatus();
-      setCustomStatus('');
-      setShowCustomInput(false);
-    } catch (error) {
-      console.error('Failed to clear custom status:', error);
-    }
-  };
+  } catch (error) {
+    console.error('Failed to update status:', error);
+  }
+};
 
   return (
     <Menu
       anchorEl={anchorEl}
       open={Boolean(anchorEl)}
       onClose={onClose}
+      disableAutoFocusItem
+      keepMounted
       anchorOrigin={{
         vertical: 'top',
         horizontal: 'center',
@@ -100,101 +62,89 @@ export default function UserStatusSelector({
           color: '#dcddde',
           width: 300,
           borderRadius: '4px',
-          mt: 1
-        }
+          mt: 1,
+        },
+      }}
+      MenuListProps={{
+        autoFocus: false,
       }}
     >
-      <Typography sx={{ p: 2, fontWeight: 'bold' }}>
+      <ListSubheader
+        disableSticky
+        sx={{
+          bgcolor: '#18191c',
+          color: '#ffffff',
+          fontWeight: 'bold',
+          lineHeight: '40px',
+        }}
+      >
         Set Status
-      </Typography>
+      </ListSubheader>
 
-      <MenuItem onClick={() => handleStatusChange(UserStatus.ONLINE)}>
+      <MenuItem
+        onClick={() => handleStatusChange(UserStatus.ONLINE)}
+      >
         <ListItemIcon>
-          <CircleIcon sx={{ color: STATUS_COLORS[UserStatus.ONLINE] }} />
-        </ListItemIcon>
-        <ListItemText>Online</ListItemText>
-      </MenuItem>
-
-      <MenuItem onClick={() => handleStatusChange(UserStatus.IDLE)}>
-        <ListItemIcon>
-          <NightsStayIcon sx={{ color: STATUS_COLORS[UserStatus.IDLE] }} />
-        </ListItemIcon>
-        <ListItemText>Idle</ListItemText>
-      </MenuItem>
-
-      <MenuItem onClick={() => handleStatusChange(UserStatus.DO_NOT_DISTURB)}>
-        <ListItemIcon>
-          <DoNotDisturbOnIcon sx={{ color: STATUS_COLORS[UserStatus.DO_NOT_DISTURB] }} />
-        </ListItemIcon>
-        <ListItemText>Do Not Disturb</ListItemText>
-      </MenuItem>
-
-      <MenuItem onClick={() => handleStatusChange(UserStatus.OFFLINE)}>
-        <ListItemIcon>
-          <VisibilityOffIcon sx={{ color: STATUS_COLORS[UserStatus.OFFLINE] }} />
-        </ListItemIcon>
-        <ListItemText>Invisible</ListItemText>
-      </MenuItem>
-
-      <Divider sx={{ my: 1, bgcolor: '#2f3136' }} />
-
-      {showCustomInput ? (
-        <Box sx={{ p: 2 }}>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="What's happening?"
-            value={customStatus}
-            onChange={(e) => setCustomStatus(e.target.value)}
-            size="small"
-            InputProps={{
-              sx: {
-                color: 'white',
-                bgcolor: '#2f3136',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#40444b'
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#40444b'
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: '#5865f2'
-                }
-              }
+          <CircleIcon
+            sx={{
+              color: STATUS_COLORS[UserStatus.ONLINE],
             }}
-            sx={{ mb: 1 }}
           />
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Button 
-              variant="text" 
-              onClick={() => setShowCustomInput(false)}
-              sx={{ color: '#dcddde' }}
-            >
-              Cancel
-            </Button>
-            <Box>
-              <Button 
-                variant="text" 
-                onClick={handleClearCustomStatus}
-                sx={{ color: '#dcddde', mr: 1 }}
-              >
-                Clear
-              </Button>
-              <Button 
-                variant="contained" 
-                onClick={handleCustomStatusSubmit}
-                sx={{ bgcolor: '#5865f2', '&:hover': { bgcolor: '#4752c4' } }}
-              >
-                Save
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      ) : (
-        <MenuItem onClick={() => setShowCustomInput(true)}>
-          <ListItemText>Set a custom status</ListItemText>
-        </MenuItem>
-      )}
+        </ListItemIcon>
+
+        <ListItemText primary="Online" />
+      </MenuItem>
+
+      <MenuItem
+        onClick={() => handleStatusChange(UserStatus.IDLE)}
+      >
+        <ListItemIcon>
+          <NightsStayIcon
+            sx={{
+              color: STATUS_COLORS[UserStatus.IDLE],
+            }}
+          />
+        </ListItemIcon>
+
+        <ListItemText primary="Idle" />
+      </MenuItem>
+
+      <MenuItem
+        onClick={() =>
+          handleStatusChange(UserStatus.DO_NOT_DISTURB)
+        }
+      >
+        <ListItemIcon>
+          <DoNotDisturbOnIcon
+            sx={{
+              color: STATUS_COLORS[UserStatus.DO_NOT_DISTURB],
+            }}
+          />
+        </ListItemIcon>
+
+        <ListItemText primary="Do Not Disturb" />
+      </MenuItem>
+
+      <MenuItem
+        onClick={() => handleStatusChange(UserStatus.OFFLINE)}
+      >
+        <ListItemIcon>
+          <VisibilityOffIcon
+            sx={{
+              color: STATUS_COLORS[UserStatus.OFFLINE],
+            }}
+          />
+        </ListItemIcon>
+
+        <ListItemText primary="Invisible" />
+      </MenuItem>
+
+      <Divider
+        sx={{
+          my: 1,
+          bgcolor: '#2f3136',
+        }}
+      />
     </Menu>
   );
-} 
+}

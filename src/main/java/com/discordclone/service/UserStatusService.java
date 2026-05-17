@@ -3,49 +3,32 @@ package com.discordclone.service;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
 import com.discordclone.model.UserStatusEntity;
-import org.springframework.transaction.annotation.Transactional;
+import com.discordclone.payload.StatusResponse;
 
 import java.util.List;
 
 public interface UserStatusService {
-    
-    /**
-     * Update a user's status
-     * @param userId ID of the user
-     * @param status New status
-     * @return Updated user
-     */
-    User updateUserStatus(Long userId, UserStatus status);
 
-    @Transactional(readOnly = true)
-    List<UserStatusEntity> getAllUserStatus();
+    // realtime
+    void handleHeartbeat(Long userId);
+    void handleActivity(Long userId);
 
-    /**
-     * Update a user's custom status
-     * @param userId ID of the user
-
-     * @return Updated user
-     */
-    User updateCustomStatus(Long userId, UserStatus customStatu);
-    
-    /**
-     * Get a user's status
-     * @param userId ID of the user
-     * @return User status
-     */
+    // queries
     UserStatus getUserStatus(Long userId);
-    
-    /**
-     * Clear a user's custom status
-     * @param userId ID of the user
-     * @return Updated user
-     */
+    List<StatusResponse> getFriendsStatus(Long userId);
+
+    // custom status (REST)
+    User updateCustomStatus(Long userId, UserStatus customStatus);
     User clearCustomStatus(Long userId);
-    
-    /**
-     * Broadcast a status change to all connected clients
-     * @param userId ID of the user
-     * @param status New status
-     */
+    void setOfflineAndBroadCast(Long userId, UserStatus status);
+    // admin/reset
+    void resetPresence(Long userId);
+
+    // persistence
+    void persistLastSeen(Long userId);
+
+    // ws
     void broadcastStatusChange(Long userId, UserStatus status);
-} 
+
+    UserStatusEntity getUserStatusEntity(Long userId);
+}

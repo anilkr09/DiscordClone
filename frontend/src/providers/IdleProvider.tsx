@@ -1,49 +1,149 @@
-import React, { useEffect, useRef } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+
 import { debounce } from "lodash";
-import { UserStatus } from "../types/status";
+
 import { usePresence } from "./PresenceProvider";
+import { UserStatus } from "../types/status";
 
-export const IdleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { status, setStatus, customStatus } = usePresence();
-  const idleTimer = useRef<NodeJS.Timeout | null>(null);
+export const IdleProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
 
-  const startIdleTimer = () => {
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-    idleTimer.current = setTimeout(() => {
-      if (status === UserStatus.ONLINE && customStatus.status === UserStatus.ONLINE) {
-        setStatus(UserStatus.IDLE);
-      }
-    }, 30000);
-  };
+  const { sendActivity, status } =
+    usePresence();
 
-  const resetIdleTimer = () => {
-    if (status !== UserStatus.ONLINE && customStatus.status === UserStatus.ONLINE) {
-      setStatus(UserStatus.ONLINE);
+  const idleTimer =
+    useRef<ReturnType<
+      typeof setTimeout
+    > | null>(null);
+
+  // =========================================
+  // MARK USER AS IDLE
+  // =========================================
+  const markIdle = useCallback(() => {
+
+    console.log(
+      "###idle - user became idle"
+    );
+
+  }, []);
+
+  // =========================================
+  // HANDLE USER ACTIVITY
+  // =========================================
+  const handleActivity = useCallback(() => {
+
+    console.log(
+      "###idle - activity detected | status:",
+      status
+    );
+
+    // only notify server if user
+    // is not already ONLINE
+    if (
+      status !== UserStatus.ONLINE
+    ) {
+
+      console.log(
+        "###idle - sending activity event"
+      );
+
+      sendActivity();
+
+      console.log(
+        "###idle - user marked active"
+      );
     }
-    startIdleTimer();
-  };
 
+    // reset idle timer
+    if (idleTimer.current) {
 
-    useEffect(() => {
-    const handler = debounce(resetIdleTimer, 250, {
-  leading: true,
-  trailing: true
-});
+      console.log(
+        "###idle - clearing old idle timer"
+      );
 
-    window.addEventListener("mousemove", handler);
-    window.addEventListener("keydown", handler);
-    window.addEventListener("click", handler);
+      clearTimeout(idleTimer.current);
+    }
 
-    startIdleTimer();
+    console.log(
+      "###idle - starting new idle timer"
+    );
+
+    idleTimer.current = setTimeout(
+      markIdle,
+      30000
+    );
+
+  }, [
+    markIdle,
+    sendActivity,
+    status,
+  ]);
+
+  // =========================================
+  // REGISTER EVENT LISTENERS
+  // =========================================
+  useEffect(() => {
+
+    console.log(
+      "###idle - provider mounted"
+    );
+
+    const handler = debounce(handleActivity, 1000, { leading: true })
+
+    const events = [
+      "mousemove",
+      "keydown",
+      "click",
+      "touchstart",
+    ];
+
+    console.log(
+      "###idle - registering events",
+      events
+    );
+
+    events.forEach((event) => {
+
+      window.addEventListener(
+        event,
+        handler
+      );
+    });
 
     return () => {
+
+      console.log(
+        "###idle - provider cleanup"
+      );
+
       handler.cancel();
-      window.removeEventListener("mousemove", handler);
-      window.removeEventListener("keydown", handler);
-      window.removeEventListener("click", handler);
-      if (idleTimer.current) clearTimeout(idleTimer.current);
+
+      events.forEach((event) => {
+
+        window.removeEventListener(
+          event,
+          handler
+        );
+      });
+
+      if (idleTimer.current) {
+
+        console.log(
+          "###idle - clearing idle timer"
+        );
+
+        clearTimeout(
+          idleTimer.current
+        );
+      }
     };
-  }, [status, customStatus.status]);
+
+  }, [handleActivity]);
 
   return <>{children}</>;
 };

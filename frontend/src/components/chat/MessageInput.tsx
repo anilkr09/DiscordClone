@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Box, TextField, Button } from '@mui/material';
+import { Box, TextField, IconButton, Tooltip } from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
 import { MessageRequest } from '../../types/message';
 import { useWebSocketTopic } from '../../providers/WebSocketProvider';
 
@@ -14,34 +15,28 @@ export default function MessageInput({
   channelId,
   channelName,
   isDM,
-  receiver
+  receiver,
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const { sendMessage } = useWebSocketTopic('/app/chat.send');
 
-  const { sendMessage } = useWebSocketTopic("/app/chat.send");
-
-  // ✅ Auto focus on mount / channel change
+  // Focus input when channel changes
   useEffect(() => {
-    // inputRef.current?.focus();
+    inputRef.current?.focus();
   }, [channelId]);
 
-  // ✅ Extracted send logic
   const send = async () => {
     if (!message.trim() || isSending) return;
-
     try {
       setIsSending(true);
-
       const messageRequest: MessageRequest = {
         dm: isDM,
         content: message,
         channelId,
-        receiver: isDM ? receiver : ""
+        receiver: isDM ? receiver : '',
       };
-
       sendMessage(messageRequest);
       setMessage('');
     } catch (error) {
@@ -51,16 +46,14 @@ export default function MessageInput({
     }
   };
 
-  // ✅ Form submit (button + Enter fallback)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     send();
   };
 
-  // ✅ Enter handling (Discord behavior)
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // prevent newline
+      e.preventDefault();
       send();
     }
   };
@@ -70,34 +63,63 @@ export default function MessageInput({
       component="form"
       onSubmit={handleSubmit}
       sx={{
-        p: 2,
-        borderTop: 1,
-        borderColor: 'divider',
-        bgcolor: 'background.paper'
+        flexShrink: 0,                   // never shrinks — always pinned to bottom
+        px: { xs: 1, sm: 2 },
+        py: { xs: 1, sm: 1.5 },
+        bgcolor: '#313338',
       }}
     >
-      <Box sx={{ display: 'flex', gap: 1 }}>
+      <Box sx={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 1,
+        bgcolor: '#383a40',
+        borderRadius: 2,
+        px: 1.5,
+        py: 0.5,
+      }}>
         <TextField
-          inputRef={inputRef}   // ✅ autofocus target
+          inputRef={inputRef}
           fullWidth
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`Message #${channelName}`}
-          variant="outlined"
-          size="small"
+          placeholder={`Message ${isDM ? '' : '#'}${channelName}`}
+          variant="standard"
           multiline
-          maxRows={4}
+          maxRows={6}
           disabled={isSending}
+          sx={{
+            '& .MuiInputBase-root': {
+              color: '#dbdee1',
+              fontSize: { xs: 13, sm: 14 },
+              py: 1,
+            },
+            '& .MuiInput-underline:before': { display: 'none' },
+            '& .MuiInput-underline:after':  { display: 'none' },
+            '& .MuiInputBase-input::placeholder': { color: '#6d6f78', opacity: 1 },
+          }}
         />
 
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={!message.trim() || isSending}
-        >
-          Send
-        </Button>
+        {/* Send button — icon only, appears when there's text */}
+        <Tooltip title="Send" placement="top">
+          <span>
+            <IconButton
+              type="submit"
+              disabled={!message.trim() || isSending}
+              size="small"
+              sx={{
+                mb: 0.5,
+                color: message.trim() ? '#5865f2' : '#4e5058',
+                transition: 'color .15s',
+                '&:hover': { color: '#7289da', bgcolor: 'transparent' },
+                '&.Mui-disabled': { color: '#4e5058' },
+              }}
+            >
+              <SendIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Box>
     </Box>
   );

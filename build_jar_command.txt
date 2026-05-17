@@ -1,0 +1,9 @@
+./gradlew clean bootJar -x test -x pmdMain -x pmdTest
+
+
+
+
+
+
+WARN[0000] /home/anil/Documents/DiscordClone/DiscordClone/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion
+

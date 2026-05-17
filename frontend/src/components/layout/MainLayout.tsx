@@ -4,7 +4,7 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import AddIcon from '@mui/icons-material/Add';
 import HomeIcon from '@mui/icons-material/Home';
 import { Tooltip } from "@mui/material";
-
+import { useStatus } from '../../hooks/useStatus';
 import MenuIcon from '@mui/icons-material/Menu';
 import CreateServerModal from '../servers/CreateServerModel';
 import authService from '../../services/auth.service';
@@ -13,7 +13,6 @@ import toast from 'react-hot-toast';
 import UserProfile from '../user/UserProfile';
 import { User } from '../../types/auth';
 import { UserStatus } from '../../types/status';
-import { useStatus } from '../../hooks/useStatus';
 const defaultServers = [
   { id: 0, name: 'Home', owner: { id: 0, username: 'Admin', email: 'admin@example.com' } }
 ];
@@ -25,7 +24,7 @@ export default function MainLayout() {
   // Breakpoints
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));   // < 600px  → rail hidden, hamburger shown
   const isSm = useMediaQuery(theme.breakpoints.down('md'));   // < 900px  → rail visible, sidebar in Drawer
-
+  const {status} = useStatus();
   const [open, setOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false); // mobile Drawer for server rail
   const [error, setError] = useState<string | null>(null);
@@ -192,8 +191,7 @@ export default function MainLayout() {
       
       <UserProfile 
           user={currentUser}
-          status={getUserStatus(currentUser.id)||UserStatus.ONLINE}
-          customStatus={getUserStatus(currentUser.id)||UserStatus.ONLINE}
+          status={status}
         />
         </Box>)}
     </Box>
