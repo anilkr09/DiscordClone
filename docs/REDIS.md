@@ -493,12 +493,13 @@ The corrective change for each finding is in [§10](#10-corrections).
 | 11 | Unreachable OFFLINE branch in `resolveStatus` | `UserStatusServiceImpl.java:124-125` | Low |
 | 12 | `markIdle` is a no-op; client idle timer is dead code | `IdleProvider.tsx` | Low |
 | 13 | `spring.cache.type=redis` set but no `@EnableCaching`/`@Cacheable` | `application.properties:73` | Cosmetic |
+| 14 | Clean disconnects are ignored; OFFLINE waits for the heartbeat TTL (20–30 s after the tab closes) | `WebSocketEventListener.java` (`handleSessionDisconnect`) | Medium |
 
 ## 10. Corrections
 
 For each finding in [§9](#9-summary-of-findings), this section describes what has to change and
-where. Several findings touch the same methods, so [§10.14](#1014-apply-order) gives an order that
-applies cleanly, and [§10.15](#1015-userstatusserviceimpl-after-all-corrections) describes the
+where. Several findings touch the same methods, so [§10.15](#1015-apply-order) gives an order that
+applies cleanly, and [§10.16](#1016-userstatusserviceimpl-after-all-corrections) describes the
 presence service once every correction is in.
 
 Paths are relative to `src/main/java/com/discordclone/` unless they start with `frontend/` or name
@@ -729,7 +730,183 @@ becomes a single existence check on the heartbeat key at the top of the method.
   runs a `SELECT` on every authenticated request. Enable caching, cache users by ID, evict on user
   update, and only then reintroduce these properties.
 
-### 10.14 Apply order
+### 10.14 Finding 14 — mark OFFLINE on a clean disconnect, with a grace period
+
+#### The problem
+
+When a user closes the tab, quits the browser, or logs out, the WebSocket closes cleanly and Spring
+fires `SessionDisconnectEvent` at once. The server knows the user has left. Yet
+`WebSocketEventListener.handleSessionDisconnect` only records last-seen, and the user stays ONLINE
+or IDLE until the heartbeat key expires, 20–30 s later. Clean closes are the most common way users
+leave, so almost every departure is shown late.
+
+#### Why the current code ignores the disconnect
+
+It used to act on it. On `feature/kafka`, the disconnect handler immediately wrote OFFLINE to the
+database and broadcast a `USER_OFFLINE` event. Commit `dc1ca97` ("refactored status manipulation")
+replaced that with the heartbeat-expiry approach and left this comment in the handler:
+*"DO NOT force OFFLINE / Let Redis TTL handle it"*. The change fixed two real problems:
+
+1. **Flapping.** A page reload or a brief network blip closes the socket and reopens it a second or
+   two later. Marking OFFLINE on every close showed friends OFFLINE → ONLINE each time.
+2. **Multiple tabs.** A disconnect belongs to one *session*, not one user. Closing one of two open
+   tabs marked the user OFFLINE while the other tab was still in use.
+
+Ignoring the disconnect fixed both problems, at the cost of speed. This correction keeps both fixes
+and brings the speed back.
+
+#### What the correction must achieve
+
+- A clean close with no other open session shows OFFLINE within seconds.
+- A reload or quick reconnect shows nothing to friends.
+- Closing one of several tabs or devices shows nothing to friends.
+- It works when a user's sessions are spread over several backend instances.
+- A duplicate or missing disconnect event, or a backend crash, never produces a wrong status. At
+  worst, it falls back to today's 20–30 s behaviour.
+- OFFLINE is broadcast once, and status reads agree with it.
+- Unclean disconnects (Wi-Fi drop, sleep, crash), for which no timely disconnect event exists, still
+  go OFFLINE through the heartbeat expiry.
+
+#### Options considered
+
+| Option | Verdict | Reason |
+|---|---|---|
+| Mark OFFLINE immediately on disconnect (the old behaviour) | Rejected | Brings back both problems it was removed for: flapping on reload, and false OFFLINE with multiple tabs |
+| Shorten the heartbeat TTL (e.g. 10 s) | Rejected | With a 10 s heartbeat, a TTL near the interval races every heartbeat and produces false OFFLINEs. Background-tab timer throttling makes it worse. It also speeds up clean and unclean closes equally, at the cost of correctness |
+| Count sessions in memory, or ask Spring's `SimpUserRegistry` | Rejected | Both are per-instance: a user with tabs on two instances looks disconnected on each. Both are also lost on restart |
+| Keep a per-user counter in Redis (`INCR` on connect, `DECR` on disconnect) | Rejected | Spring documents that `SessionDisconnectEvent` can fire more than once for a session, and a crash fires none. Either way a counter drifts and never recovers |
+| Delay the OFFLINE with an in-JVM scheduled task | Workable, not chosen | The pending OFFLINE lives in the memory of the instance that saw the disconnect. It is lost if that instance stops, and it adds a second scheduling mechanism next to the Redis expiry listener that already exists |
+| **Set of session IDs in Redis, a grace-period marker that expires, and the heartbeat TTL as fallback** | **Chosen** | Idempotent under duplicate events, shared across instances, cancellable from any instance, and it reuses the existing expiry listener and lock |
+
+#### The design
+
+Two new Redis keys per user:
+
+- `presence:sessions:{userId}` — a **set** of the user's open STOMP session IDs, with a 30 s TTL.
+- `presence:offline_pending:{userId}` — a **marker** meaning "the last session closed; go OFFLINE
+  unless someone reconnects", with an 8 s TTL (the grace period).
+
+The flow:
+
+1. **Connect:** add the session ID to the set, refresh the set's TTL, and delete any pending marker.
+   Then restore the custom status and count the connect as activity, as today.
+2. **Heartbeat:** as today, plus add the session ID to the set again and refresh the set's TTL.
+3. **Disconnect:** remove the session ID from the set. If the set is now empty, write the pending
+   marker with its 8 s TTL. Last-seen is recorded as today.
+4. **Marker expires:** the expiry listener takes the same per-user lock used for heartbeat expiry
+   (§10.8). It then goes OFFLINE only if **both** hold: the session set is still empty, and the
+   heartbeat key still exists. If they do, it deletes the heartbeat key and marks the user OFFLINE
+   (§10.7).
+5. **Heartbeat key expires:** unchanged (§10.8). This remains the path for unclean disconnects.
+
+#### Why each part is there
+
+- **A set, not a counter.** Adding and removing the same member of a set is idempotent. A duplicate
+  disconnect event removes nothing twice, and a replayed connect adds nothing twice. A counter would
+  be pushed off by either.
+- **Re-adding the session on every heartbeat.** This makes the set self-healing. If Redis loses its
+  data, or a connect event is somehow missed, the set is correct again within one heartbeat (10 s).
+  The session ID is available in the heartbeat handler (`SimpMessageHeaderAccessor.getSessionId()`),
+  so this costs one extra Redis command per heartbeat.
+- **A TTL on the set.** A backend crash fires no disconnect events, so the crashed instance's session
+  IDs stay in the set. The 30 s TTL, refreshed by heartbeats, lets the set disappear once the user
+  has no live sessions. See the limitation below for the case where the user still has other live
+  sessions.
+- **8 s grace.** It must cover the slowest *legitimate* reconnect:
+  - A **reload** closes the socket and reconnects once the new page has loaded, typically 1–3 s.
+  - A **server-side close** (for example a proxy recycling the connection) triggers the client's
+    automatic reconnect. The client sets no `reconnectDelay`, so `@stomp/stompjs` waits its default
+    of **5 s** before retrying. The new connection then needs a TCP/TLS handshake, the STOMP
+    `CONNECT`, and JWT validation, which includes a database lookup of the user.
+
+  5 s plus the handshake plus a margin gives 8 s. A grace period shorter than the reconnect delay
+  would reintroduce flapping for every server-side close. If the client's `reconnectDelay` is ever
+  lowered, the grace period can be lowered with it, but it should stay at least 2–3 s above it.
+- **A Redis marker instead of a timer.** It uses the expiry listener and lock that already exist, so
+  there is only one way presence goes OFFLINE on a delay. Any instance can cancel it (a reconnect
+  anywhere deletes the marker). It survives the disconnecting instance being stopped, because the
+  expiry event goes to whichever instance is listening.
+- **Checking the session set when the marker fires, even though connect deletes the marker.** A
+  reconnect on another instance can land between the marker expiring and the listener handling it.
+  Deleting an already-expired marker does nothing, so the set is the source of truth and the marker
+  is only a timer.
+- **Requiring the heartbeat key to still exist.** After an unclean drop, the heartbeat fallback may
+  already have marked the user OFFLINE. The server may only notice the dead socket later, fire the
+  disconnect event, and start a marker. When that marker fires, the missing heartbeat key shows the
+  user is already OFFLINE, so no second OFFLINE is broadcast.
+- **Deleting the heartbeat key when going OFFLINE.** Without this, the key would live up to 30 s
+  longer. Status reads would still resolve the user as connected while friends had been told OFFLINE,
+  and when the key later expired, the heartbeat path would broadcast OFFLINE a second time, because
+  the 5 s lock would be long gone. Deleting a key raises a Redis `del` event, not an `expired` event,
+  so the listener does not fire.
+- **Keeping the heartbeat TTL fallback.** Unclean disconnects produce no timely disconnect event.
+  STOMP heart-beats are negotiated to `0,0` today, so the server notices a dead TCP connection only
+  when a write fails or the operating system's keepalive gives up, which can take minutes. A backend
+  crash produces no events at all. Missing heartbeats are the only signal that covers these cases.
+
+#### Dependencies
+
+This correction needs expired-key notifications enabled (§10.2), the rewritten expiry listener with
+its per-user lock (§10.8), and the single-argument `setOfflineAndBroadcast` (§10.7).
+
+#### What to change
+
+- **`constants/PresenceKeys`:** add `sessions(userId)` → `presence:sessions:{userId}` and
+  `offlinePending(userId)` → `presence:offline_pending:{userId}`.
+- **`service/UserStatusService` and `UserStatusServiceImpl`:**
+  - Add `registerSession(userId, sessionId)`. It adds the session to the set, sets the set's TTL to
+    30 s, and deletes the pending marker.
+  - Add `unregisterSession(userId, sessionId)`. It removes the session from the set. If the set is
+    now empty, it writes the pending marker with an 8 s TTL.
+  - Add `completePendingOffline(userId)`. It returns without doing anything if the session set is
+    non-empty or the heartbeat key is missing. Otherwise it deletes the heartbeat key and calls
+    `setOfflineAndBroadcast`.
+  - Change `handleHeartbeat` to take the session ID as well. It adds the session to the set and
+    refreshes the set's TTL, in addition to what it does today.
+  - Add named constants for the grace period (8 s) and the session-set TTL (30 s).
+- **`controller/StatusWebSocketController`:** in `heartbeat`, pass `headerAccessor.getSessionId()`
+  to `handleHeartbeat`.
+- **`websocket/listener/WebSocketEventListener`:**
+  - In `handleSessionConnected`, call `registerSession` with the user ID and the session ID from the
+    wrapped `StompHeaderAccessor`. Do this first, before the custom-status restore and the activity
+    call.
+  - In `handleSessionDisconnect`, call `unregisterSession` with the user ID and
+    `event.getSessionId()`, then record last-seen as today. Replace the "DO NOT force OFFLINE"
+    comment with one that points to this section.
+- **`service/PresenceExpirationListener`:** accept keys with either the `presence:heartbeat:` or the
+  `presence:offline_pending:` prefix. Both paths take the same per-user lock. A heartbeat key
+  continues as in §10.8. A pending marker calls `completePendingOffline`.
+- **Client:** no change is needed. Changing `reconnectDelay` in `WebSocketProvider` is optional,
+  but if it happens, the grace period must be revisited.
+
+#### Known limitations
+
+- **A backend crash can leave stale session IDs behind.** If one of a user's instances crashes while
+  the user also has a live session on another instance, the live session's heartbeats keep
+  refreshing the set's TTL, so the crashed instance's stale IDs stay in it. When the user later
+  closes their last live session, the set is not empty, no marker is written, and the user goes
+  OFFLINE through the heartbeat fallback (20–30 s) instead. The status is never wrong, only slower.
+  A stricter design uses one key per session (`presence:session:{userId}:{sessionId}`), each with its
+  own TTL refreshed only by that session's heartbeat. That removes stale entries automatically, at
+  the cost of a `SCAN` to count a user's sessions.
+- **For up to 10 s after Redis loses its data,** the session sets are empty until heartbeats rebuild
+  them. Closing one of several tabs in that window can mark the user OFFLINE. Their other tab's next
+  heartbeat brings them back.
+- **A slow graceful shutdown can mark everyone OFFLINE.** If an instance keeps its Redis listener
+  running for more than 8 s after closing its WebSocket sessions, it receives the markers for its
+  own users and marks them OFFLINE, and they come back ONLINE as they reconnect elsewhere. Spring
+  closes WebSocket sessions late in shutdown, so this is unlikely.
+
+**Check:**
+
+- Close a tab: friends see OFFLINE about 8 s later.
+- Reload: friends see nothing.
+- Open two tabs and close one: nothing. Close the second: OFFLINE about 8 s later.
+- Disable Wi-Fi: OFFLINE 20–30 s later, and only once, even when the server notices the dead socket
+  afterwards.
+- While connected, the session set holds one entry per open tab.
+
+### 10.15 Apply order
 
 | Step | Findings | Why this order |
 |---|---|---|
@@ -741,22 +918,24 @@ becomes a single existence check on the heartbeat key at the top of the method.
 | 6 | 6 | Uses the `Clock`; edits `resetPresence` after step 5 |
 | 7 | 3 | Backend and frontend **in the same deploy** (see the §10.3 rollout note) |
 | 8 | 5, 12 | One `IdleProvider` rewrite, frontend only |
+| 9 | 14 | Extends the step-4 listener and the §10.7 method; backend only, no client change |
 
 `UserStatusServiceTest` still targets the removed `updateUserStatus` API (see
 [BUGS.md B09](BUGS.md#b09-two-test-classes-do-not-compile)). Rewrite it alongside step 3. Use the
 injected `Clock` to cover the 29 s and 31 s boundaries, the offline-with-override case, and the
 no-activity case.
 
-### 10.15 `UserStatusServiceImpl` after all corrections
+### 10.16 `UserStatusServiceImpl` after all corrections
 
 Once every step is applied, the presence service should look like this:
 
 - **Dependencies:** as today, plus the injected `Clock` and `LastSeenWriter`.
 - **Constants:** named constants replace the literals scattered through the class: heartbeat TTL
   30 s, activity TTL 10 min, cached-status TTL 60 s, custom-status lifetime 24 h, ONLINE window 30 s,
-  and activity throttle 5 s.
-- **`handleHeartbeat`:** refreshes only the heartbeat key, with no `last_seen` write, then calls
-  `updateAndBroadcast`.
+  activity throttle 5 s, disconnect grace period 8 s, and session-set TTL 30 s.
+- **`handleHeartbeat`:** takes the session ID as well. It refreshes the heartbeat key, with no
+  `last_seen` write, re-adds the session to the session set and refreshes the set's TTL (§10.14),
+  then calls `updateAndBroadcast`.
 - **`handleActivity`:** applies the 5 s throttle, writes `last_activity` and the heartbeat key, then
   calls `updateAndBroadcast`.
 - **`resolveStatus`:** liveness, then override, then engagement, in the order from §10.4.
@@ -770,8 +949,9 @@ Once every step is applied, the presence service should look like this:
 - **`broadcastStatusChange`:** sends to the user and each accepted friend on `/queue/presence` (§10.3).
 - **`persistLastSeen`:** delegates to `LastSeenWriter` (§10.9).
 - **`updateCustomStatus`:** one `expiresAt` drives both the database expiry and the Redis TTL (§10.6).
-- **New methods:** `restoreCustomStatus`, a startup restore on `ApplicationReadyEvent`, and the
-  after-commit friendship-accepted listener (§10.3, §10.6).
+- **New methods:** `restoreCustomStatus`, a startup restore on `ApplicationReadyEvent`, the
+  after-commit friendship-accepted listener (§10.3, §10.6), and `registerSession`,
+  `unregisterSession`, and `completePendingOffline` (§10.14).
 - **`resetPresence`:** also clears the custom status in the database (§10.6).
 - **Unchanged:** `getUserStatus`, `getFriendsStatus`, `clearCustomStatus`, and
   `getUserStatusEntity`.
@@ -780,7 +960,7 @@ Once every step is applied, the presence service should look like this:
 
 This section describes the system as it behaves once every change in [§10](#10-corrections) is
 applied, including the cached-status TTL refresh noted in
-[§10.15](#1015-userstatusserviceimpl-after-all-corrections). None of it is implemented yet. Where
+[§10.16](#1016-userstatusserviceimpl-after-all-corrections). None of it is implemented yet. Where
 behaviour is still wrong after §10, the scenario says so, and [§11.5](#115-what-is-still-not-right)
 collects those problems.
 
@@ -798,12 +978,12 @@ Three signals feed presence, and each answers a different question:
 
 | Component | Triggered by | What it does |
 |---|---|---|
-| `WebSocketEventListener` (connect) | STOMP `CONNECT` succeeds | Restores the custom status from Postgres if Redis lacks it, then treats the connect as activity |
-| `WebSocketEventListener` (disconnect) | Socket closes | Records last-seen in Postgres, asynchronously. Does **not** change status |
-| `handleHeartbeat` | `/app/heartbeat` | Refreshes the heartbeat key (30 s TTL), then re-evaluates |
+| `WebSocketEventListener` (connect) | STOMP `CONNECT` succeeds | Adds the session to the user's session set and cancels any pending OFFLINE. Restores the custom status from Postgres if Redis lacks it, then treats the connect as activity |
+| `WebSocketEventListener` (disconnect) | Socket closes | Removes the session from the set. If it was the user's last session, starts an 8 s grace period before OFFLINE. Records last-seen in Postgres, asynchronously |
+| `handleHeartbeat` | `/app/heartbeat` | Refreshes the heartbeat key (30 s TTL), re-adds the session to the set (30 s TTL), then re-evaluates |
 | `handleActivity` | `/app/activity`, or a connect | Ignores repeats within 5 s. Otherwise refreshes `last_activity` (10 min TTL) and the heartbeat key, then re-evaluates |
 | `updateCustomStatus` / `clearCustomStatus` | REST calls | Writes or removes the override in Redis and Postgres (one expiry time), then re-evaluates |
-| `PresenceExpirationListener` | Redis reports an expired heartbeat key | Claims the expiry (one instance only), confirms the user has not reconnected, then marks them OFFLINE |
+| `PresenceExpirationListener` | Redis reports an expired heartbeat key or grace-period marker | Claims the expiry (one instance only). For a heartbeat: confirms the user has not reconnected, then marks them OFFLINE. For a marker: confirms no session reopened and the user is still connected, removes the heartbeat key, then marks them OFFLINE |
 | `onFriendshipAccepted` | A friendship is committed as ACCEPTED | Sends each user the other's current status |
 | Startup restore | Application ready | Copies every unexpired custom status from Postgres into Redis |
 
@@ -838,8 +1018,11 @@ since the cached value only exists to detect changes. Resolution checks, in orde
 Resolution runs on every heartbeat, every accepted activity frame, every custom-status change, and
 on status reads that miss the cache. Because heartbeats arrive every 10 s, time-based changes such
 as "30 s without activity" or "custom status expired" are picked up within 10 s of happening.
-The one exception is OFFLINE, which is pushed by the expiry listener rather than discovered on a
-heartbeat, since a user who is offline no longer sends heartbeats.
+The one exception is OFFLINE, which the expiry listener pushes rather than a heartbeat discovering,
+since a user who is offline no longer sends heartbeats. It happens in one of two ways:
+
+- **Clean close:** the 8 s grace period after the last session closes runs out.
+- **Unclean drop:** the heartbeat key expires 30 s after the last heartbeat.
 
 ```mermaid
 stateDiagram-v2
@@ -853,7 +1036,8 @@ stateDiagram-v2
         CUSTOM --> ONLINE: user picks Online, or 24 h expiry (recent activity)
         CUSTOM --> IDLE: user picks Online, or 24 h expiry (no recent activity)
     }
-    Connected --> OFFLINE: heartbeat key expires (30 s after the last heartbeat)
+    Connected --> OFFLINE: last session closed + 8 s grace, no reconnect (clean close)
+    Connected --> OFFLINE: heartbeat key expires, 30 s after last heartbeat (unclean drop)
 ```
 
 ### 11.3 How a status is broadcast
@@ -865,9 +1049,12 @@ stateDiagram-v2
   friend, through each person's own `/user/queue/presence`. Spring delivers it to every open session
   of each recipient, so all of a user's tabs and devices agree. Non-friends and blocked users
   receive nothing.
-- **OFFLINE.** It comes from a different path. When a heartbeat key expires, Redis publishes an
-  expired-key event. The listener takes a 5 s lock so that only one application instance acts on it,
-  checks that the heartbeat has not reappeared, then caches and broadcasts OFFLINE once.
+- **OFFLINE.** It comes from a different path: an expired-key event from Redis, for either the
+  grace-period marker (clean close) or the heartbeat key (unclean drop). The listener takes a 5 s
+  per-user lock so that only one application instance acts on it. It re-checks that the user really
+  is gone (no session reopened for a marker; no heartbeat reappeared for a heartbeat), then caches and
+  broadcasts OFFLINE once. A marker also removes the heartbeat key, so later reads agree and the
+  fallback never fires a second OFFLINE.
 - **New friendships.** When a friendship is accepted, both users receive each other's current status
   after the transaction commits. Without this, they would not see each other until one of them
   changed status.
@@ -881,7 +1068,8 @@ On the client, `PresenceProvider` applies frames whose `userId` matches the logg
 ### 11.4 Scenarios
 
 "Friends see" means what the friends' clients display. Timings assume the §10 values: 10 s
-heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity throttle.
+heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, 15 s client activity throttle, and 8 s disconnect
+grace period.
 
 #### Connecting and disconnecting
 
@@ -891,8 +1079,8 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
   fetches the user's own status and `FriendStatusProvider` fetches the friend statuses. Once
   connected, both subscribe to `/user/queue/presence`, the heartbeat timer starts (first beat after
   10 s), and `IdleProvider` begins listening for input.
-- *Server:* the connect event restores any saved custom status, then counts as activity. The
-  heartbeat and `last_activity` keys are written, and resolution gives ONLINE, or the custom status
+- *Server:* the connect event adds the session to the user's session set, restores any saved custom
+  status, then counts as activity. The heartbeat and `last_activity` keys are written, and resolution gives ONLINE, or the custom status
   if one is set. That differs from the cached value (missing, or OFFLINE from the last session), so
   it is broadcast.
 - *Friends see:* the user go ONLINE (or DND and so on) immediately.
@@ -903,47 +1091,60 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
 
 **2. Page reload or a brief network blip**
 
-- *Client:* the socket closes. A reload loads a fresh app, and a blip triggers the 5 s automatic
-  reconnect.
-- *Server:* the disconnect only records last-seen. The heartbeat key keeps living until 30 s after
-  the last heartbeat. On reconnect, the connect counts as activity, and resolution gives the same
-  status as before. The cache matches, so nothing is broadcast.
-- *Friends see:* nothing, as long as the gap is shorter than what remains of the TTL. That is 20–30 s,
-  depending on where in the heartbeat cycle the drop happened. A longer gap becomes scenario 3,
-  followed by scenario 1.
+- *Client:* the socket closes. A reload loads a fresh app and reconnects in 1–3 s. When the
+  server or a proxy closes the connection, the client reconnects after the 5 s `stompjs` delay.
+- *Server:* the disconnect removes the session. If it was the last one, the 8 s grace marker is
+  written. The reconnect adds the new session and deletes the marker, counts as activity, and
+  resolves to the same status as before. The cache matches, so nothing is broadcast.
+- *Friends see:* nothing, as long as the reconnect lands within the 8 s grace period. A slower
+  reconnect becomes scenario 3 followed by scenario 1 (OFFLINE, then ONLINE).
+- A blip the server never notices (no disconnect event) is covered instead by the heartbeat TTL.
+  Friends see nothing if the client is back before the key expires, 20–30 s after its last
+  heartbeat.
 
 **3. Closing the tab, quitting the browser, or logging out**
 
 - *Client:* the socket closes; logout tears the connection down. Heartbeats stop.
-- *Server:* the disconnect records last-seen and nothing else. About 30 s after the last heartbeat,
-  Redis expires the heartbeat key and publishes the event. The listener claims it, sees no new
-  heartbeat, and caches and broadcasts OFFLINE. `last_activity` and any custom status may still be
-  in Redis, but resolution returns OFFLINE because liveness is checked first.
-- *Friends see:* OFFLINE **20–30 s after the tab closed**, plus the usual sub-second delay before
-  Redis actually deletes an expired key.
+- *Server:* the disconnect removes the session and records last-seen. It was the user's last
+  session, so the 8 s grace marker is written. When the marker expires, the listener claims it,
+  confirms the session set is still empty and the heartbeat key still exists, deletes the heartbeat
+  key, and caches and broadcasts OFFLINE. `last_activity` and any custom status may still be in
+  Redis, but resolution returns OFFLINE because liveness is checked first.
+- *Friends see:* OFFLINE **about 8 s after the tab closed**, plus the usual sub-second delay before
+  Redis actually deletes an expired key. Before §10.14 this was 20–30 s. The reasoning for the
+  grace period is in §10.14.
 
 **4. Unclean disconnect: Wi-Fi drop, laptop sleep, or crash**
 
 - *Client:* nothing is sent, and the socket may not even close cleanly.
-- *Server:* it may not notice the dead socket for a long time, and it does not need to. The missing
-  heartbeats let the key expire exactly as in scenario 3.
+- *Server:* no disconnect event arrives in time, because STOMP heart-beats are off and TCP gives no
+  prompt signal. About 30 s after the last heartbeat, the heartbeat key expires. The listener claims
+  it, sees no new heartbeat, and caches and broadcasts OFFLINE. If the server notices the dead
+  socket later, the disconnect event starts a grace marker. When the marker fires, it finds the
+  heartbeat key already gone and does nothing, so there is no second OFFLINE.
 - *Friends see:* OFFLINE 20–30 s after the last heartbeat that reached the server.
 
-**5. Reconnecting just as the key expires**
+**5. Reconnecting just as the grace period or the heartbeat key runs out**
 
-- If the reconnect writes a new heartbeat before the listener runs, the listener finds the key
-  present and does nothing. Friends see no change.
-- If the listener runs first, OFFLINE is broadcast. The reconnect then resolves ONLINE, which
-  differs from the cached OFFLINE, so ONLINE follows. Friends see a brief OFFLINE → ONLINE.
+- **Grace marker.** A reconnect during the grace period deletes the marker, so nothing happens.
+  If the reconnect lands between the marker expiring and the listener handling it (possibly on
+  another instance), the listener finds a session in the set and does nothing. Friends see no change
+  either way. Only a reconnect that arrives after the listener has already acted produces
+  OFFLINE → ONLINE.
+- **Heartbeat key (unclean drop).** If the reconnect writes a new heartbeat before the listener runs,
+  the listener finds the key present and does nothing. If the listener runs first, OFFLINE is
+  broadcast, the reconnect then resolves ONLINE, and friends see a brief OFFLINE → ONLINE.
 
 **6. Several tabs or devices at once**
 
 - *Client:* every tab runs its own heartbeat and activity reporting.
-- *Server:* all of them refresh the **same** per-user heartbeat and `last_activity` keys. The user is
-  connected while any tab heartbeats, and ONLINE while any tab sees input.
-- *Friends see:* one status for the user. Closing one tab changes nothing, and OFFLINE follows only
-  after the last tab's heartbeats stop (scenario 3). Every tab shows the same status for the user,
-  because their own frames reach all their sessions.
+- *Server:* all of them refresh the **same** per-user heartbeat and `last_activity` keys, and each
+  tab is one member of the user's session set. The user is connected while any tab heartbeats, and
+  ONLINE while any tab sees input.
+- *Friends see:* one status for the user. Closing one tab removes only that session, so the set is
+  not empty, no grace marker is written, and nothing changes. OFFLINE follows only after the last tab
+  closes (scenario 3), or the last tab's heartbeats stop (scenario 4). Every tab shows the same status
+  for the user, because their own frames reach all their sessions.
 
 #### Engagement while connected
 
@@ -1025,8 +1226,8 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
 
 **16. Going offline while a status is set**
 
-- *Server:* the heartbeat expires and OFFLINE is broadcast, as in scenario 3. Later reads also say
-  OFFLINE, because liveness now comes first. The override itself is kept.
+- *Server:* OFFLINE is broadcast as in scenario 3 or 4. Later reads also say OFFLINE, because
+  liveness now comes first. The override itself is kept.
 - On the next connect, the override is restored if Redis lost it, and resolution returns it, so
   *friends see* DND (or whatever was set) as soon as the user is back.
 
@@ -1068,6 +1269,10 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
   override is also gone), the cache is empty, so IDLE is broadcast. The next input makes them ONLINE.
   Custom statuses come back only when the user reconnects or the application restarts
   ([§10.6](#106-finding-6--rehydrate-the-custom-status-and-keep-one-expiry-clock)).
+- The session sets are lost too, and each connected tab re-adds itself on its next heartbeat. For up
+  to 10 s, a user's set may therefore be missing some of their open tabs. Closing a tab in that
+  window can start a grace marker, and mark the user OFFLINE, even though another tab is still open.
+  That tab's next heartbeat brings them back.
 - *Friends see:* connected users drop to IDLE within 10 s, then return to ONLINE as they interact.
   Users with a set status appear without it until they reconnect.
 - The compose file mounts a volume for Redis, and Redis saves snapshots by default, so a plain
@@ -1078,6 +1283,12 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
 - *Client:* every socket drops, and each client retries every 5 s.
 - *Server:* heartbeat keys live in Redis, so they survive the restart. At startup, saved custom
   statuses are restored.
+  - **Graceful shutdown:** the closing sessions fire disconnect events, which empty the session sets
+    and start grace markers. The markers normally expire while no instance is listening, so the
+    events are lost and nothing is broadcast. The reconnects then register fresh sessions.
+  - **Crash:** no disconnect events fire, so the old session IDs stay in the sets until their 30 s
+    TTL runs out. If users reconnect sooner, their new heartbeats keep the stale IDs alive. Their
+    next clean close then falls back to the 20–30 s heartbeat path (see §10.14).
   - **Back within the TTL (about 20–30 s):** reconnects count as activity and resolve to the same
     status as before, so nothing is broadcast.
   - **Down for longer:** heartbeat keys expire while no instance is listening. Redis does not queue
@@ -1089,7 +1300,9 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
 
 **23. Running more than one backend instance**
 
-- The expiry lock ensures exactly one instance sends OFFLINE.
+- The session sets and grace markers are in Redis, so a user's sessions are counted correctly across
+  instances, and a reconnect on any instance cancels a pending OFFLINE. The expiry lock ensures
+  exactly one instance sends OFFLINE.
 - *Still wrong:* the in-memory STOMP broker delivers a frame only to sessions connected to the
   instance that sent it. A friend attached to another instance misses the update. §10 does not
   change this; multi-instance presence needs a broker relay (see
@@ -1098,14 +1311,15 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
 
 ### 11.5 What is still not right
 
-§10 fixes the thirteen findings in §9, but these gaps remain in the corrected design:
+§10 fixes the fourteen findings in §9, but these gaps remain in the corrected design:
 
 | Problem | Scenario | Suggested change |
 |---|---|---|
 | The user's own status can be wrong at login: the server broadcasts before the client subscribes | 1 | Have the client re-fetch `/users/me/status` once its presence subscription is active, or have the server push the current status on the subscribe event |
 | Friend statuses are fetched only at login, never after a reconnect | 22 | Re-fetch `/users/friends/status` and `/users/me/status` whenever the STOMP connection is re-established |
 | Frames processed in the same React batch are dropped, because providers read only the last element | 21, 22 | Handle each frame in the subscription callback ([BUGS.md B27](BUGS.md#b27-batched-status-updates-are-dropped)) |
-| OFFLINE takes 20–30 s even when the tab closed cleanly | 3 | Mark OFFLINE on the disconnect event, after a short grace period and only when the user has no sessions left, and keep the TTL as the fallback for unclean drops |
+| After a backend crash, stale session IDs can keep a user's session set non-empty, so their next clean close takes the 20–30 s fallback instead of 8 s | 22 | One key per session with its own TTL, refreshed only by that session's heartbeat (§10.14, known limitations) |
+| For up to 10 s after Redis loses its data, closing one of several tabs can briefly mark the user OFFLINE | 21 | Accept it, or keep the session sets in a Redis setup with persistence (AOF) |
 | Background-tab timer throttling could make heartbeats slower than the TTL | 11 | Run the heartbeat timer in a Web Worker (unverified; test with a tab hidden for more than 5 minutes) |
 | Reset shows OFFLINE, then IDLE, then ONLINE | 17 | Either also delete the heartbeat key and close the sessions, or make reset only clear the override and re-evaluate |
 | Presence does not work across more than one instance | 23 | STOMP broker relay, or a Redis/Kafka fan-out bridge |
@@ -1117,8 +1331,10 @@ heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, and 15 s client activity thro
 | User connects | ONLINE, or their set status | Immediately |
 | User stops interacting | IDLE | 15–40 s after the last input |
 | User interacts again | ONLINE | Immediately |
-| Tab closes, logout, network loss, sleep | OFFLINE | 20–30 s after the last heartbeat |
-| Reload or network blip shorter than the TTL remainder | No change | — |
+| Tab closes, logout, browser quits (clean close, no other session) | OFFLINE | About 8 s after the last session closes |
+| Network loss, sleep, crash (unclean) | OFFLINE | 20–30 s after the last heartbeat |
+| Reload or reconnect within the grace period | No change | — |
+| One of several tabs closes | No change | — |
 | User sets or clears a status | The new status | Immediately |
 | A set status expires after 24 h | The derived status | Within 10 s |
 | Friend request accepted | Each other's current status | Right after the commit |
