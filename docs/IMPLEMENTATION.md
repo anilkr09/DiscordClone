@@ -468,7 +468,7 @@ Jest, or Testing Library).
 
 ## 8. Known issues
 
-> [BUGS.md](BUGS.md) is the complete, numbered catalog (B01–B50), with an evidence tag and a fix
+> [BUGS.md](BUGS.md) is the complete, numbered catalog (B01–B51), with an evidence tag and a fix
 > for each item. This section is a narrative summary of the most important ones, and
 > [IMPROVEMENTS.md](IMPROVEMENTS.md) covers the structural changes that prevent them.
 

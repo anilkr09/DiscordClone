@@ -67,7 +67,7 @@ Kafka is an optional message path. Real-time is STOMP over native WebSocket.
 
 Detailed docs live in `docs/` (ARCHITECTURE, IMPLEMENTATION, WEBSOCKETS, KAFKA, REDIS). Read those
 before changing the messaging or presence layers. `docs/BUGS.md` is the numbered defect catalog
-(B01–B50). When you fix one, reference its ID in the commit and remove or mark it in that file.
+(B01–B51). When you fix one, reference its ID in the commit and remove or mark it in that file.
 `docs/IMPROVEMENTS.md` holds the prioritized roadmap.
 
 ### The profile seam (most important structural decision)

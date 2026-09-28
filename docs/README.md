@@ -11,7 +11,7 @@ Engineering documentation for the DiscordClone real-time chat application.
 | [WEBSOCKETS.md](WEBSOCKETS.md) | STOMP broker internals, handshake & authentication, destination map, client implementation |
 | [KAFKA.md](KAFKA.md) | Producer configuration, the profile seam, delivery semantics, the missing consumer |
 | [REDIS.md](REDIS.md) | Presence key schema, TTL state machine, keyspace-expiry listener, status resolution |
-| [BUGS.md](BUGS.md) | **Numbered defect catalog** (B01–B50) with severity, evidence, location, and fix, plus the implementation patterns behind them |
+| [BUGS.md](BUGS.md) | **Numbered defect catalog** (B01–B51) with severity, evidence, location, and fix, plus the implementation patterns behind them |
 | [IMPROVEMENTS.md](IMPROVEMENTS.md) | Prioritized improvements (security, API, data, messaging, presence, scaling, frontend, testing, ops) and a phased roadmap |
 
 ## Scope

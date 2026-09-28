@@ -25,6 +25,9 @@ Forward-looking suggestions that are not defects are in [IMPROVEMENTS.md](IMPROV
 Line numbers refer to `main`. `J/` abbreviates `src/main/java/com/discordclone/`, and `F/` abbreviates
 `frontend/src/`.
 
+IDs are stable. A defect added after the first pass gets the next free number and is listed under
+its severity, so numbers are not strictly in severity order.
+
 ## Summary
 
 | ID | Title | Severity | Area |
@@ -69,6 +72,7 @@ Line numbers refer to `main`. `J/` abbreviates `src/main/java/com/discordclone/`
 | [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed | Medium | CI |
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |
+| [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
 | [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice | Low | Redis |
 | [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation | Low | Redis |
 | [B43](#b43-dead-presence-logic) | Dead presence logic | Low | Redis |
@@ -276,6 +280,8 @@ published and `PresenceExpirationListener` never runs. Disconnect deliberately d
 so users who close the app keep their last status on everyone's screen.
 **Fix:** `redis-server --notify-keyspace-events Ex`, or `CONFIG SET` at startup. See
 [IMPROVEMENTS.md](IMPROVEMENTS.md#presence) for a design that does not depend on this at all.
+Even once OFFLINE works, a user who closes the tab keeps their status for 20–30 s, because the
+disconnect itself is ignored. That is B51.
 
 ### B15. Presence is visible to everyone
 
@@ -555,6 +561,32 @@ These are latent today. `leaveServer`, `deleteServer`, and `deleteChannel` are e
 but no component calls them. They will fail the moment someone wires up a button.
 **Fix:** align the client with the API, ideally from a generated client (see
 [IMPROVEMENTS.md](IMPROVEMENTS.md#frontend)).
+
+### B51. Clean disconnects wait for the heartbeat TTL
+
+`read` · `J/websocket/listener/WebSocketEventListener.java:44-59`
+
+When a user closes the tab, quits the browser, or logs out, the socket closes cleanly and Spring
+fires `SessionDisconnectEvent` immediately. `handleSessionDisconnect` only records last-seen. Its
+comment reads *"DO NOT force OFFLINE / Let Redis TTL handle it"*. So the user keeps showing ONLINE
+or IDLE until the heartbeat key expires, 20–30 s after the tab closed, and only once B14 is fixed.
+Clean closes are the most common way users leave, so almost every departure is shown late.
+
+The disconnect is ignored on purpose. `feature/kafka` marked OFFLINE on every disconnect, and commit
+`dc1ca97` removed that because it made users flicker OFFLINE → ONLINE on every page reload, and
+showed them OFFLINE when they closed one of several open tabs. The fix has to keep both of those
+behaviours correct.
+
+**Impact:** friends see departures 20–30 s late. The status is never wrong, only slow.
+**Fix:** track each user's open STOMP sessions in a Redis set, which heartbeats re-add and a 30 s
+TTL cleans up. When the last session closes, start an 8 s grace period with an expiring Redis key.
+A reconnect on any instance cancels it. When it expires, the existing expiry listener and lock mark
+the user OFFLINE, but only if no session has reopened and the heartbeat key still exists, and they
+delete the heartbeat key so reads agree. Keep the heartbeat TTL as the fallback for unclean drops.
+The 8 s value comes from the client's default 5 s reconnect delay plus the reconnect handshake.
+Full reasoning, rejected alternatives, per-file changes, and limitations are in
+[REDIS.md §10.14](REDIS.md#1014-finding-14--mark-offline-on-a-clean-disconnect-with-a-grace-period).
+It depends on B14 being fixed.
 
 ---
 
