@@ -9,17 +9,26 @@ list.
 |---|---|
 | Language | Java 17 (toolchain-pinned in `build.gradle:16-22`) |
 | Framework | Spring Boot 3.2.2 |
-| Build | Gradle, `bootJar` → `discord-clone-0.0.1-SNAPSHOT.jar` |
+| Build | Gradle, `bootJar` → `discord-clone-0.0.1-SNAPSHOT.jar` (plain `jar` disabled) |
 | Quality | JaCoCo (XML + HTML), PMD 6.55.0 (`ignoreFailures = true`), SonarQube plugin |
 | Frontend | React 18, TypeScript 5.7, Vite 6 |
 
-Checkstyle is configured but entirely commented out (`build.gradle:84-92`, `:101-106`, `:117`).
-PMD runs with `ignoreFailures = true`, so violations never break the build. `check` depends on
-`pmdMain, pmdTest`.
+Checkstyle is configured but entirely commented out (`build.gradle:84-92`, `:101-106`, `:117`), even
+though `config/checkstyle/checkstyle.xml` is committed. PMD runs with `ignoreFailures = true`, so
+violations never break the build. `check` depends on `pmdMain, pmdTest`.
 
-The frontend build script is `tsc --noEmit --skipLibCheck || true && vite build` — the `|| true`
-means **type errors never fail the build**. Given operator precedence this reduces to
-`(tsc ... || true) && vite build`, so `vite build` always runs regardless of type-check outcome.
+The build that actually works today is recorded in `build_jar_command.txt`:
+
+```bash
+./gradlew clean bootJar -x test -x pmdMain -x pmdTest
+```
+
+It skips tests because they do not compile (§7). It will not succeed either until the Redis starter
+is restored (§8.1).
+
+The frontend build script is `tsc --noEmit --skipLibCheck || true && vite build`. Because `||` and
+`&&` associate left to right, this is `(tsc ... || true) && vite build`: `vite build` always runs,
+and **type errors never fail the build**.
 
 ### Declared backend dependencies
 
@@ -34,8 +43,26 @@ lombok (compileOnly + annotationProcessor)
 com.mysql:mysql-connector-j  (runtimeOnly — unused; PostgreSQL is the datasource)
 ```
 
-Two problems here: **`spring-boot-starter-data-redis` is absent** (§8.1), and the MySQL connector is
-declared but nothing uses it.
+Three problems:
+
+- **`spring-boot-starter-data-redis` is absent** (§8.1).
+- The MySQL connector is declared, but nothing uses it.
+- There is no H2 dependency, even though H2 settings and H2 database files are present (§2).
+
+### CI
+
+`.github/workflows/docker-image.yml` runs only on `workflow_dispatch`. Its steps are
+`./gradlew build`, then `docker build -t discord-backend .`, then
+`docker push anil0003/discord-clone:latest`. It cannot succeed as written:
+
+1. `./gradlew build` runs the tests, which do not compile (§7), and the main sources do not compile
+   either (§8.1).
+2. The image is tagged `discord-backend` but the push targets `anil0003/discord-clone:latest`, a tag
+   that was never created.
+3. There is no `docker login` step, so the push would be unauthenticated even with the right tag.
+
+It also pins `actions/checkout@v2` and `actions/setup-java@v2` with `distribution: 'openjdk'`, all of
+which are deprecated.
 
 ## 2. Configuration and profiles
 
@@ -47,10 +74,12 @@ declared but nothing uses it.
 | `application-local.properties` | yes, under `local` | `app.kafka.enabled=false` |
 | `application-kafka.properties` | yes, under `kafka` | Kafka producer settings (mostly inert — see [KAFKA.md](KAFKA.md#22-application-kafkaproperties-mostly-inert)) |
 | `application1.properties` | **no** | Dead file; does not match Spring's naming convention |
+| `frontend/.env.development` | Vite, dev | `VITE_API_BASE_URL=http://localhost:8080` |
+| `frontend/.env.production` | Vite, build | `VITE_API_BASE_URL=https://discordclone-hd22.onrender.com` |
 
-`application1.properties` is not a profile file — Spring loads `application.properties` and
-`application-{profile}.properties` only. It contains a `spring.kafka.consumer.group-id` that reads as
-live consumer configuration but is never applied. It does not exist on `feature/kafka`.
+`application1.properties` is not a profile file. Spring loads `application.properties` and
+`application-{profile}.properties` only. The file contains a `spring.kafka.consumer.group-id` that
+reads as live consumer configuration but is never applied. It does not exist on `feature/kafka`.
 
 ### Profile matrix
 
@@ -59,23 +88,37 @@ live consumer configuration but is never applied. It does not exist on `feature/
 | `local` (default) | `LocalMessageEventPublisher` | `LocalMessagePersistenceService` | Yes |
 | `kafka` | `KafkaMessageEventPublisher` | `NoOpMessagePersistenceService` | **No** — no consumer exists |
 
-`app.kafka.enabled` is defined in both profile files but **read by nothing** — no
-`@ConditionalOnProperty` or `@Value` references it. Profile selection alone drives the wiring.
+`app.kafka.enabled` is defined in both profile files but **read by nothing**. No
+`@ConditionalOnProperty` or `@Value` references it, so profile selection alone drives the wiring.
 
 ### Key settings
 
 ```properties
-server.port=8080                       # note: README says 8082; the property wins
+server.port=8080                       # README says 8082; HomeController /api says 8082; this wins
 spring.jpa.hibernate.ddl-auto=update   # no migration tool
-spring.jpa.open-in-view=false          # good — no lazy loading in the view layer
-spring.jpa.show-sql=true               # verbose; disable for production
+spring.jpa.open-in-view=false          # correct — but see §4 on returning lazy entities
+spring.jpa.show-sql=true               # and logging.level.org.hibernate.SQL=DEBUG — SQL logged twice
 app.jwt.expiration=86400000            # 24h access token
 app.jwt.refresh-expiration=604800000   # 7d refresh token
 spring.cache.type=redis                # inert — no @EnableCaching anywhere
 ```
 
-There is no `application-prod.properties`, and every value — database credentials, Redis password,
-JWT secret — is a literal rather than an `${ENV_VAR}` placeholder.
+### Inert settings
+
+These look like configuration but do nothing:
+
+| Setting | Why it is inert |
+|---|---|
+| `spring.websocket.max-text-message-size`, `...max-binary-message-size` | Not Spring Boot properties. Message size limits require `configureWebSocketTransport`, which `WebSocketConfig` does not override |
+| `spring.h2.console.enabled`, `spring.h2.console.path` | No H2 dependency, so the console is never registered. `/h2-console/**` is still `permitAll`, and `frameOptions(sameOrigin)` was added for it |
+| `spring.cache.*` | No `@EnableCaching`, no `@Cacheable` |
+| `app.kafka.enabled` | Nothing reads it |
+| everything in `application1.properties` | File is never loaded |
+
+There is no `application-prod.properties`. Every value, including database credentials, the Redis
+password, and the JWT secret, is a literal rather than an `${ENV_VAR}` placeholder. That includes
+production: `.env.production` points at a Render deployment, and nothing in the repo shows how the
+production datasource is configured.
 
 ## 3. Package walkthrough
 
@@ -84,130 +127,210 @@ JWT secret — is a literal rather than an `${ENV_VAR}` placeholder.
 | Class | Role |
 |---|---|
 | `SecurityConfig` | Filter chain, CORS, `PasswordEncoder`, `AuthenticationManager` |
-| `JwtService` | Issue/validate/parse tokens; `@PostConstruct` builds the HMAC key |
+| `JwtService` | Issue/validate/parse tokens; `@PostConstruct` builds the HMAC key (HS512 — 64-byte secret) |
 | `JwtAuthenticationFilter` | Per-request bearer token → `SecurityContext` |
 | `CustomUserDetailsService` | `loadUserByUsername` + `loadUserById` |
-| `UserPrincipal` | `UserDetails`; `getName()` returns the **username** |
+| `UserPrincipal` | `UserDetails`; `getName()` returns the **username**; single authority `ROLE_USER` |
 | `WebSocketAuthInterceptor` | STOMP frame authentication ([WEBSOCKETS.md](WEBSOCKETS.md#3-authentication)) |
-| `CurrentUser` | Annotation for principal injection |
+| `CurrentUser` | Meta-annotation over `@AuthenticationPrincipal`; **unused** — controllers use `@AuthenticationPrincipal` or `SecurityContextHolder` directly |
 
 `JwtService.validateToken` **throws** `JwtAuthenticationException` on every failure path rather than
-returning `false` — it can only ever return `true` or throw. Callers written as
-`if (!validateToken(t))` therefore never take the false branch; they either proceed or propagate an
+returning `false`, so it can only ever return `true` or throw. Callers written as
+`if (!validateToken(t))` therefore never take the false branch: they either proceed or propagate an
 exception. `JwtAuthenticationFilter` wraps the call in a try/catch and continues unauthenticated,
-which works, but the boolean return type is misleading.
+which works, but the boolean return type is misleading. The same pattern affects the STOMP
+interceptor ([WEBSOCKETS.md](WEBSOCKETS.md#31-connect--the-only-place-the-jwt-is-checked)) and
+`/api/auth/refresh` (§8.9).
+
+Controllers get the current user in three ways: `@AuthenticationPrincipal UserPrincipal`
+(Channel, Server, Invite), a private `getCurrentUser()` reading `SecurityContextHolder` (Friend,
+UserStatus), and `SimpMessageHeaderAccessor.getUser()` (the STOMP controllers).
 
 ### `service/`
 
 | Class | Notes |
 |---|---|
-| `MessageService` | Loads entities, assigns UUID, builds DTO, delegates to publisher |
+| `MessageService` | Loads entities, assigns UUID, builds DTO, delegates to publisher. **No membership check** |
 | `MessageEventPublisher` + 2 impls | The profile seam ([KAFKA.md](KAFKA.md#1-the-profile-seam)) |
 | `MessagePersistenceService` + 2 impls | `Local` saves; `NoOp` returns unsaved |
 | `UserStatusService` / `impl` | Redis presence ([REDIS.md](REDIS.md)) |
 | `PresenceExpirationListener` | Keyspace-expiry → OFFLINE |
-| `FriendshipService` / `impl` | Friend graph + `WsEvent` fan-out |
-| `UserService` | **Concrete class** holding `PasswordEncoder`; BCrypt-encodes on create |
-| `UserServiceImpl` | `extends UserService` and calls `super(...)` — not an interface implementation |
-| `ChannelService`, `ServerService`, `InviteService` | Concrete, no interface |
+| `FriendshipService` / `impl` | Friend graph + `WsEvent` fan-out to `/user/queue/friends` |
+| `ChannelService` | Admin check on create/update/delete; member check on get/list; DM get-or-create (pinned to server 1) |
+| `ServerService` | Owner checks on update/delete/role; **no checks** on add/remove member; `isUserMember`/`isUserAdmin` helpers |
+| `InviteService` | Member check on create; join validates expiry and `maxUses` |
+| `UserService` | **Concrete `@Service`**; BCrypt-encodes on `createUser` |
+| `UserServiceImpl` | Second `@Service` that `extends UserService`. **Never injected** — see below |
 
-`UserServiceImpl extends UserService` (a concrete class), rather than implementing an interface. The
-`impl` package name implies a contract that does not exist.
+**Two `UserService` beans.** `UserService` and `UserServiceImpl` are both `@Service`, and both are
+assignable to `UserService`. Every consumer (`AuthController`, `UserController`, `ChannelService`,
+`ServerService`, `InviteService`) injects a constructor parameter named `userService`. With two
+candidates and no `@Primary`, Spring falls back to matching that parameter name against bean names,
+so it always picks the base `UserService` bean. This works only because the Spring Boot Gradle
+plugin compiles with `-parameters`. The overrides in `UserServiceImpl`, which throw
+`ResourceNotFoundException` (404) instead of `RuntimeException` (500), therefore never execute. That
+is why "user not found" surfaces as a 500 throughout the API.
+
+**Error semantics.** Many business failures are thrown as bare `RuntimeException`:
+`InviteService` ("Invite expired", "Invalid invite code", "already a member"), `ServerService`
+("Only the server owner can…", "Invalid role id"), and `UserService.getUserById`.
+`GlobalExceptionHandler` maps `RuntimeException` to **500** and echoes `ex.getMessage()` in the body.
+So an expired invite, a non-owner trying to delete a server, and a missing user all return 500
+Internal Server Error with the internal message. `ChannelService` uses `UnauthorizedException`,
+mapped to **401**, for what are really authorization failures and should be **403**. The
+`@ControllerAdvice` has a complete ladder of specific handlers (409, 400, 404, 405, 401, 503); the
+services just do not throw the exceptions those handlers expect.
 
 ### `model/`
 
-Entities use Lombok `@Data` on JPA classes. This generates `equals`/`hashCode` across **all** fields,
-including lazy `@ManyToOne` associations — touching them on a detached entity risks
+Entities use Lombok `@Data` on JPA classes. This generates `equals`/`hashCode` across **all**
+fields, including lazy `@ManyToOne` associations. Touching those on a detached entity risks
 `LazyInitializationException`, and mutable-field hashing breaks `HashSet` membership when a field
-changes. `Message` additionally carries `@Data` plus redundant `@Setter`/`@Getter`. The conventional
-fix is `@Getter/@Setter` with an explicit ID-based `equals`/`hashCode`.
+changes. `ServerService` compares owners with `server.getOwner().equals(user)`, which under `@Data`
+compares every field of `User`, password hash included. It works because both sides are loaded from
+the same row. `Message` additionally carries `@Data` plus redundant `@Setter`/`@Getter`. The
+conventional fix is `@Getter/@Setter` with an explicit ID-based `equals`/`hashCode`.
 
-`User` has no relationship mappings at all — no `@OneToMany` to messages or members. Navigation is
-done through repositories instead, which is a defensible choice that avoids `@Data` recursion, but
-it is inconsistent with `Channel`/`Server`, which do map associations.
+`User` has no relationship mappings and **no `@JsonIgnore` on `password`**. Returning a `User`
+anywhere serializes the BCrypt hash (§8.4).
+
+`Server.type` (`ServerType.PUBLIC/PRIVATE`) exists, but `createServer` has the setter commented out,
+so every server's `type` is `null`. The column carries no meaning today.
 
 ## 4. API surface
 
+"Authz" is the resource-level check the code performs beyond "is authenticated".
+
 ### Auth — `/api/auth` (public)
 
-| Method | Path | Body | Returns |
-|---|---|---|---|
-| POST | `/register` | `RegistrationRequest` | `JwtAuthResponse` |
-| POST | `/login` | `LoginRequest` | `JwtAuthResponse` |
-| POST | `/refresh` | `RefreshTokenRequest` | `JwtAuthResponse` (no user fields) |
-
-`/register` creates the user, then immediately authenticates with the raw password to issue tokens.
-`/refresh` has two problems — see §8.6.
+| Method | Path | Body | Returns | Notes |
+|---|---|---|---|---|
+| POST | `/register` | `RegistrationRequest` (`@Valid`) | `JwtAuthResponse` | Creates the user, then re-authenticates with the raw password |
+| POST | `/login` | `LoginRequest` | `JwtAuthResponse` | **Logs the plaintext password** (§8.4) |
+| POST | `/refresh` | `RefreshTokenRequest` | `JwtAuthResponse` (no user fields) | Accepts access tokens; guard unreachable (§8.9). The frontend calls a different path (§5) |
 
 ### Messages — `/api/messages`
 
-| Method | Path | Notes |
-|---|---|---|
-| GET | `/channels/{channelId}` | Paged, default size 20, sorted by `timestamp` |
-| PUT | `/{messageId}` | Takes a full `Message` entity as the body |
-| DELETE | `/{messageId}` | See §8.5 — implementation is broken |
-| STOMP | `/app/chat.send` | `MessageRequest` |
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/channels/{channelId}` | **none** | Page 0, size 20, newest first. The frontend fetches only the first page and has no scroll-back |
+| PUT | `/{messageId}` | **none** | Binds a raw `Message` entity; path variable ignored (§8.6) |
+| DELETE | `/{messageId}` | **none** | Cannot succeed (§8.8) |
+| STOMP | `/app/chat.send` | **none** | `MessageRequest`; DM `receiver` is client-supplied |
 
-`PUT /{messageId}` binds a raw JPA entity from the request body and passes it to
-`messageRepository.save(...)`, so a client can set `sender`, `channel`, `timestamp`, and `id`
-directly. The path variable `messageId` is ignored. This is a mass-assignment hole: any authenticated
-user can rewrite any message, including reassigning its author.
+History responses (`MessageResp`) include each author's **email address**
+(`MessageResp.Author{id, username, email}`), so reading a channel exposes every participant's email.
 
 ### Status — `/api/users`
 
-| Method | Path |
-|---|---|
-| GET | `/{userId}/status` |
-| GET | `/me/status` |
-| GET | `/friends/status` |
-| POST | `/status/custom?status=` |
-| DELETE | `/status/custom` |
-| DELETE | `/status/reset` |
+| Method | Path | Authz |
+|---|---|---|
+| GET | `/{userId}/status` | **none** — any user's presence |
+| GET | `/me/status` | self |
+| GET | `/friends/status` | self |
+| POST | `/status/custom?status=` | self |
+| DELETE | `/status/custom` | self |
+| DELETE | `/status/reset` | self |
 
 ### Users — `/api/users`
 
-| Method | Path |
-|---|---|
-| GET | `/`, `/{id}`, `/username/{username}`, `/search` |
-| POST | `/` |
-| PUT | `/{id}/status` |
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| GET | `/` | **none** | **Every user, with email and password hash** |
+| GET | `/{id}`, `/username/{username}`, `/search?prefix=` | **none** | Raw `User` entities, hash included |
+| POST | `/` | authenticated | Binds a raw `User`, **including `id`** (§8.5) |
+| PUT | `/{id}/status` | **none** | **No-op**: `UserService.updateUserStatus` has `setStatus` commented out and re-saves the user unchanged |
 
 `UserController` and `UserStatusController` **share the `/api/users` base path**. Spring resolves the
-overlaps (`/friends/status` and `/me/status` vs. `/{userId}/status`) by preferring literal segments
-over templates, so startup succeeds. It is fragile though: adding `GET /{id}/{something}` to either
-controller would create a genuine ambiguity, and the split means the `/api/users` surface is
-described in two files.
+overlaps (`/friends/status` and `/me/status` vs. `/{userId}/status`, `/search` vs. `/{id}`) by
+preferring literal segments over templates, so startup succeeds. It is fragile, though. Adding
+`GET /{id}/{something}` to either controller would create a genuine ambiguity, and the split means
+the `/api/users` surface is described in two files.
 
 ### Friends — `/api/friends`
 
-`GET ""`, `GET /requests`, `GET /requests/outgoing`, `POST /request`, `PUT /accept/{requestId}`,
-`PUT /reject/{requestId}`, `DELETE /{friendId}`, `POST /block/{targetId}`, `DELETE /block/{targetId}`,
-`GET /check/{friendId}`
+| Method | Path | Notes |
+|---|---|---|
+| GET | `""`, `/requests`, `/requests/outgoing`, `/check/{friendId}` | Self-scoped |
+| POST | `/request` | By **username**; auto-accepts if the target already sent you a pending request; re-sending after REJECTED is allowed |
+| PUT | `/accept/{requestId}`, `/reject/{requestId}` | Receiver only |
+| DELETE | `/{friendId}` | Must be ACCEPTED |
+| POST / DELETE | `/block/{targetId}` | Replaces any existing row with a BLOCKED row owned by the blocker |
+
+Blocking prevents new friend requests between the pair, and nothing else. It does not stop DMs
+(`MessageService` never consults friendships) and it does not hide presence (§8.10). There is no
+endpoint to cancel an outgoing request, although the frontend has a handler for a
+`FRIEND_REQUEST_CANCELLED` event. The list queries load `sender`/`receiver` lazily per row, so
+`getFriends` and the request lists issue one query per friendship (N+1).
 
 ### Servers — `/api/servers`
 
-`POST ""`, `GET ""`, `GET /{serverId}`, `POST /{serverId}/members/{userId}`,
-`DELETE /{serverId}/members/{userId}`, `DELETE /{serverId}`, `PUT /{serverId}`,
-`PUT /{serverId}/roles/{roleId}`
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| POST | `""` | authenticated | Creates server + `OWNER` membership; name must be globally unique |
+| GET | `""` | self | Returns raw `Server` entities; the EAGER `owner` includes its password hash |
+| GET | `/{serverId}` | **none** | Returns `ServerDTO` (safe) for any server |
+| POST | `/{serverId}/members/{userId}` | **none** | **Anyone can add anyone to any server** (§8.3) |
+| DELETE | `/{serverId}/members/{userId}` | **none** | **Anyone can remove any non-owner member** (§8.3) |
+| PUT | `/{serverId}` | owner | Binds raw `Server`; only name/description copied |
+| DELETE | `/{serverId}` | owner | **Will fail** — see below |
+| PUT | `/{serverId}/roles/{roleId}` | owner | **Always fails** — see below |
+
+**`PUT /{serverId}/roles/{roleId}` can never succeed.** The handler declares
+`@PathVariable Long userId`, but the mapping has no `{userId}` segment
+(`ServerController.java:70-76`). Spring throws `MissingPathVariableException` before the method
+runs, and the generic handler turns it into a 500. Even if the path were fixed, `roleId` is mapped
+to `Role.values()[roleId]`, meaning ADMIN=0, MEMBER=1, OWNER=2. That couples the API to enum
+declaration order, and it lets an owner mint additional `OWNER`s, which the delete/update checks
+(based on `Server.owner`, not `Member.role`) would then not recognise.
+
+**`DELETE /{serverId}` fails on foreign keys.** `ServerService.deleteServer` calls
+`serverRepository.delete(server)` with no cascade. Every server created through the API has at least
+one `server_members` row (the owner's), plus usually channels and invites, all with foreign keys to
+`servers.id`. Hibernate generates those constraints under `ddl-auto=update`, so the delete violates
+them and the `DataIntegrityViolationException` handler returns 409. Only a server with no members,
+channels, or invites could be deleted. *Inferred from the schema mapping; not exercised.*
 
 ### Channels — `/api/channels/{serverId}`
 
-`POST ""`, `POST /dm/{userId}`, `GET ""`, `GET /{channelId}`, `PUT /{channelId}`,
-`DELETE /{channelId}`
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| POST | `""` | admin | Broadcasts `CHANNEL_CREATED` to **every** connected user on `/topic/channels` |
+| POST | `/dm/{userId}` | authenticated | Get-or-create DM; returns the channel ID. `{serverId}` is ignored; DMs are attached to server 1 |
+| GET | `""` | member | Returns `ChannelDTO` list |
+| GET | `/{channelId}` | member | Returns the raw `Channel` entity. `{serverId}` is ignored |
+| PUT | `/{channelId}` | admin | Binds a raw `Channel`; copies name, description, **type** (a channel can be flipped to `DM`) |
+| DELETE | `/{channelId}` | admin | No cascade to messages; likely FK failure once the channel has messages |
 
-Note that DM creation sits under a `{serverId}`-scoped base path (`POST /api/channels/{serverId}/dm/{userId}`)
-even though DMs have no server — `Channel.server_id` is nullable precisely for this case. The path
-variable is structurally meaningless here.
+The `{serverId}` path variable is used only by create and list. For `/dm/{userId}`,
+`/{channelId}` get/put/delete, it is ignored; the channel's actual server comes from the database.
+So `/api/channels/999/5` operates on channel 5 regardless of which server it belongs to.
+
+`GET` and `PUT /{channelId}` return a `Channel` entity whose `server` is a lazy proxy. With
+`open-in-view=false` and no `jackson-datatype-hibernate` module, Jackson touches that proxy after the
+transaction has closed, which normally fails with `LazyInitializationException` or a "no serializer
+for ByteBuddyInterceptor" error. *Likely, not exercised.* `ChannelDTO`, which the list endpoint
+uses, avoids this.
 
 ### Invites — `/api/invites`
 
-`POST /create`, `POST /join/{code}`
+| Method | Path | Authz | Notes |
+|---|---|---|---|
+| POST | `/create?serverId&maxUses=10&validMinutes=1440` | member | Code = first 8 chars of a UUID; URL built from the request host |
+| POST | `/join/{code}` | authenticated | Returns raw `Server` (owner hash included) |
+
+`joinViaInvite` performs a read-check-increment on `uses` with no lock or version column, so
+concurrent joins can exceed `maxUses`. `createInvite` is not `@Transactional`. The returned
+`inviteUrl` points at the **backend** endpoint (`/api/invites/join/{code}`, a `POST`), so it is not
+a link a browser can open.
 
 ### Misc
 
-`GET /`, `GET /api`, `GET /health` — all in `HomeController`. `/` and `/health` are in the
-`permitAll` list; **`/api` is not**, so it falls through to `.anyRequest().authenticated()` and
-requires a token despite sitting alongside two public endpoints.
+`GET /`, `GET /api`, `GET /health` are all in `HomeController`. `/` and `/health` are in the
+`permitAll` list. **`/api` is not**, so it falls through to `.anyRequest().authenticated()` and
+requires a token despite sitting alongside two public endpoints. Its content is also stale: it lists
+`/api/channels/servers/{serverId}`, `POST /api/messages/channels/{channelId}`, and
+`ws://localhost:8082/ws`, none of which match the real routes.
 
 ## 5. Frontend structure
 
@@ -216,43 +339,60 @@ frontend/src/
 ├── App.tsx                 Route table + provider composition
 ├── components/             auth, chat, friends, layout, servers, user
 ├── providers/
-│   ├── AuthProvider        Login state, token storage (localStorage)
+│   ├── AuthProvider        Login state, token + username + id in localStorage
 │   ├── WebSocketProvider   STOMP client, subscription registry
 │   ├── StatusProvider      Composes the three presence providers
 │   ├── PresenceProvider    Self status + 10s heartbeat loop
 │   ├── IdleProvider        DOM activity → /app/activity
 │   └── FriendStatusProvider Friend status map
 ├── hooks/                  useServers, useChannels, useFriends, useStatus, useUserStatus
-├── store/                  Redux Toolkit (messages slice)
+├── store/                  Redux Toolkit (messages slice, de-duplicated, capped per channel)
 ├── websocket/              message.socket.ts, friends.events.ts
-├── services/api.ts         Axios instance
+├── services/api.ts         Axios instance + refresh interceptor
 └── config/api.ts           API_BASE_URL / WS_BASE_URL
 ```
+
+Dead files: `components/chat/ChatArea copy.tsx`, `services/StatusProvider.tsx` (a second, unused
+`StatusProvider`), and `frontend/src/test_command`. `services/message.service.ts` is partly used:
+its history fetch is live, but its edit and delete helpers call backend routes that do not exist.
+
+### API client and token refresh
+
+`services/api.ts` builds `baseURL = API_BASE_URL + '/api'`, so `VITE_API_BASE_URL` must be the
+server origin **without** `/api`. The committed `.env.development` does this correctly.
+
+Its request interceptor decodes the JWT, and if it has expired, calls
+`POST ${API_BASE_URL}/api/refresh-token` with an **empty body** and `withCredentials: true`. That
+endpoint does not exist; the backend route is `/api/auth/refresh`, and it reads the refresh token
+from the JSON body, not a cookie. Every refresh therefore fails, the interceptor clears storage, and
+it redirects to `/login`. The stored `refreshToken` is never sent anywhere. The practical session
+length is the 24-hour access-token TTL. Requests queued behind a failed refresh are never resolved,
+but the redirect makes that moot.
 
 ### State management
 
 Three systems coexist: **Redux Toolkit** (messages), **React Query** (servers, channels, friends),
-and **React Context** (auth, websocket, presence). React Query and Redux overlap in purpose —
-React Query is the better fit for server state, and the messages slice exists mainly because
-WebSocket pushes arrive outside the query lifecycle. `react-query` v3 and `@tanstack/react-query` v5
-are **both** in `package.json`; only the latter is used by `lib/reactQuery.ts`.
+and **React Context** (auth, websocket, presence). React Query and Redux overlap in purpose. React
+Query is the better fit for server state; the messages slice exists mainly because WebSocket pushes
+arrive outside the query lifecycle. `react-query` v3 and `@tanstack/react-query` v5 are **both** in
+`package.json`, but only the latter is used, by `lib/reactQuery.ts`.
 
 ### Routing
 
 `/channels` is the authenticated shell (`MainLayout`), with `@me` for DMs/friends and `:serverId`
-for servers. `ProtectedRoute` gates the subtree. Note `<Route path="*" element={<Navigate to="/login" />} />`
-is nested *inside* `ProtectedRoute`, so unmatched authenticated routes redirect to login rather than
-showing a 404.
+for servers. `ProtectedRoute` gates the subtree. Note that
+`<Route path="*" element={<Navigate to="/login" />} />` is nested *inside* `ProtectedRoute`, so
+unmatched authenticated routes redirect to login rather than showing a 404.
 
-Tokens are stored in `localStorage`, which is readable by any script on the origin — an XSS bug
-becomes full account takeover for the token's 24-hour lifetime.
+Tokens are stored in `localStorage`, which is readable by any script on the origin. An XSS bug
+therefore becomes full account takeover for the token's 24-hour lifetime.
 
 ## 6. Local setup
 
 ```bash
 # 1. infrastructure
-docker compose up -d db redis                      # local profile
-docker compose up -d                               # + kafka, kafka-ui, pgadmin
+docker compose up -d db redis                      # enough for the local profile
+docker compose up -d                               # + kafka, kafka-init, kafka-ui, pgadmin
 
 # 2. backend (http://localhost:8080)
 ./gradlew bootRun                                  # local profile (default)
@@ -261,15 +401,24 @@ SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # kafka profile — see warni
 # 3. frontend (http://localhost:5173)
 cd frontend
 npm install
-echo "VITE_API_BASE_URL=http://localhost:8080/api" > .env
-npm run dev
+npm run dev                                        # uses the committed .env.development
 ```
 
-`VITE_API_BASE_URL` is required — `config/api.ts` derives `WS_BASE_URL` from it by rewriting the
-scheme, and will throw on `undefined` if the variable is unset.
+`VITE_API_BASE_URL` comes from the committed `frontend/.env.development` (`http://localhost:8080`).
+It must not end in `/api`, because `api.ts` appends that itself. If it is unset, `config/api.ts`
+throws at module load (`undefined.replace`).
 
-> **Before any of this works**, apply the two blocking fixes in §8.1 and §8.2. As committed, the
-> backend does not compile, and presence never reaches OFFLINE.
+**Fresh-database prerequisites.** On first start, `DataInitializer` creates `testuser`, a
+"Default Server" owned by it, and a "Default channel". Everything else depends on that server
+existing as **ID 1**, because every DM channel is attached to it (§8.7). Two caveats:
+
+- `testuser`'s password is stored in plaintext, so **`testuser` cannot log in** (§8.11). Register a
+  real account through the UI instead.
+- No `Member` row is created for server 1, so nobody, including its owner, is a member of the
+  server that holds every DM.
+
+> **Before any of this works**, apply the blocking fixes in §8.1 and §8.2. As committed, the backend
+> does not compile, and presence never reaches OFFLINE.
 
 > **Do not use the `kafka` profile** until a consumer exists — messages are broadcast but never
 > stored ([KAFKA.md](KAFKA.md#4-the-missing-consumer)).
@@ -279,8 +428,8 @@ Supporting UIs: pgAdmin <http://localhost:5050> (`admin@dev.com` / `admin`), Kaf
 
 ## 7. Testing
 
-Six Mockito-based unit test classes exist under `src/test/java/com/discordclone/service/`, covering
-the service layer with 50 `@Test` methods in total:
+Six Mockito-based unit test classes exist under `src/test/java/com/discordclone/service/`. They
+cover the service layer with 50 `@Test` methods in total:
 
 | Class | `@Test` methods | Lines |
 |---|---|---|
@@ -291,57 +440,68 @@ the service layer with 50 `@Test` methods in total:
 | `InviteServiceTest` | 7 | 156 |
 | `MessageServiceTest` | 6 | 156 |
 
-They are plain `@ExtendWith(MockitoExtension.class)` unit tests — no Spring context, no
-`@SpringBootTest`, no integration or controller tests, and nothing exercising the WebSocket, Kafka,
-or Redis layers.
+They are plain `@ExtendWith(MockitoExtension.class)` unit tests. There is no Spring context, no
+`@SpringBootTest`, no integration or controller test, and nothing that exercises the WebSocket,
+Kafka, or Redis layers. Because there are no controller tests, none of the authorization gaps in §4
+is covered.
 
 **Two of these classes are stale and will not compile against `main`:**
 
 1. `UserStatusServiceTest` calls `userStatusService.updateUserStatus(1L, UserStatus.IDLE)`
-   (`:70`, `:87`). That method was removed from `UserStatusService` in the presence rewrite — the
-   interface now exposes `handleHeartbeat`/`handleActivity`/`resolveStatus`-backed queries instead.
-   The test still targets the `feature/kafka`-era API, so `src/test` compilation fails on `main`.
-2. `MessageServiceTest` declares four `@Mock`s — `MessageRepository`, `UserRepository`,
-   `ChannelRepository`, `SimpMessagingTemplate` — but `MessageService` now takes **six** constructor
+   (`:70`, `:87`). That method was removed from `UserStatusService` in the presence rewrite, which
+   replaced it with `handleHeartbeat`/`handleActivity` and derived-status queries. The test still
+   targets the `feature/kafka`-era API, so `src/test` compilation fails on `main`.
+2. `MessageServiceTest` declares four `@Mock`s: `MessageRepository`, `UserRepository`,
+   `ChannelRepository`, `SimpMessagingTemplate`. `MessageService` now takes **six** constructor
    arguments, having gained `MessagePersistenceService` and `MessageEventPublisher`. With
    `@InjectMocks` against a `@RequiredArgsConstructor` class, the two unmatched parameters are
-   injected as `null`, so any test reaching `eventPublisher.publish(...)` at `MessageService.java:71`
-   throws `NullPointerException`.
+   injected as `null`. Any test that reaches `eventPublisher.publish(...)` at
+   `MessageService.java:71` throws `NullPointerException`.
 
-In other words, the tests were written before the Kafka seam and the Redis presence rewrite and were
-not updated alongside either. Since `build.gradle` sets `test { finalizedBy jacocoTestReport }` and
-`check.dependsOn pmdMain, pmdTest`, a `./gradlew build` currently fails at test compilation —
-independently of the missing Redis dependency (§8.1).
+The tests were written before the Kafka seam and the Redis presence rewrite, and were not updated
+alongside either. `./gradlew build` runs `test` (and `check` runs PMD), so the build currently fails
+at test compilation, independently of the missing Redis dependency (§8.1).
 
-`frontend/README.md` is referenced by the root README for frontend testing instructions, but there is
-no test tooling in `frontend/package.json` — no Vitest, Jest, or Testing Library.
+`frontend/README.md` is the unmodified Vite template README, which the root README nonetheless cites
+for "frontend testing instructions". There is no test tooling in `frontend/package.json` (no Vitest,
+Jest, or Testing Library).
 
 ## 8. Known issues
 
-Ordered by severity. Items 1–3 prevent the system from working as committed.
+Ordered by severity. §8.1–8.2 stop the system from building or working. §8.3–8.7 are exploitable by
+any registered user.
 
 ### 8.1 The backend does not compile on `main`
 
 `build.gradle` declares no Redis dependency, and none of the declared starters brings Spring Data
-Redis in transitively. Meanwhile the following files import `org.springframework.data.redis.*`:
+Redis in transitively. Meanwhile, these files import `org.springframework.data.redis.*`:
 
 - `config/RedisConfig.java` — `StringRedisTemplate`, `RedisConnectionFactory`
 - `config/RedisKeyExpirationListenerConfig.java` — `RedisMessageListenerContainer`, `PatternTopic`, `MessageListenerAdapter`
 - `service/impl/UserStatusServiceImpl.java` — `StringRedisTemplate`
 
-Affects `main` and `feature/redis` (`feature/kafka` predates the Redis code and is unaffected).
+**Root cause.** The starter was added in `2b8eea7` ("added redis service", 2025-04-23) and removed in
+`cd97e97` ("global exception handler update", 2026-02-14). The later `feature/redis` work
+reintroduced Redis code without restoring it. Affects `main` and `feature/redis`; `feature/kafka`
+has no Redis imports and is unaffected.
 
 ```groovy
 implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 ```
 
-*Not verified by compilation* — no JRE is installed in this environment (`./gradlew` reports
-"Unable to locate a Java Runtime"). The conclusion is from static inspection of the dependency block
-against the imports, and no build output exists anywhere in the tree.
+*Not verified by compilation.* No JRE is installed in the environment these docs were written in
+(`./gradlew` reports "Unable to locate a Java Runtime"). The conclusion comes from comparing the
+dependency block against the imports. The only build artifact in the tree is a stale committed jar,
+`build/libs/discord-clone-0.0.1-SNAPSHOT.jar` (50 MB, from `1b0f85e`, 2026-02-16). It contains none
+of the Kafka publisher, Redis config, or presence-listener classes, so it proves nothing about
+today's sources.
+
+A second, independent blocker: two test classes no longer compile (§7). Both must be fixed for
+`./gradlew build` to pass.
 
 ### 8.2 Presence never reaches OFFLINE
 
-Redis keyspace notifications are disabled by default and nothing enables them, so
+Redis keyspace notifications are disabled by default, and nothing enables them, so
 `PresenceExpirationListener` never fires. Fix in `docker-compose.yml`:
 
 ```yaml
@@ -350,29 +510,83 @@ command: redis-server --requirepass redis123 --notify-keyspace-events Ex
 
 Full analysis: [REDIS.md](REDIS.md#keyspace-notifications-are-not-enabled).
 
-### 8.3 The `kafka` profile silently discards all messages
+### 8.3 Missing authorization on server membership, messages, and subscriptions
 
-No `@KafkaListener` exists on any branch, and `NoOpMessagePersistenceService` is active under that
-profile. Messages are produced and broadcast, then lost.
-[KAFKA.md](KAFKA.md#4-the-missing-consumer) includes a reference consumer.
+Several write and read paths check only that the caller is logged in:
 
-### 8.4 Committed credentials
+| Action | Endpoint | Effect |
+|---|---|---|
+| Add any user to any server | `POST /api/servers/{id}/members/{userId}` | Join private servers; add others without consent |
+| Remove any non-owner member | `DELETE /api/servers/{id}/members/{userId}` | Kick anyone from any server |
+| Post to any channel | `SEND /app/chat.send` | Message servers you are not in |
+| Read any channel's history | `GET /api/messages/channels/{id}` | Read servers you are not in |
+| Subscribe to any channel | `SUBSCRIBE /topic/channels/{id}/messages` | Live-read servers you are not in |
+| Send a "DM" to anyone | `SEND /app/chat.send` with `dm: true` | `receiver` and `channelId` are client-chosen and never cross-checked |
 
-| Secret | Location |
-|---|---|
-| SonarCloud token | `build.gradle:29` |
-| JWT signing secret | `application.properties:56` |
-| Postgres password | `application.properties:13`, `docker-compose.yml` |
-| Redis password | `application.properties:68`, `docker-compose.yml` |
+Channel IDs and server IDs are sequential integers. `ServerService.isUserMember`,
+`ServerService.isUserAdmin`, and `ChannelService.checkUserIsMember` already exist and are used
+correctly elsewhere, so the fix is mostly to call them. DMs need a separate participant check against
+`dmKey` (§8.7). See also
+[WEBSOCKETS.md](WEBSOCKETS.md#32-subscribe-and-send).
 
-The SonarCloud token should be **revoked** — it is in git history, so removing it from the working
-tree is not sufficient. The JWT secret is the more dangerous of the two: anyone holding it can forge
-a token for any user ID, since the subject is the only identity claim.
+### 8.4 Password hashes and plaintext passwords are exposed
 
-### 8.5 `DELETE /api/messages/{messageId}` is broken
+- **Hashes over the API.** `User.password` has no `@JsonIgnore`. `GET /api/users` returns every
+  account's email and BCrypt hash to any authenticated caller. `/api/users/{id}`,
+  `/username/{u}`, and `/search` do the same per user. Every endpoint that returns a `Server` entity
+  (`GET`/`POST /api/servers`, the member endpoints, `POST /api/invites/join/{code}`) embeds the
+  EAGER `owner`, hash included. BCrypt is slow to crack, but handing out hashes turns every weak
+  password into an offline attack.
+- **Plaintext in logs.** `AuthController.java:72` logs `loginRequest` at INFO. `LoginRequest` is
+  `@Data`, so its `toString()` includes `password`, and every login writes the user's password to the
+  application log. (`RegistrationRequest` has no `@ToString`, so `/register`'s log line prints only an
+  object reference.)
+- **Emails in history.** `MessageResp.Author` includes `email`, so every channel reader sees every
+  author's email.
+
+Fix: add `@JsonIgnore` to `User.password` as a backstop, return DTOs from every controller, drop the
+request object from the login log line, and remove `email` from `Author`.
+
+### 8.5 Account overwrite through `POST /api/users`
+
+`UserController.createUser` binds a raw `User` from the request body and passes it to
+`UserService.createUser`. That method checks that the *username* and *email* are unused, encodes
+the password, and calls `userRepository.save(user)`. It never clears `user.id`. Spring Data's
+`save` uses `merge` when the ID is non-null, so a body such as
+`{"id": 7, "username": "fresh", "email": "fresh@x", "password": "mine"}` **overwrites user 7's row**:
+the username, email, and password all change, and the attacker can now log in as that account, with
+its memberships, friendships, and history attached. The endpoint needs any authenticated account,
+nothing more. *Follows from `SimpleJpaRepository.save` semantics; not exercised.* Remove the
+endpoint (registration already exists at `/api/auth/register`), or bind to a DTO without `id`.
+
+### 8.6 Mass assignment on message edit
+
+`PUT /api/messages/{messageId}` binds a raw `Message` entity from the body and saves it. It ignores
+the path variable and performs no ownership check. Any user can rewrite any message, including its
+`sender` and `channel`, by sending that message's ID in the body. It also leaves `edited` at whatever
+the client sends.
+
+The path variable is declared `Long` while message IDs are UUID strings, so the natural request
+`PUT /api/messages/{uuid}` fails type conversion with a 400. The hole is still open, because the
+body decides which row is written: `PUT /api/messages/1` with `{"id": "<victim uuid>", ...}` passes
+conversion and overwrites the victim's message.
+
+### 8.7 DMs are pinned to server 1
+
+`ChannelService.getOrCreateDmChannel` attaches every DM channel to `serverService.getServerById(1L)`.
+
+- If server 1 does not exist, DM creation fails with 404.
+- Server-membership checks are meaningless for DMs. Nobody is a member of server 1 by default, so
+  `GET /api/channels/{any}/{dmChannelId}` is refused for the DM's own participants. Anyone who does
+  join server 1, which §8.3 lets any user do, passes the membership check for **every** DM.
+- `DmChannel`/`DmChannelRepository` model participants properly, but they are unused.
+
+Use the `dm_channels` table, or parse `dmKey`, to authorize DM access by participant.
+
+### 8.8 `DELETE /api/messages/{messageId}` cannot succeed
 
 ```java
-// controller/MessageController.java:85-95
+// controller/MessageController.java:87-92
 Message message = messageService.getChannelMessages(null, null)
         .getContent().stream()
         .filter(m -> m.getId().equals(messageId))
@@ -380,30 +594,36 @@ Message message = messageService.getChannelMessages(null, null)
         .orElseThrow(() -> new RuntimeException("Message not found"));
 ```
 
-This passes `null` for both `Channel` and `Pageable` into
-`findByChannelOrderByTimestampDesc`, then filters in memory. A null `Pageable` will fail inside
-Spring Data before the query runs; even if it did execute, matching `channel = null` would return no
-rows for any real message. The endpoint cannot succeed. It should be
-`messageRepository.findById(messageId)` followed by an authorization check that the caller is the
-author.
+Passing `null` as the `Channel` to the derived query `findByChannelOrderByTimestampDesc` makes Spring
+Data generate `WHERE channel_id IS NULL`. `channel_id` is `NOT NULL`, so no row matches, and every
+call ends in "Message not found" as a 500. The path variable is a `Long` while `Message.id` is a
+`String`, so `m.getId().equals(messageId)` could never be true anyway. It should be
+`messageRepository.findById(messageId)` with a `String` ID, followed by a check that the caller is
+the author.
 
-### 8.6 `/api/auth/refresh` accepts access tokens, and its validity check is unreachable
+### 8.9 `/api/auth/refresh` accepts access tokens, and its validity check is unreachable
 
 ```java
 Long userId = tokenProvider.getUserIdFromJWT(request.getRefreshToken());   // parses & throws first
 if (!tokenProvider.validateToken(request.getRefreshToken())) { ... }       // unreachable
 ```
 
-Two distinct problems:
-
-1. **Ordering.** `getUserIdFromJWT` parses the token and throws `JwtAuthenticationException` on any
-   invalid input, so the `validateToken` guard below it can never return the 400. Swap the two.
+1. **Ordering.** `getUserIdFromJWT` throws on any invalid input, and `validateToken` never returns
+   `false` anyway (§3), so the 400 branch is dead. Invalid tokens produce a 401 from the JWT
+   exception handler instead.
 2. **No token-type claim.** `generateToken` and `generateRefreshToken` produce structurally identical
-   JWTs differing only in expiry — neither carries a `type` claim. So an **access token is accepted
-   as a refresh token**, letting a client roll its session forward indefinitely from a single access
-   token and defeating the point of the shorter access TTL. Add a `type` claim and assert it here.
+   JWTs that differ only in expiry; neither carries a `type` claim. So an **access token is accepted
+   as a refresh token**, which lets a client roll its session forward indefinitely from a single
+   access token and defeats the point of the shorter access TTL.
+3. **Nothing calls it.** The frontend posts to `/api/refresh-token` instead (§5).
 
-### 8.7 Seeded test user has a plaintext password and cannot log in
+### 8.10 Presence is visible to everyone
+
+`/topic/status` broadcasts every presence change to every connected user, and
+`GET /api/users/{id}/status` answers for any user. Blocked users can see the blocker's presence.
+See [REDIS.md](REDIS.md#presence-visibility).
+
+### 8.11 Seeded test user has a plaintext password and cannot log in
 
 ```java
 // config/DataInitializer.java:26
@@ -413,67 +633,107 @@ userRepository.save(user);
 
 `DataInitializer` writes directly through the repository, bypassing `UserService.createUser`, which
 is where `passwordEncoder.encode(...)` is applied (`service/UserService.java:31`). The stored value is
-plaintext, so `BCryptPasswordEncoder.matches` fails and `testuser` can never authenticate — while the
-row itself is a plaintext credential in the database. Route the seed through `UserService`.
+plaintext, so `BCryptPasswordEncoder.matches` fails and `testuser` can never authenticate, while the
+row itself is a plaintext credential in the database. The seeder also creates "Default Server"
+without an owner `Member` row. Its server and channel creation is nested inside
+`if testuser missing`, so a database that has `testuser` but lost server 1 is never repaired.
 
-### 8.8 No per-channel subscription authorization
+### 8.12 Committed secrets
 
-Any authenticated user can `SUBSCRIBE` to `/topic/channels/{anyId}/messages`. The membership check is
-commented out at `WebSocketAuthInterceptor.java:119-128`.
-[WEBSOCKETS.md](WEBSOCKETS.md#32-subscribe-and-send).
+| Secret | Location |
+|---|---|
+| SonarCloud token | `build.gradle:29` |
+| JWT signing secret | `application.properties:56` |
+| Postgres password | `application.properties:13`, `docker-compose.yml` |
+| Redis password | `application.properties:68`, `docker-compose.yml` |
+| pgAdmin login | `docker-compose.yml` |
 
-### 8.9 Mass assignment on message edit
+The SonarCloud token should be **revoked**: it is in git history, so removing it from the working
+tree is not sufficient. The JWT secret is more dangerous. Anyone who holds it can forge a token for
+any user ID, since the subject is the only identity claim.
 
-`PUT /api/messages/{messageId}` binds a raw `Message` entity from the body and saves it, ignoring the
-path variable and performing no ownership check (§4).
+### 8.13 Frontend token refresh is broken
 
-### 8.10 Single-instance ceiling
+The axios interceptor calls a non-existent `/api/refresh-token` with no token (§5), so sessions end
+at the 24-hour access-token expiry, and the WebSocket's auto-reconnect keeps presenting the expired
+token ([WEBSOCKETS.md](WEBSOCKETS.md#61-connection-management)).
+
+### 8.14 `ChatArea` leaks a subscription per render
+
+`registerGroupMessageSocket` is called in the component body, not in an effect, so subscriptions
+grow with every render and are never released. Redux de-duplication hides the symptom.
+[WEBSOCKETS.md](WEBSOCKETS.md#64-message-reception).
+
+### 8.15 The `kafka` profile silently discards all messages
+
+No `@KafkaListener` exists on any branch, and `NoOpMessagePersistenceService` is active under that
+profile. Messages are produced and broadcast, then lost. A Kafka outage also blocks STOMP worker
+threads for up to 60 s per send. [KAFKA.md](KAFKA.md#4-the-missing-consumer) includes a reference
+consumer.
+
+### 8.16 Broken server endpoints
+
+`PUT /api/servers/{id}/roles/{roleId}` always fails (a missing `{userId}` path variable), and
+`DELETE /api/servers/{id}` fails on foreign keys (§4).
+
+### 8.17 Single-instance ceiling
 
 `enableSimpleBroker` keeps all subscriptions in process heap, so the application cannot run more than
 one replica. [WEBSOCKETS.md](WEBSOCKETS.md#why-the-simple-broker).
 
-### 8.11 Two stale test classes break the build
+### 8.18 Build and CI
 
-**Build blocker.** `UserStatusServiceTest` targets a method removed in the presence rewrite, and
-`MessageServiceTest` mocks four of `MessageService`'s six constructor dependencies. Test compilation
-fails on `main`, so `./gradlew build` cannot pass even once §8.1 is fixed. Detail in §7.
+Two stale test classes block `./gradlew build` (§7), and the CI workflow's tag, push, and login steps
+are wrong (§1).
 
-### 8.12 Smaller items
+### 8.19 Smaller items
 
 | Item | Location |
 |---|---|
-| Kafka `bootstrap-servers` hardcoded to `localhost:9092` | `KafkaProducerConfig.java:27` |
-| `spring.kafka.producer.*` tuning silently ignored | `KafkaProducerConfig.java` |
-| `application1.properties` is dead config | `src/main/resources/` |
-| Duplicate OFFLINE broadcast | `PresenceExpirationListener.java` |
-| `presence:last_seen:` written, never read, never expires | `PresenceKeys.java` |
-| Unreachable OFFLINE branch in `resolveStatus` | `UserStatusServiceImpl.java:124-125` |
-| ONLINE↔IDLE oscillation for continuously active users | [REDIS.md](REDIS.md#7-client-cadence) |
-| `markIdle` is a no-op | `IdleProvider.tsx` |
-| `isConnecting` guard not reset on WebSocket error | `WebSocketProvider.tsx` |
-| Group message subscriptions never unsubscribed | `message.socket.ts` |
-| `messageStore` grows unbounded | `WebSocketProvider.tsx` |
+| Business errors thrown as `RuntimeException` → 500 with internal message echoed | `InviteService`, `ServerService`, `UserService` |
+| Authorization failures return 401 instead of 403 | `ChannelService` / `UnauthorizedException` |
+| Two `UserService` beans, resolved only by parameter name; `UserServiceImpl` never used | `service/` |
+| `GET`/`PUT /api/channels/.../{channelId}` return a lazy entity; likely serialization failure | `ChannelController.java:89-102` |
+| `PUT /api/channels/.../{channelId}` can change a channel's `type`, including to `DM` | `ChannelService.java:125` |
+| `{serverId}` ignored on most channel routes | `ChannelController` |
+| `PUT /api/users/{id}/status` is a no-op with no auth check | `UserController.java:62` |
+| Invite `uses` increment is not concurrency-safe; invite URL points at a backend `POST` | `InviteService.java:72` |
+| `Server.type` never set; `ServerType` meaningless | `ServerService.java:46` |
+| Blocking does not stop DMs or presence | `MessageService`, `UserStatusServiceImpl` |
+| N+1 queries in friend lists | `FriendshipServiceImpl` |
+| `ResourceNotFoundException("Channel", "id", userId)` reports the wrong ID | `MessageService.java:46` |
+| Broadcast before commit in the `local` profile | `LocalMessageEventPublisher` |
+| Kafka `bootstrap-servers` hardcoded; `spring.kafka.producer.*` ignored | `KafkaProducerConfig.java` |
+| Inert settings: `spring.websocket.*`, `spring.h2.*`, `spring.cache.*`, `app.kafka.enabled`, `application1.properties` | §2 |
+| `/api` is authenticated and lists stale routes and port 8082 | `HomeController.java` |
+| Duplicate OFFLINE broadcast; custom status overrides liveness; ONLINE↔IDLE oscillation | [REDIS.md](REDIS.md#9-summary-of-findings) |
+| `/user/queue/errors` has no subscriber | frontend |
 | Lombok `@Data` on JPA entities | `model/` |
-| `UserServiceImpl extends` a concrete `UserService` | `service/impl/` |
-| Duplicate `UserDTO` in `dto/` and `payload/` | — |
+| Duplicate `UserDTO` in `dto/` and `payload/`; `CurrentUser` annotation unused | — |
 | Both `react-query` v3 and `@tanstack/react-query` v5 installed | `frontend/package.json` |
-| Unused `sockjs-client` / `sockjs` | `frontend/package.json` |
-| Unused MySQL connector | `build.gradle:65` |
+| Unused `sockjs-client` / `sockjs`; unused MySQL connector | `frontend/package.json`, `build.gradle:65` |
 | `tsc \|\| true` — type errors never fail the build | `frontend/package.json:8` |
-| No integration/controller tests, no migrations, no `prod` profile | — |
+| Committed artifacts: 50 MB `build/libs` jar, root `node_modules/`, `.DS_Store`, H2 `data/*.db`, `docker-compose-bkp.yml`, `updated-docker-compose.yml`, `frontend/src/test_command` | repo root |
+| No migrations, no `prod` profile, no controller/integration tests | — |
 | README states port 8082; actual is 8080 | `README.md:67` |
 
 ## 9. Suggested order of work
 
-1. Add the Redis starter (§8.1) and repair the two stale test classes (§8.11) — together these are
-   what stand between the repo and a green `./gradlew build`.
-2. Enable keyspace notifications (§8.2) — presence is wrong without it.
-3. Revoke the SonarCloud token; externalise all secrets to environment variables (§8.4).
-4. Fix `DELETE` (§8.5), the refresh flow (§8.6), and the data seeder (§8.7).
-5. Restore the channel-membership check on `SUBSCRIBE` (§8.8) and add an ownership check on edit (§8.9).
-6. Either implement the Kafka consumer or drop the `kafka` profile (§8.3) — a profile that loses data
+1. **Close the exploitable holes first.** None of these depends on the build. Add `@JsonIgnore` to
+   `User.password` and stop returning entities (§8.4). Remove or DTO-bind `POST /api/users` (§8.5).
+   Add membership checks to the server-member endpoints, message send/read, and `SUBSCRIBE` (§8.3).
+   Add an ownership check to message edit (§8.6). Stop logging `LoginRequest`.
+2. **Get to a green build.** Restore the Redis starter (§8.1) and repair the two stale test classes
+   (§7).
+3. Revoke the SonarCloud token, rotate the JWT secret, and move every secret to environment
+   variables (§8.12).
+4. Enable keyspace notifications (§8.2), and move the liveness check ahead of the custom override
+   in `resolveStatus`.
+5. Fix the frontend refresh path and add a `type` claim to refresh tokens (§8.9, §8.13). Move
+   `registerGroupMessageSocket` into an effect (§8.14).
+6. Give DMs participant-based authorization instead of server 1 (§8.7). Fix message delete (§8.8) and
+   the seeder (§8.11).
+7. Either implement the Kafka consumer or drop the `kafka` profile (§8.15). A profile that loses data
    is worse than no profile.
-7. Add migrations (Flyway) and move off `ddl-auto=update`.
-8. Repair the two stale test classes (§7) so `./gradlew build` passes, then extend coverage — the
-   seams around `MessageEventPublisher` and `resolveStatus` are the natural next targets, since both
-   are pure logic behind narrow interfaces.
+8. Add migrations (Flyway), move off `ddl-auto=update`, and add controller tests. Every item in step 1
+   is an authorization rule that a `@WebMvcTest` would pin down.

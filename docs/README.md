@@ -24,23 +24,49 @@ These documents describe three branches:
 
 Because `main` and `feature/redis` have identical trees, the documentation describes them as one
 codebase and treats `feature/kafka` as the historical predecessor. Where the two differ in design,
-the difference is called out explicitly — see [REDIS.md](REDIS.md#8-evolution-from-feature-kafka-to-main)
+the difference is called out explicitly — see [REDIS.md](REDIS.md#8-evolution-from-featurekafka-to-main)
 for the presence rewrite, which is the single largest behavioural change between them.
 
 ## Read this first
 
-Six issues block the code from building or running as committed. They are documented in detail in
-[IMPLEMENTATION.md](IMPLEMENTATION.md#8-known-issues), and summarised here because they affect
-everything else:
+The full defect list is in [IMPLEMENTATION.md](IMPLEMENTATION.md#8-known-issues). The items below
+are summarised here because they affect everything else.
 
-1. **The backend does not compile on `main`.** `spring-boot-starter-data-redis` is missing from
-   `build.gradle` while the code imports `org.springframework.data.redis.*`.
-2. **Two test classes are stale and fail to compile.** `UserStatusServiceTest` calls a method removed
-   in the presence rewrite; `MessageServiceTest` mocks four of six constructor dependencies. So
-   `./gradlew build` fails even after fixing (1).
-3. **Presence never reaches `OFFLINE`.** Redis keyspace notifications are not enabled, so the
-   expiry listener never fires.
-4. **In the `kafka` profile, messages are never persisted.** The topic has no consumer and
-   persistence is a no-op.
-5. **A live SonarCloud token is committed** at `build.gradle:29`.
-6. **The JWT signing secret is committed** at `src/main/resources/application.properties:56`.
+### Exploitable by any registered user
+
+1. **Password hashes are served over the API.** `User.password` has no `@JsonIgnore`, and
+   `GET /api/users` returns every account's email and BCrypt hash. Endpoints that return a `Server`
+   embed its owner's hash as well. `/api/auth/login` logs plaintext passwords at INFO.
+2. **Any account can be overwritten.** `POST /api/users` binds a raw `User`, including `id`, and
+   `save` merges it onto the existing row.
+3. **Server membership has no authorization.** Anyone can add any user to any server, or remove any
+   non-owner member, by ID.
+4. **Channels have no read or write authorization.** Anyone can post to, read the history of, or
+   live-subscribe to any channel. DMs are ordinary channels attached to a hard-coded server 1, and
+   the recipient of a DM is chosen by the client.
+5. **Any message can be rewritten** through `PUT /api/messages/{id}` (raw-entity mass assignment).
+
+### Blocking build or correct operation
+
+6. **The backend does not compile on `main`.** `spring-boot-starter-data-redis` was removed in
+   `cd97e97`, and the Redis presence code added afterwards never restored it.
+7. **Two test classes are stale and fail to compile**, so `./gradlew build` fails even after (6).
+8. **Presence never reaches `OFFLINE`.** Redis keyspace notifications are not enabled.
+9. **Token refresh is broken end to end.** The frontend calls a non-existent `/api/refresh-token`,
+   so sessions end at the 24-hour access-token expiry.
+10. **In the `kafka` profile, messages are never persisted.** The topic has no consumer.
+
+### Secrets in git history
+
+11. **A live SonarCloud token** at `build.gradle:29`. Revoke it; deleting the line is not enough.
+12. **The JWT signing secret** at `src/main/resources/application.properties:56`. It can forge a
+    token for any user.
+
+## Verification notes
+
+Every claim was checked against the source on `main` (commit `d10d627`). A few could not be
+executed, because no JRE was available where these docs were written. Those are marked
+*not exercised* or *likely* where they appear. They are the compile failure (§8.1, inferred from
+the dependency block against the imports), the server-delete foreign-key failure, the lazy-entity
+serialization failure on `GET /api/channels/.../{id}`, and the `POST /api/users` account overwrite
+(from Spring Data `save`/`merge` semantics).

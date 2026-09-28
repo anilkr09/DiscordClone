@@ -46,6 +46,14 @@ This is a genuinely clean seam. `MessageService` performs entity loading, ID ass
 construction, then delegates the *delivery strategy* entirely. Swapping strategies is a
 configuration change, not a code change.
 
+The seam moves only the *write* off the hot path. `MessageService.sendMessage` still runs two
+database reads per message in both profiles (`userRepository.findById`,
+`channelRepository.findById`), so the Kafka path does not remove the database from the request path.
+It removes the insert, not the lookups. Separately, the not-found error for a missing channel passes
+the wrong ID: `new ResourceNotFoundException("Channel", "id", userId)` at `MessageService.java:46`.
+Nobody sees that message, though, because STOMP handler exceptions are swallowed (see
+[WEBSOCKETS.md](WEBSOCKETS.md#41-inbound-client--server-prefix-app)).
+
 ### Why the message ID is generated in the producer
 
 ```java
@@ -55,7 +63,8 @@ message.setId(UUID.randomUUID().toString());
 ```
 
 `Message.id` is a `String` UUID rather than a database-generated `Long` specifically to support the
-Kafka path. In the `local` flow the database could assign the ID, because the row is written before
+Kafka path. The commit that made the change says so directly: `d93b176`, "change Message entity id to
+string to make compatible with Kafka". In the `local` flow the database could assign the ID, because the row is written before
 the WebSocket broadcast. In the Kafka flow there is no write before the broadcast — the message goes
 onto the topic and is broadcast from the producer callback, with persistence deferred to a consumer.
 An identity assigned downstream would be unavailable to the client that just sent the message, and
@@ -129,10 +138,19 @@ Consequences:
   environment variable or profile — it requires a recompile. This is the most deployment-hostile
   detail in the file.
 
-The `@Primary` annotation on `kafkaTemplate()` (commented *"THIS IS THE FIX"*) resolves an ambiguity
-against Boot's auto-configured `KafkaTemplate<Object, Object>`. It works, but the cleaner fix is to
-delete the Java config and let the properties file drive auto-configuration — which would also make
-every tuning property above actually apply.
+The `@Primary` annotation on `kafkaTemplate()` carries the comment *"THIS IS THE FIX"*, but it is
+unclear what it fixes. Boot's `KafkaAutoConfiguration` declares both its `kafkaTemplate` and its
+`kafkaProducerFactory` with `@ConditionalOnMissingBean`. Under the `kafka` profile this class
+defines both types itself, so Boot creates neither, and only one `KafkaTemplate` bean exists for
+`@Primary` to prefer. The annotation is most likely left over from an earlier configuration in which
+two templates did coexist. The commit history does not record the original error. The cleaner route
+is to delete this class entirely and let `application-kafka.properties` drive auto-configuration,
+which would also make every tuning property above take effect.
+
+Under the default `local` profile this class is inactive, so Boot's auto-configuration **does**
+create a `KafkaTemplate`, because `spring-kafka` is on the classpath. Nothing injects it, and Kafka
+producers connect lazily on first send, so the local profile runs without a broker. It is still an
+unused bean in every local run.
 
 ## 3. Publish path
 
@@ -207,6 +225,21 @@ thread:
    logged to Kafka" and any database state. A future consumer-side write cannot be rolled back by it.
 2. Any exception thrown inside `whenComplete` surfaces on a Kafka internal thread, where it will be
    logged by the producer rather than propagated to the caller.
+
+### When the broker is down
+
+`kafkaTemplate.send(...)` is asynchronous only once the producer has cluster metadata. If the
+broker is unreachable, `KafkaProducer.send` **blocks the calling thread** for up to `max.block.ms`
+(default 60 s) waiting for metadata, and only then fails the future. The calling thread here is a
+worker from Spring's `clientInboundChannel` executor, the pool that processes every inbound STOMP
+frame, including heartbeats and activity signals. A Kafka outage therefore does not just fail
+message sends. Each send ties up an inbound worker for up to a minute, and a handful of concurrent
+senders can exhaust the pool and stall **all** WebSocket traffic, presence included. Setting
+`max.block.ms` low (around 1–2 s) in the producer config would bound the damage.
+
+When the future does fail, the error goes to `/user/queue/errors`. **No frontend code subscribes to
+that destination** (see [WEBSOCKETS.md](WEBSOCKETS.md#42-outbound-server--client)), so the sender's
+UI shows nothing. The message simply never appears for anyone.
 
 ### Delivery semantics
 
@@ -311,6 +344,11 @@ SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun
 Inspect the topic at <http://localhost:8085> (Kafka UI). With no consumer running, the consumer-group
 view is empty and lag is undefined — records accumulate until the retention window expires.
 
+The compose file declares a `kafka-data` volume but does not mount it on the `kafka` service, so the
+log directory lives in the container's writable layer. `docker compose down` (or any recreate)
+discards every record. That hardly matters while nothing consumes the topic, but it will once a
+consumer exists and replay becomes meaningful.
+
 To verify the producer independently of the application:
 
 ```bash
@@ -338,7 +376,10 @@ every application instance, but each instance can only push frames to its own co
 |---|---|---|---|
 | 1 | No consumer; `kafka` profile loses all messages | repository-wide | **Critical** |
 | 2 | `bootstrap-servers` hardcoded; not environment-configurable | `KafkaProducerConfig.java:27` | **High** |
-| 3 | Explicit `ProducerFactory` silently disables `spring.kafka.producer.*` tuning | `KafkaProducerConfig.java` | Medium |
-| 4 | `application1.properties` is dead config that reads as live | `src/main/resources/` | Medium |
-| 5 | `MessageResponse` doubles as event schema and WS DTO | `payload/MessageResponse.java` | Medium |
-| 6 | `DeadLetterPublishingRecoverer` imported but unused | `KafkaProducerConfig.java:13` | Low |
+| 3 | Broker outage blocks STOMP inbound workers up to 60 s per send (`max.block.ms`) | `KafkaMessageEventPublisher.java:28` | **High** |
+| 4 | Explicit `ProducerFactory` silently disables `spring.kafka.producer.*` tuning | `KafkaProducerConfig.java` | Medium |
+| 5 | `application1.properties` is dead config that reads as live | `src/main/resources/` | Medium |
+| 6 | `MessageResponse` doubles as event schema and WS DTO | `payload/MessageResponse.java` | Medium |
+| 7 | Send-failure notice goes to `/user/queue/errors`, which no client subscribes to | frontend | Medium |
+| 8 | `kafka-data` volume declared but not mounted | `docker-compose.yml` | Low |
+| 9 | `DeadLetterPublishingRecoverer` imported but unused | `KafkaProducerConfig.java:13` | Low |

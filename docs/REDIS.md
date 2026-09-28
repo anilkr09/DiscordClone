@@ -49,7 +49,9 @@ spring.data.redis.password=redis123
 
 > **The `spring-boot-starter-data-redis` dependency is missing from `build.gradle`.** The code
 > imports `org.springframework.data.redis.*` throughout, but no Redis starter is declared and none
-> arrives transitively through the declared dependencies. See
+> arrives transitively through the declared dependencies. The starter was present once: it was added
+> in `2b8eea7` and removed in `cd97e97` ("global exception handler update"), before the presence
+> rewrite reintroduced Redis code. See
 > [IMPLEMENTATION.md](IMPLEMENTATION.md#81-the-backend-does-not-compile-on-main).
 
 `spring.cache.type=redis` and `spring.cache.redis.time-to-live=600000` are also set, but there is no
@@ -134,6 +136,26 @@ flowchart TD
 
     style M stroke-dasharray: 5 5
 ```
+
+### The custom override is checked before liveness
+
+Branch 1 returns the custom status **before** branch 2 checks whether the user is connected at
+all. A user who sets Do Not Disturb and then closes the app goes through this sequence:
+
+1. The heartbeat key expires. With keyspace notifications enabled (§5), the listener writes
+   `presence:status = OFFLINE` with a 60 s TTL and broadcasts OFFLINE.
+2. Sixty seconds later the `status` key expires. The next `getUserStatus` or `getFriendsStatus`
+   call misses the cache, falls through to `resolveStatus`, and gets **`DO_NOT_DISTURB`** from branch
+   1, even though there is no heartbeat.
+3. The user now shows as DND to anyone who pulls their status, for up to 24 hours (the custom key's
+   TTL), while fully offline.
+
+Clients that rely only on the push keep showing OFFLINE. Clients that fetch after a refresh show
+DND, so different viewers disagree. The correct order is liveness first: return OFFLINE when there
+is no heartbeat, and apply the override only to a connected user. That is also how Discord behaves,
+where an offline DND user appears offline.
+
+### Liveness versus engagement
 
 The layering is the interesting part: **liveness and engagement are separate signals.**
 `presence:heartbeat:` answers "is the socket alive?", `presence:last_activity:` answers "is the human
@@ -330,6 +352,36 @@ from behaviour while remaining in the database — and the two expiry clocks (Re
 them. The database row is effectively write-only for this purpose, mirroring the
 `presence:last_seen:` situation.
 
+### `@Async` and self-invocation
+
+`persistLastSeen` is annotated `@Async`, which `AsyncConfig` enables. The annotation works only
+through the Spring proxy. When `WebSocketEventListener` calls it on disconnect, the call goes
+through the injected proxy and runs on the async executor, as intended. When `resetPresence` calls
+it (`UserStatusServiceImpl.java:266`), the call is a plain `this.persistLastSeen(...)` and runs
+**synchronously** on the request thread. The same self-invocation rule applies to `@Transactional`:
+`updateCustomStatus` calling `clearCustomStatus` does not start a new transaction. That happens to
+be harmless here, because the caller is already transactional.
+
+### Presence visibility
+
+Presence has no privacy boundary:
+
+- **Push.** `broadcastStatusChange` sends every status change to `/topic/status`, a single global
+  topic that every connected client subscribes to. Every user receives every other user's
+  ONLINE/IDLE/OFFLINE/DND transitions, friends or not. `FriendStatusProvider` stores all of them.
+- **Pull.** `GET /api/users/{userId}/status` returns any user's status to any authenticated caller.
+  There is no friendship check.
+
+For a chat app this leaks who is online and when, which is exactly the signal the BLOCKED friendship
+state exists to withhold. A blocked user still receives the blocker's presence. The fix is to fan
+out per recipient: resolve the user's friend IDs and send to each friend's
+`/user/queue/presence`, which is what `getFriendIds` already makes cheap. The REST endpoint should
+also require friendship or a shared server.
+
+It also means the cost of fan-out grows with the square of the user count. Every status change goes
+to every connected client, so with N users online each edge-triggered change produces N frames.
+Edge-triggering (§4) keeps the number of *changes* low, but not the cost of each one.
+
 ## 7. Client cadence
 
 | Signal | Source | Cadence |
@@ -356,13 +408,23 @@ idle→online transition.
 if (status !== UserStatus.ONLINE) { sendActivity(); }
 ```
 
-So a continuously active user sends **no** activity frames at all — only the 10 s heartbeat, which
-also refreshes `last_activity`... except it does not. `handleHeartbeat`
-(`UserStatusServiceImpl.java:40-56`) writes `heartbeat` and `last_seen` but **not** `last_activity`.
-Combined with the client-side gate, a user who stays ONLINE and keeps moving the mouse stops sending
-activity events, `last_activity` ages past 30 s, `resolveStatus` returns IDLE, and only then does the
-client resume sending activity — producing a slow ONLINE↔IDLE oscillation for continuously active
-users. Either the client gate or the heartbeat's key set needs adjusting for the two to agree.
+So while a user is ONLINE, the client sends **no** activity frames, only the 10 s heartbeat.
+`handleHeartbeat` (`UserStatusServiceImpl.java:40-56`) writes `heartbeat` and `last_seen` but
+**not** `last_activity`. Together these cause an oscillation for a user who is continuously active:
+
+1. Input arrives while the status is IDLE. The client sends `/app/activity`, the server refreshes
+   `last_activity`, resolves ONLINE, and broadcasts it.
+2. The client now sees ONLINE, so the gate suppresses every further activity frame, however much
+   the user types.
+3. `last_activity` ages. On the first heartbeat after it passes 30 s, `resolveStatus` returns IDLE,
+   and the server broadcasts IDLE.
+4. The client sees IDLE, and the user's next keystroke sends activity. Back to step 1.
+
+The result is an ONLINE→IDLE→ONLINE cycle roughly every 30–40 seconds. Each transition broadcasts
+to every connected client (see [Presence visibility](#presence-visibility)), and friends watching
+see an active user flicker to IDLE. The client gate and the heartbeat's key set disagree about who
+refreshes `last_activity`. Either the gate should be removed, relying on the server's 5 s throttle
+instead, or the client should keep sending activity at a low rate while ONLINE.
 
 `IdleProvider` also arms a 30 s `idleTimer` whose callback, `markIdle`, only calls `console.log` —
 it performs no state change and notifies nothing. The client-side idle timer is effectively dead
@@ -418,11 +480,14 @@ and `WsEventType.USER_OFFLINE` are all now unused.
 |---|---|---|---|
 | 1 | `spring-boot-starter-data-redis` missing — code does not compile | `build.gradle` | **Critical** |
 | 2 | `notify-keyspace-events` not enabled — OFFLINE never pushed | `docker-compose.yml:45` | **Critical** |
-| 3 | Client activity gate vs. heartbeat key set causes ONLINE↔IDLE oscillation | `IdleProvider.tsx` + `UserStatusServiceImpl.java:40-56` | Medium |
-| 4 | Custom status never rehydrated from DB; two expiry clocks drift | `UserStatusServiceImpl.java:199-231` | Medium |
-| 5 | Duplicate OFFLINE broadcast on expiry | `PresenceExpirationListener.java` | Low |
-| 6 | Expiry event fans out per instance — blocks horizontal scaling | `RedisKeyExpirationListenerConfig.java` | Low (today) |
-| 7 | `presence:last_seen:` written, never read, never expires | `PresenceKeys.java` | Low |
-| 8 | Unreachable OFFLINE branch in `resolveStatus` | `UserStatusServiceImpl.java:124-125` | Low |
-| 9 | `markIdle` is a no-op; client idle timer is dead code | `IdleProvider.tsx` | Low |
-| 10 | `spring.cache.type=redis` set but no `@EnableCaching`/`@Cacheable` | `application.properties:73` | Cosmetic |
+| 3 | Presence broadcast globally; any user can read any user's status, blocked users included | `UserStatusServiceImpl.java:305`, `UserStatusController.java:29` | **High** |
+| 4 | Custom status checked before liveness; offline users reappear as DND/IDLE | `UserStatusServiceImpl.java:103-106` | Medium |
+| 5 | Client activity gate vs. heartbeat key set causes ONLINE↔IDLE oscillation | `IdleProvider.tsx` + `UserStatusServiceImpl.java:40-56` | Medium |
+| 6 | Custom status never rehydrated from DB; two expiry clocks drift | `UserStatusServiceImpl.java:199-231` | Medium |
+| 7 | Duplicate OFFLINE broadcast on expiry | `PresenceExpirationListener.java` | Low |
+| 8 | Expiry event fans out per instance — blocks horizontal scaling | `RedisKeyExpirationListenerConfig.java` | Low (today) |
+| 9 | `@Async persistLastSeen` runs synchronously when called from `resetPresence` | `UserStatusServiceImpl.java:266` | Low |
+| 10 | `presence:last_seen:` written, never read, never expires | `PresenceKeys.java` | Low |
+| 11 | Unreachable OFFLINE branch in `resolveStatus` | `UserStatusServiceImpl.java:124-125` | Low |
+| 12 | `markIdle` is a no-op; client idle timer is dead code | `IdleProvider.tsx` | Low |
+| 13 | `spring.cache.type=redis` set but no `@EnableCaching`/`@Cacheable` | `application.properties:73` | Cosmetic |

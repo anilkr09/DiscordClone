@@ -62,8 +62,21 @@ controller quorum, so there is no ZooKeeper dependency. Two listeners are advert
 `localhost:9092` for host processes (the Spring app) and `kafka:29092` for in-network containers
 (`kafka-ui`, `kafka-init`).
 
-The Spring app itself is **not** containerised; it runs on the host via `./gradlew bootRun` and
-reaches every dependency on `localhost`.
+Persistence differs by service. Postgres and Redis mount named volumes (`pgdata`, `redis-data`).
+A `kafka-data` volume is declared but **never mounted** on the `kafka` service, so topic data is lost
+whenever that container is recreated. `kafka-init` waits for the broker with a fixed `sleep 10`
+rather than a health check, so on a slow start the topic creation can fail. The broker's
+`KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"` hides this, because the first produce auto-creates
+`message-events` with `KAFKA_NUM_PARTITIONS: 4` anyway.
+
+The Spring app is **not** part of `docker-compose.yml`. In development it runs on the host via
+`./gradlew bootRun` and reaches every dependency on `localhost`. For deployment there is a
+`Dockerfile` (Temurin 17, copies `build/libs/*.jar`) and a manually triggered GitHub Actions
+workflow that builds and pushes the image. The committed `frontend/.env.production` points the SPA
+at `https://discordclone-hd22.onrender.com`, and `SecurityConfig` allows CORS from a Vercel origin,
+so production appears to be a Render backend with a Vercel frontend. Two other compose files,
+`docker-compose-bkp.yml` and `updated-docker-compose.yml`, define containerised backend, frontend,
+and Jenkins-agent services, but neither includes Postgres, Redis, or Kafka.
 
 ### Port note
 
@@ -85,7 +98,7 @@ src/main/java/com/discordclone/
 ├── constants/PresenceKeys         Redis key namespace
 ├── controller/                    REST (@RestController) + STOMP (@MessageMapping)
 ├── dto/, payload/                 Wire types (two parallel packages — see note below)
-├── exception/                     Domain exceptions + @RestControllerAdvice
+├── exception/                     Domain exceptions; @ControllerAdvice for HTTP and for STOMP
 ├── model/                         JPA entities + enums
 ├── repository/                    Spring Data JPA interfaces
 ├── security/                      JWT issuing/validation, filters, STOMP interceptor
@@ -103,11 +116,21 @@ than a layering decision.
 
 ### Service interface convention
 
-The convention is inconsistent. `UserStatusService`, `FriendshipService`, and `UserService` are
-interfaces with implementations under `service/impl/`. `MessageService`, `ChannelService`,
-`ServerService`, and `InviteService` are concrete classes directly in `service/`. The two
-profile-swapped abstractions — `MessageEventPublisher` and `MessagePersistenceService` — are
-interfaces whose implementations sit in `service/` (not `service/impl/`).
+The convention is inconsistent. `UserStatusService` and `FriendshipService` are interfaces with
+implementations under `service/impl/`. `MessageService`, `ChannelService`, `ServerService`, and
+`InviteService` are concrete classes directly in `service/`. The two profile-swapped abstractions,
+`MessageEventPublisher` and `MessagePersistenceService`, are interfaces whose implementations sit in
+`service/`, not `service/impl/`.
+
+`UserService` is the odd case. It is a **concrete `@Service` class**, and
+`service/impl/UserServiceImpl` is a second `@Service` that `extends` it. That gives the context
+**two beans of type `UserService`**. Every injection point declares a `UserService` parameter named
+`userService`, so Spring breaks the tie by matching the parameter name to the bean name
+(`userService`) and always injects the base class. The Spring Boot Gradle plugin compiles with
+`-parameters`, which is what makes that fallback work. As a result `UserServiceImpl` is never
+injected, and its overrides — which throw `ResourceNotFoundException` (404) where the base throws
+`RuntimeException` (500) — never run. Renaming a constructor parameter, or compiling without
+`-parameters`, would turn this into a `NoUniqueBeanDefinitionException` at startup.
 
 ## 4. Domain model
 
@@ -116,17 +139,52 @@ erDiagram
     User ||--o{ Message : sends
     User ||--o{ Member : "joins via"
     User ||--o| UserStatusEntity : has
+    User ||--o{ Server : owns
     Server ||--o{ Channel : contains
     Server ||--o{ Member : has
     Server ||--o{ Invite : issues
     Channel ||--o{ Message : holds
+    Channel ||--o| DmChannel : "unused mirror"
     User ||--o{ Friendship : "sender/receiver"
 
     User {
         Long id PK
         String username UK
         String email UK
-        String password
+        String password "BCrypt; NOT @JsonIgnore"
+    }
+    Server {
+        Long id PK
+        String name UK "globally unique"
+        String description
+        ServerType type "PUBLIC/PRIVATE; never set"
+        Long owner_id FK "EAGER"
+    }
+    Member {
+        Long user_id PK "composite MemberId"
+        Long server_id PK "composite MemberId"
+        String nickname
+        Role role "OWNER / ADMIN / MEMBER"
+        LocalDateTime joinedAt
+    }
+    Invite {
+        String code PK "8 chars of a UUID"
+        Long server_id FK
+        int maxUses
+        int uses
+        LocalDateTime expiry
+    }
+    Friendship {
+        Long id PK
+        Long sender_id FK
+        Long receiver_id FK
+        FriendshipStatus status "PENDING/ACCEPTED/REJECTED/BLOCKED"
+    }
+    DmChannel {
+        Long id PK
+        Long channel_id FK
+        Long user1_id FK
+        Long user2_id FK
     }
     Message {
         String id PK "UUID, app-generated"
@@ -140,8 +198,8 @@ erDiagram
         Long id PK
         String name
         ChannelType type
-        Long server_id FK "nullable for DM"
-        String dmKey UK "DM only"
+        Long server_id FK "DMs point at server 1"
+        String dmKey UK "dm-{minId}-{maxId}"
     }
     UserStatusEntity {
         Long id PK
@@ -159,10 +217,32 @@ Design points worth noting:
   producer (important for kafka mode)"* — explains why: in the Kafka path the message is serialised
   onto the topic before any database write, so the ID must exist before persistence. This makes the
   producer the source of identity and keeps the ID stable across the WebSocket broadcast and any
-  later consumer-side insert.
-- **`Channel` doubles as both a server channel and a DM channel.** `server_id` is nullable and
-  `dmKey` is a unique column populated only for DMs. There is a separate `DmChannel` entity and
-  repository as well, so two mechanisms coexist.
+  later consumer-side insert. The switch was made in commit `d93b176` ("change Message entity id to
+  string to make compatible with Kafka").
+- **DMs are ordinary `Channel` rows attached to a hard-coded server.**
+  `ChannelService.getOrCreateDmChannel` builds the key `dm-{min(userId)}-{max(userId)}`, looks it up
+  by `dmKey` + `type = DM`, and otherwise creates a channel with
+  **`server = serverService.getServerById(1L)`** (`ChannelService.java:80`). It handles the
+  concurrent-create race by catching `DataIntegrityViolationException` on the unique `dmKey` and
+  re-reading. `Channel.server_id` is declared nullable, but no code path creates a server-less
+  channel. Three consequences follow:
+  - DMs **depend on server ID 1 existing**. On a fresh database, `DataInitializer` creates
+    "Default Server", which gets ID 1 only if it is the first server inserted. If that row is
+    missing, every DM creation throws `ResourceNotFoundException`.
+  - Server-scoped permission checks treat DMs as channels of server 1. `DataInitializer` never
+    creates a `Member` row for server 1, not even for its owner, so `getChannelById` rejects DM
+    channels for everyone unless they have joined server 1. If a user *has* joined server 1,
+    `checkUserIsMember` accepts **every** DM channel for them.
+  - The `DmChannel` entity and `DmChannelRepository` are **never used**. Hibernate still creates the
+    `dm_channels` table, but no code writes to it or reads from it.
+- **`Server.name` is globally unique.** Two users cannot both own a server called "General".
+  `ServerService.createServer` checks with `existsByName` first, then maps the constraint violation
+  to `DuplicateResourceException` to cover the race.
+- **Membership is a composite-key join entity.** `Member` uses `@EmbeddedId MemberId(userId,
+  serverId)` with `@MapsId` on both sides and a `Role` (`OWNER`, `ADMIN`, `MEMBER`). This is the only
+  form of role-based access control in the code. `@EnableMethodSecurity` is on, but there is no
+  `@PreAuthorize` or `@Secured` anywhere. Every `UserPrincipal` has the single authority
+  `ROLE_USER`.
 - **`User` carries no status column.** Presence lives in Redis; `UserStatusEntity` persists only the
   *custom* status override and a `lastActivity` timestamp.
 - **Schema is generated by Hibernate.** `spring.jpa.hibernate.ddl-auto=update`. There are no
@@ -200,6 +280,14 @@ Sessions are stateless (`SessionCreationPolicy.STATELESS`), CSRF is disabled, an
 matchers are `/`, `/ws/**`, `/error`, `/health`, `/api/auth/**`, `/h2-console/**`, plus all
 `OPTIONS` preflights.
 
+**Token refresh does not work end to end.** The frontend's axios interceptor
+(`frontend/src/services/api.ts:27-31`) detects an expired access token and calls
+`POST {API_BASE_URL}/api/refresh-token` with an empty body. The backend endpoint is
+`POST /api/auth/refresh` and expects `{ "refreshToken": ... }` in the body. The path is wrong and no
+token is sent, so every refresh attempt fails and the client logs the user out. In practice a
+session lasts exactly as long as the 24-hour access token. The backend endpoint has problems of its
+own too (see [IMPLEMENTATION.md](IMPLEMENTATION.md#89-apiauthrefresh-accepts-access-tokens-and-its-validity-check-is-unreachable)).
+
 ### 5.2 Sending a chat message
 
 ```mermaid
@@ -230,6 +318,20 @@ sequenceDiagram
 The branch at `publish` is the central architectural seam of the codebase — see
 [KAFKA.md](KAFKA.md#1-the-profile-seam).
 
+Three properties of this path that are easy to miss:
+
+- **No authorization.** Neither `MessageController.sendMessage` nor `MessageService.sendMessage`
+  checks that the sender belongs to the channel's server. Any authenticated user can post to any
+  `channelId`. REST history (`GET /api/messages/channels/{channelId}`) has no check either.
+- **The client routes DMs.** When `MessageRequest.dm` is true, the publisher delivers to the
+  `receiver` username the client supplied. The server never checks that this username matches the
+  other participant in the `dmKey`, or that the two users are not blocking each other.
+- **In the `local` profile the broadcast happens before the commit.** `LocalMessageEventPublisher`
+  saves and broadcasts inside `MessageService.sendMessage`'s `@Transactional`, so recipients receive
+  the frame before the row is committed. If the commit then fails, clients have displayed a message
+  that does not exist. A `TransactionSynchronization.afterCommit` hook, or
+  `@TransactionalEventListener(phase = AFTER_COMMIT)`, would order these correctly.
+
 ### 5.3 Presence
 
 Presence is heartbeat-driven rather than connection-driven. The client emits `/app/heartbeat` every
@@ -242,13 +344,43 @@ keyspace notification. Full detail in [REDIS.md](REDIS.md).
 | Concern | Mechanism | Location |
 |---|---|---|
 | Password storage | BCrypt | `SecurityConfig.java:96` |
-| Token format | JWT HS256, subject = user ID | `JwtService.java:44-54` |
+| Token format | JWT **HS512**, subject = user ID (see note) | `JwtService.java:44-54` |
 | Access token TTL | 24h (`86400000` ms) | `application.properties:57` |
 | Refresh token TTL | 7d (`604800000` ms) | `application.properties:58` |
 | HTTP auth | `OncePerRequestFilter` before `UsernamePasswordAuthenticationFilter` | `JwtAuthenticationFilter` |
 | STOMP auth | `ChannelInterceptor` on inbound channel, validated at `CONNECT` | `WebSocketAuthInterceptor.java:64` |
 | CORS | `localhost:*` + one Vercel origin, credentials allowed | `SecurityConfig.java:109-122` |
-| Method security | `@EnableMethodSecurity` enabled | `SecurityConfig.java:27` |
+| Method security | `@EnableMethodSecurity` enabled, but **no** `@PreAuthorize` anywhere | `SecurityConfig.java:27` |
+| Resource authorization | Ad hoc, per service method, via `ServerService.isUserMember` / `isUserAdmin` | `ChannelService`, `InviteService`, `ServerService` |
+
+**Algorithm.** `signWith(key)` in jjwt 0.11 chooses the strongest HMAC algorithm the key length
+allows. The key is `jwtSecret.getBytes()`, and the secret is a 64-character string, so the key is
+64 bytes (512 bits). That produces **HS512**, not HS256.
+
+**Resource authorization is inconsistent.** Some paths check membership or role, and others check
+nothing:
+
+| Checked | Not checked |
+|---|---|
+| Channel create/update/delete (admin), channel list/get (member) | Sending to a channel, over STOMP or REST |
+| Invite creation (member) | Reading channel history (`GET /api/messages/channels/{id}`) |
+| Server update/delete/role change (owner) | **Adding or removing any member of any server** (`POST`/`DELETE /api/servers/{id}/members/{userId}`) |
+| Friend accept/reject (receiver only) | Reading any server's details (`GET /api/servers/{id}`) |
+| | Subscribing to any channel topic (see [WEBSOCKETS.md](WEBSOCKETS.md#32-subscribe-and-send)) |
+| | Editing any message (`PUT /api/messages/{id}`) |
+| | Reading any user's presence, or receiving everyone's presence (`/topic/status`) |
+
+The membership endpoints are the worst of these. Any authenticated user can add themselves to a
+private server, or remove any non-owner member from any server, by ID.
+
+**Password hashes leak through entity serialization.** `User.password` has no `@JsonIgnore`, and
+several controllers return JPA entities directly. `GET /api/users` returns every user's email and
+BCrypt hash to any authenticated caller. `GET /api/users/{id}`, `/username/{name}`, and `/search`
+do the same for single users. `Server.owner` is `EAGER`, so every endpoint that returns a `Server`
+(`GET /api/servers`, `POST /api/servers`, `POST /api/invites/join/{code}`, the member add/remove
+endpoints) includes the owner's hash as well. `/api/auth/login` makes this worse: it logs the whole
+`LoginRequest` at INFO, and because that class is `@Data`, the log line contains the plaintext
+password (`AuthController.java:72`).
 
 The JWT subject is the numeric user ID, so every authenticated request performs a
 `loadUserById` database lookup (`CustomUserDetailsService.java:28`). There is no user cache on this
@@ -262,22 +394,41 @@ any user ID.
 
 ```mermaid
 gitGraph
-    commit id: "..."
+    commit id: "84448a4 README"
     branch feature/kafka
-    commit id: "ec67190" tag: "producer + profiles"
+    commit id: "e14e9d2 persistence into publisher"
+    commit id: "469d69d local publisher"
+    commit id: "a413932 broker-fail handling"
+    commit id: "d93b176 Message.id → String"
+    commit id: "ec67190 drop ZooKeeper"
     checkout main
-    merge feature/kafka
+    merge feature/kafka id: "7bbac3d PR #5"
     branch feature/redis
-    commit id: "7d4c9a6 redis expiry listener"
-    commit id: "e975f02 set offline + broadcast"
-    commit id: "01dcef4 heartbeat redis key"
+    commit id: "3281a10 dup-connection fix"
+    commit id: "8d3bb55 heartbeat/activity STOMP"
+    commit id: "a956ee8 redis addition"
+    commit id: "e8ea692 status from redis"
+    commit id: "7d4c9a6 expiry listener"
     commit id: "7270c74 leading debounce"
     checkout main
     merge feature/redis id: "d10d627 PR #6"
 ```
 
-`feature/kafka` is an ancestor of `main` (`git merge-base --is-ancestor` returns true).
-`feature/redis` is tree-identical to `main`. What `feature/kafka` lacks relative to `main`:
+The first-parent history of `main` is two PR merges. PR #5 (`7bbac3d`) brought in `feature/kafka`,
+and PR #6 (`d10d627`) brought in `feature/redis`, which carries 20 commits on top of PR #5. The graph
+above shows a representative subset. `feature/kafka` is an ancestor of `main`
+(`git merge-base --is-ancestor` returns true). `feature/redis` is tree-identical to `main`.
+
+### Where the Redis dependency went
+
+`spring-boot-starter-data-redis` was added to `build.gradle` in `2b8eea7` ("added redis service",
+2025-04-23). It was then **removed in `cd97e97`** ("global exception handler update", 2026-02-14),
+a commit whose message says nothing about dependencies. That removal is in `main`'s history *before*
+the `feature/redis` work, which added Redis code back without restoring the dependency. That is why
+the current tree imports `org.springframework.data.redis.*` with no starter on the classpath
+([IMPLEMENTATION.md](IMPLEMENTATION.md#81-the-backend-does-not-compile-on-main)).
+
+### What `feature/kafka` lacks relative to `main`
 
 | Added after `feature/kafka` | Purpose |
 |---|---|
@@ -292,8 +443,15 @@ and a rewritten `UserStatusServiceImpl` (330 lines changed), `UserStatusControll
 `WebSocketEventListener` (100), plus a substantial frontend presence rewrite
 (`PresenceProvider` −374, `WebSocketProvider` −442, `IdleProvider` −166 lines changed).
 
-Kafka support is present on **all three** branches — it was introduced on `feature/kafka` and
-carried forward unchanged. The `feature/redis` branch changed only presence.
+Kafka support is present on **all three** branches. It was introduced on `feature/kafka` and
+carried forward unchanged: `git diff origin/feature/kafka main` is empty for `KafkaProducerConfig`,
+all four publisher and persistence classes, `MessageService`, `application-kafka.properties`,
+`docker-compose.yml`, and `build.gradle`. The `feature/redis` branch changed presence and the
+frontend WebSocket plumbing. It also (re)introduced some non-source files that exist on `main` but
+not on `feature/kafka`: `application1.properties`, `docker-compose-bkp.yml`,
+`build_jar_command.txt`, `frontend/src/test_command`, and the H2 database files under `data/`. The
+last three were committed together in `2ae8aa4` ("added getFriendsIds method"), which suggests they
+were swept up by a broad `git add`.
 
 ## 8. Architectural assessment
 
@@ -309,6 +467,13 @@ survives process restarts and abrupt disconnects that a connection-scoped map wo
 keyspace notifications that are not switched on, so the OFFLINE transition never fires. Both halves
 are one small change away from working, but as committed each is a functioning front end attached to
 a missing back end.
+
+**Where it is unsafe.** Authorization is the weakest layer. It is applied per service method rather
+than centrally, so it is missing wherever someone forgot it: message send and read, server
+membership changes, channel subscriptions, and presence. Controllers also return JPA entities, which
+exposes password hashes. None of these depends on the Kafka or Redis design, and each can be fixed
+locally. They matter more than the infrastructure gaps, though, because they are exploitable by any
+registered user today.
 
 **Scaling limits.** `configureMessageBroker` uses `enableSimpleBroker`, an in-JVM broker. Every
 subscription and every destination lives in the heap of one process, so the application **cannot run
