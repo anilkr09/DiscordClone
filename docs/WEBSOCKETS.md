@@ -347,14 +347,13 @@ token**. After that token expires, every automatic reconnect is rejected with an
 (see [ARCHITECTURE.md](ARCHITECTURE.md#51-authentication)), so in practice a socket that drops more
 than 24 hours after login cannot recover without a fresh login.
 
-**STOMP heart-beating is effectively off.** The client asks for the library default of
-`10000,10000`, but Spring's simple broker only supports heart-beats when a `TaskScheduler` is
-configured through `enableSimpleBroker(...).setTaskScheduler(...).setHeartbeatValue(...)`.
-`WebSocketConfig` sets neither, so the broker answers `0,0` and neither side sends transport-level
-heart-beats. The application's `/app/heartbeat` frame every 10 s is therefore the only liveness
-signal on the connection. It drives presence, not socket health, so a half-open TCP connection is
-detected only by the OS or by an intermediary's idle timeout. The two are easy to confuse:
-STOMP heart-beats keep the *socket* honest, while the application heartbeat drives *presence*.
+**STOMP heart-beating is off.** The client offers `10000,10000`, but Spring's simple broker answers
+`0,0` because `WebSocketConfig` gives it no `TaskScheduler`, so neither side sends or checks
+transport-level heart-beats. The application's `/app/heartbeat` frame every 10 s drives *presence*,
+not socket health, so a dead connection is noticed on the server only when TCP gives up, which takes
+minutes, and on the client not at all. The two are easy to confuse: STOMP heart-beats keep the
+*socket* honest, while the application heartbeat drives *presence*. §6.5 covers what enabling
+heart-beats would change, the trade-offs, and the recommended configuration.
 
 The token is read from `localStorage` during render (`const accessToken =
 localStorage.getItem("accessToken")`) rather than held in state. So the effect's `[isLoggedIn,
@@ -455,6 +454,101 @@ current. `services/message.service.ts` is partly live: `store/messages/messages.
 it for history fetches. Its `put`/`delete` helpers, however, target
 `/channels/{id}/messages/{messageId}`, which does not exist on the backend.
 
+### 6.5 STOMP heart-beats
+
+#### Current state: off in both directions
+
+STOMP agrees heart-beats during `CONNECT`, separately for each direction. A direction is active only
+if one side offers to send and the other asks to receive, so a `0` from either side turns that
+direction off.
+
+- **Client:** `@stomp/stompjs` offers `10000,10000` by default: send every 10 s, and expect something
+  from the server every 10 s. `WebSocketProvider` does not change this.
+- **Server:** Spring's simple broker answers `0,0` unless it has a `TaskScheduler`. In Spring
+  Framework 6.1.3 (the version Spring Boot 3.2.2 uses), the heart-beat value defaults to `0,0`
+  without a scheduler, and non-zero values are rejected until one is set. With a scheduler, it
+  defaults to `10000,10000`. `WebSocketConfig` only calls `enableSimpleBroker("/topic", "/queue")`.
+
+The result is no heart-beats either way.
+
+#### Why this matters: dead connections look alive
+
+When a laptop sleeps, Wi-Fi drops, the network switches, or a NAT or proxy silently forgets the
+connection, neither side receives a close. Each side keeps treating the TCP connection as open
+until something tells it otherwise.
+
+| Signal that finally reveals a dead connection | How long it takes (Linux defaults, approximate) | Active here? |
+|---|---|---|
+| A write fails after TCP gives up retransmitting (`tcp_retries2` = 15) | About 15 minutes, and only if something is being written to that connection | Yes: the only one |
+| TCP keepalive probes | About 2 hours, and only if enabled on the socket | No |
+| An intermediary's idle timeout | Depends on the hosting | Not configured in this repo |
+| **STOMP heart-beats** | Seconds | **No** |
+
+Server side, a dead session keeps its subscriptions, its registry entry, and its buffers. The server
+keeps writing message and presence frames into it. For presence, its ID stays in the user's
+session set ([REDIS.md §10.14](REDIS.md#1014-finding-14--mark-offline-on-a-clean-disconnect-with-a-grace-period)).
+
+Client side, the app keeps believing it is connected. It sends its `/app/heartbeat` frames into the
+void and receives nothing: new messages, friend events, and presence updates are silently lost until
+the browser happens to surface an error.
+
+#### What enabling them would do
+
+- **Server** (Spring 6.1.3): every client frame counts as activity, not only heart-beats. A periodic
+  task closes any session that has sent **nothing for 3× the interval**, so about 30 s at 10 s
+  heart-beats, detected within one further check period, 30–40 s in all. Spring then fires the usual
+  `SessionDisconnectEvent`. The same task sends server heart-beats when nothing else has been written.
+- **Client** (`@stomp/stompjs` 7.0.0, the installed version): if **nothing arrives from the server
+  for 2× the interval**, so 20 s, the client closes the socket and runs its normal automatic
+  reconnect, after its 5 s `reconnectDelay`.
+
+#### Trade-offs
+
+| | Benefit or cost | Assessment |
+|---|---|---|
+| Client-side detection of dead connections | **Main benefit.** A half-open connection is replaced within about 25 s (20 s detection + 5 s reconnect) instead of lingering indefinitely | Large; this is the one users would notice |
+| Server-side clean-up of dead sessions | Freed within 30–40 s instead of about 15 minutes or never. Presence session sets stay accurate | Medium |
+| Faster OFFLINE for presence | **None at 10 s.** 30–40 s plus the 8 s grace period is slower than the presence heartbeat key (20–30 s), which stays the OFFLINE signal ([REDIS.md §10.15](REDIS.md#1015-finding-15--enable-stomp-heart-beats)) | Not a reason to enable |
+| Bandwidth | A heart-beat is a single end-of-line byte, every 10 s in each direction | Negligible |
+| Server CPU | One task walking all sessions each period | Negligible at this scale |
+| False disconnects | A client that cannot send for 30 s is cut off. The realistic cause is a hidden tab whose timers the browser throttles. The app's own `/app/heartbeat` timer has the **same** exposure today (a 30 s gap already expires the presence key), so heart-beats add no new failure mode. Both timers need the same mitigation | Mitigate with Web Worker timers |
+| Mobile | Mobile browsers usually suspend background tabs, and their connections die anyway. Heart-beats only make the server notice sooner | Neutral |
+| Future broker relay | An external broker configures heart-beats differently (client and system heart-beats on the relay) | Small reconfiguration later |
+
+Two alternatives were rejected:
+
+- **A shorter interval to speed up presence.** At 5 s, detection is 15–20 s plus the 8 s grace
+  period, about the same as the heartbeat key, with twice the false-disconnect exposure.
+- **WebSocket-level ping/pong.** Browsers answer pings automatically, but JavaScript can neither send
+  pings nor see pongs. That would give the server detection, with custom code, but still nothing on
+  the client. STOMP heart-beats cover both directions with configuration alone.
+
+#### Recommendation and changes
+
+Enable heart-beats at Spring's default of 10 s in both directions.
+
+- **Server, `config/WebSocketConfig`:** give the simple broker a `TaskScheduler` and set the heart-beat
+  value to `10000,10000` explicitly. That value is the default once a scheduler exists, but writing it
+  documents the choice. Reuse Spring's own `messageBrokerTaskScheduler` bean, injected lazily as the
+  Spring reference documentation shows, rather than creating a second thread pool.
+- **Client, `WebSocketProvider`:** leave `heartbeatIncoming` and `heartbeatOutgoing` at 10 s, and set
+  them explicitly for clarity. To protect hidden tabs, run the outgoing heart-beat from a Web Worker.
+  `@stomp/stompjs` 7.0.0 cannot do that, because it sends heart-beats with `setInterval`. Current
+  stompjs releases add a `heartbeatStrategy` option (`TickerStrategy.Worker`), and a configurable
+  tolerance, so upgrade within the `^7` range and confirm the installed version has them.
+- **Client, `PresenceProvider`:** move the 10 s `/app/heartbeat` timer into a small Web Worker that
+  posts a tick, and send the frame on each tick. That gives presence's own liveness signal the same
+  protection.
+- **No handling code is needed** for a lost heart-beat. stompjs closes the socket and reconnects on
+  its own, and on the server the resulting disconnect goes through the existing listener.
+
+**Check:**
+
+- The `CONNECTED` frame in the browser's WebSocket inspector shows `heart-beat:10000,10000`.
+- Cut the network on a client. Its session closes on the server after 30–40 s, and the client
+  reconnects about 25 s after connectivity returns.
+- A tab hidden for more than 10 minutes keeps its session.
+
 ## 7. Summary of findings
 
 | # | Finding | Location | Severity |
@@ -468,7 +562,7 @@ it for history fetches. Its `put`/`delete` helpers, however, target
 | 7 | JWT validated only at CONNECT; sessions outlive token expiry | `WebSocketAuthInterceptor.java:64` | Medium |
 | 8 | Reconnect reuses the original token from `connectHeaders` | `WebSocketProvider.tsx` | Medium |
 | 9 | Status frames batched by React are dropped (last-element read) | `FriendStatusProvider.tsx` | Medium |
-| 10 | STOMP heart-beats negotiated to `0,0` (no scheduler on simple broker) | `WebSocketConfig.java` | Medium |
+| 10 | STOMP heart-beats negotiated to `0,0` (no scheduler on simple broker): dead connections go unnoticed on both sides (fix in §6.5) | `WebSocketConfig.java`, `WebSocketProvider.tsx` | Medium |
 | 11 | `isConnecting` guard not reset on `onWebSocketError` | `WebSocketProvider.tsx` | Medium |
 | 12 | `/topic/channels` subscription in `useChannels` has no cleanup | `useChannels.ts:87` | Low |
 | 13 | `messageStore` grows unbounded | `WebSocketProvider.tsx` | Low |

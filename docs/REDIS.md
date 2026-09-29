@@ -494,12 +494,13 @@ The corrective change for each finding is in [§10](#10-corrections).
 | 12 | `markIdle` is a no-op; client idle timer is dead code | `IdleProvider.tsx` | Low |
 | 13 | `spring.cache.type=redis` set but no `@EnableCaching`/`@Cacheable` | `application.properties:73` | Cosmetic |
 | 14 | Clean disconnects are ignored; OFFLINE waits for the heartbeat TTL (20–30 s after the tab closes) | `WebSocketEventListener.java` (`handleSessionDisconnect`) | Medium |
+| 15 | STOMP heart-beats are off: dead sessions linger in the session set, and clients never notice their own dead connection | `WebSocketConfig.java`, `WebSocketProvider.tsx` | Medium |
 
 ## 10. Corrections
 
 For each finding in [§9](#9-summary-of-findings), this section describes what has to change and
-where. Several findings touch the same methods, so [§10.15](#1015-apply-order) gives an order that
-applies cleanly, and [§10.16](#1016-userstatusserviceimpl-after-all-corrections) describes the
+where. Several findings touch the same methods, so [§10.16](#1016-apply-order) gives an order that
+applies cleanly, and [§10.17](#1017-userstatusserviceimpl-after-all-corrections) describes the
 presence service once every correction is in.
 
 Paths are relative to `src/main/java/com/discordclone/` unless they start with `frontend/` or name
@@ -906,7 +907,79 @@ its per-user lock (§10.8), and the single-argument `setOfflineAndBroadcast` (§
   afterwards.
 - While connected, the session set holds one entry per open tab.
 
-### 10.15 Apply order
+### 10.15 Finding 15 — enable STOMP heart-beats
+
+#### The problem
+
+STOMP heart-beats are off in both directions. The client offers 10 s, but Spring's simple broker
+answers `0,0` because it has no `TaskScheduler`. The full transport picture, with the verified Spring
+and stompjs behaviour, is in [WEBSOCKETS.md §6.5](WEBSOCKETS.md#65-stomp-heart-beats). For presence,
+this has three consequences:
+
+1. **Dead sessions stay in the session set.** When a laptop sleeps with the app open, its session
+   is dead but nothing closes it, so no disconnect event fires until TCP gives up (about 15 minutes,
+   and only if something is written to it). Until then, its ID stays in the user's session set
+   (§10.14). If the user is also connected from another device, their next clean close finds the set
+   non-empty and falls back to the 20–30 s heartbeat path instead of the 8 s grace period.
+2. **The server keeps sending presence to dead sessions.** Every status change for a friend is
+   written into those connections for as long as they linger.
+3. **The client cannot see its own connection die.** After a network switch or a NAT timeout, the
+   app keeps sending `/app/heartbeat` into a dead socket. The server's heartbeat key expires, and
+   friends correctly see the user go OFFLINE. The user, though, still sees themself online and
+   receives no presence updates or messages, until the browser happens to report an error.
+
+#### Why this is not about faster OFFLINE
+
+With heart-beats on at Spring's default of 10 s, the server closes a silent session after 3× the
+interval, about 30–40 s after its last frame counting the check period. Adding the 8 s grace period
+from §10.14 gives 38–48 s, which is *slower* than the presence heartbeat key's 20–30 s. The heartbeat
+key therefore stays the OFFLINE signal for unclean drops. The two paths do not conflict: when the
+heart-beat timeout's disconnect event later starts a grace marker, the marker finds the heartbeat key
+already gone and does nothing (§10.14).
+
+Shortening the interval to catch up does not pay. At 5 s it gives 15–20 s plus the 8 s grace, about
+the same as the key, and twice the exposure to false disconnects. The reasons to enable heart-beats
+are the three problems above, not OFFLINE latency.
+
+#### Trade-offs
+
+- **Cost:** a one-byte frame every 10 s in each direction, and one broker task walking the sessions.
+  Both are negligible.
+- **Risk:** a client that cannot send anything for 30 s is disconnected. The realistic cause is a
+  hidden tab whose timers the browser throttles. Presence already carries exactly this risk: the
+  app's own `/app/heartbeat` timer missing 30 s already expires the heartbeat key. So heart-beats add
+  no new failure mode, and the same mitigation covers both, which is to run the timers in a Web
+  Worker. If a heart-beat timeout does cut off an open tab, the client reconnects on its own, and the
+  8 s grace period hides a quick reconnect from friends.
+
+#### What to change
+
+The details are in [WEBSOCKETS.md §6.5](WEBSOCKETS.md#65-stomp-heart-beats). In summary:
+
+- **`config/WebSocketConfig`:** give the simple broker a `TaskScheduler` (reusing Spring's
+  `messageBrokerTaskScheduler`) and set the heart-beat value to `10000,10000`.
+- **`frontend/src/providers/WebSocketProvider.tsx`:** keep 10 s heart-beats in both directions.
+  Upgrade `@stomp/stompjs` from the installed 7.0.0 to a later 7.x that has `heartbeatStrategy`, and
+  set it to Web Worker.
+- **`frontend/src/providers/PresenceProvider.tsx`:** drive the 10 s `/app/heartbeat` timer from a Web
+  Worker.
+- **Presence services:** nothing changes. A heart-beat timeout produces an ordinary disconnect event,
+  which §10.14 already handles.
+
+#### Dependencies
+
+None are required. It complements §10.14, whose session set becomes reliable once dead sessions are
+removed promptly.
+
+**Check:**
+
+- Put a laptop with the app open to sleep while the same user stays connected on a phone. After
+  30–40 s, the laptop's session leaves the session set. When the phone app is then closed, friends
+  see OFFLINE after about 8 s, not 20–30 s.
+- Switch a client's network (for example, Wi-Fi to a hotspot) with the app open. It reconnects on its
+  own about 25 s later and receives presence updates again.
+
+### 10.16 Apply order
 
 | Step | Findings | Why this order |
 |---|---|---|
@@ -919,13 +992,14 @@ its per-user lock (§10.8), and the single-argument `setOfflineAndBroadcast` (§
 | 7 | 3 | Backend and frontend **in the same deploy** (see the §10.3 rollout note) |
 | 8 | 5, 12 | One `IdleProvider` rewrite, frontend only |
 | 9 | 14 | Extends the step-4 listener and the §10.7 method; backend only, no client change |
+| 10 | 15 | Configuration plus client timers; independent of the rest, but most useful after step 9 |
 
 `UserStatusServiceTest` still targets the removed `updateUserStatus` API (see
 [BUGS.md B09](BUGS.md#b09-two-test-classes-do-not-compile)). Rewrite it alongside step 3. Use the
 injected `Clock` to cover the 29 s and 31 s boundaries, the offline-with-override case, and the
 no-activity case.
 
-### 10.16 `UserStatusServiceImpl` after all corrections
+### 10.17 `UserStatusServiceImpl` after all corrections
 
 Once every step is applied, the presence service should look like this:
 
@@ -960,7 +1034,7 @@ Once every step is applied, the presence service should look like this:
 
 This section describes the system as it behaves once every change in [§10](#10-corrections) is
 applied, including the cached-status TTL refresh noted in
-[§10.16](#1016-userstatusserviceimpl-after-all-corrections). None of it is implemented yet. Where
+[§10.17](#1017-userstatusserviceimpl-after-all-corrections). None of it is implemented yet. Where
 behaviour is still wrong after §10, the scenario says so, and [§11.5](#115-what-is-still-not-right)
 collects those problems.
 
@@ -984,6 +1058,7 @@ Three signals feed presence, and each answers a different question:
 | `handleActivity` | `/app/activity`, or a connect | Ignores repeats within 5 s. Otherwise refreshes `last_activity` (10 min TTL) and the heartbeat key, then re-evaluates |
 | `updateCustomStatus` / `clearCustomStatus` | REST calls | Writes or removes the override in Redis and Postgres (one expiry time), then re-evaluates |
 | `PresenceExpirationListener` | Redis reports an expired heartbeat key or grace-period marker | Claims the expiry (one instance only). For a heartbeat: confirms the user has not reconnected, then marks them OFFLINE. For a marker: confirms no session reopened and the user is still connected, removes the heartbeat key, then marks them OFFLINE |
+| Simple broker heart-beat task | Every 10 s | Sends server heart-beats, and closes any session that has sent nothing for 30 s. That fires the ordinary disconnect event (§10.15) |
 | `onFriendshipAccepted` | A friendship is committed as ACCEPTED | Sends each user the other's current status |
 | Startup restore | Application ready | Copies every unexpired custom status from Postgres into Redis |
 
@@ -997,8 +1072,8 @@ compares the result with the cached `presence:status:{id}`, and then:
 
 | Component | What it does |
 |---|---|
-| `WebSocketProvider` | Opens the STOMP connection with the JWT, and reconnects automatically every 5 s after a drop |
-| `PresenceProvider` | At login, fetches the user's own status (`GET /users/me/status`) and shows ONLINE until the answer arrives. Subscribes to `/user/queue/presence` and applies frames about the user themself. Runs the 10 s heartbeat timer. Exposes the set and clear calls for custom status |
+| `WebSocketProvider` | Opens the STOMP connection with the JWT, and reconnects automatically every 5 s after a drop. Exchanges STOMP heart-beats every 10 s, sending from a Web Worker. If nothing arrives from the server for 20 s, it closes the socket and reconnects |
+| `PresenceProvider` | At login, fetches the user's own status (`GET /users/me/status`) and shows ONLINE until the answer arrives. Subscribes to `/user/queue/presence` and applies frames about the user themself. Runs the 10 s heartbeat timer from a Web Worker. Exposes the set and clear calls for custom status |
 | `IdleProvider` | Sends activity on `mousemove`, `keydown`, `click`, `touchstart`, and when the tab becomes visible, throttled to once per 15 s |
 | `FriendStatusProvider` | At login, fetches every friend's status (`GET /users/friends/status`). Subscribes to `/user/queue/presence` and merges incoming frames into a map. Unknown users read as OFFLINE |
 | `UserStatusSelector` | Online → clear the custom status. Idle, Do Not Disturb, or Invisible → set it as a custom status |
@@ -1068,8 +1143,9 @@ On the client, `PresenceProvider` applies frames whose `userId` matches the logg
 ### 11.4 Scenarios
 
 "Friends see" means what the friends' clients display. Timings assume the §10 values: 10 s
-heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, 15 s client activity throttle, and 8 s disconnect
-grace period.
+heartbeat, 30 s heartbeat TTL, 30 s ONLINE window, 15 s client activity throttle, 8 s disconnect
+grace period, and 10 s STOMP heart-beats (the server drops a session after 30 s of silence, and the
+client drops one after 20 s).
 
 #### Connecting and disconnecting
 
@@ -1117,11 +1193,12 @@ grace period.
 **4. Unclean disconnect: Wi-Fi drop, laptop sleep, or crash**
 
 - *Client:* nothing is sent, and the socket may not even close cleanly.
-- *Server:* no disconnect event arrives in time, because STOMP heart-beats are off and TCP gives no
-  prompt signal. About 30 s after the last heartbeat, the heartbeat key expires. The listener claims
-  it, sees no new heartbeat, and caches and broadcasts OFFLINE. If the server notices the dead
-  socket later, the disconnect event starts a grace marker. When the marker fires, it finds the
-  heartbeat key already gone and does nothing, so there is no second OFFLINE.
+- *Server:* about 30 s after the last heartbeat, the heartbeat key expires. The listener claims it,
+  sees no new heartbeat, and caches and broadcasts OFFLINE. Separately, the broker's heart-beat check
+  closes the dead session 30–40 s after its last frame and fires the disconnect event. That removes
+  the session from the set and starts a grace marker, which finds the heartbeat key already gone and
+  does nothing, so there is no second OFFLINE. Before §10.15, that clean-up waited for TCP to give up,
+  which takes minutes, or never happened if nothing was written to the socket.
 - *Friends see:* OFFLINE 20–30 s after the last heartbeat that reached the server.
 
 **5. Reconnecting just as the grace period or the heartbeat key runs out**
@@ -1145,6 +1222,9 @@ grace period.
   not empty, no grace marker is written, and nothing changes. OFFLINE follows only after the last tab
   closes (scenario 3), or the last tab's heartbeats stop (scenario 4). Every tab shows the same status
   for the user, because their own frames reach all their sessions.
+- If one device dies without closing, for example a laptop that goes to sleep with the app open, the
+  heart-beat check removes its session from the set within 30–40 s (§10.15). A later clean close on
+  the user's other device then takes the fast 8 s path.
 
 #### Engagement while connected
 
@@ -1184,10 +1264,12 @@ grace period.
 
 - *Client:* heartbeats continue and input stops, so this is scenario 8. Returning to the tab fires
   `visibilitychange`, which sends activity immediately (scenario 9) even before the mouse moves.
-- *Caveat:* browsers slow down timers in tabs that have been hidden for a long time. Chrome, for
-  example, reduces some timers to about once a minute after roughly five minutes. That has not been
-  verified against this app. If it applies, heartbeats could arrive less often than the 30 s TTL,
-  and the user would flap OFFLINE and back. See §11.5.
+- *Timers:* browsers slow down timers in tabs that have been hidden for a long time. Chrome, for
+  example, reduces some timers to about once a minute after roughly five minutes. With §10.15, both
+  the `/app/heartbeat` timer and stompjs's outgoing heart-beat run in Web Workers, which are meant to
+  avoid this. Without that, a hidden tab could go silent for more than 30 s, expire its presence key,
+  lose its session to the broker's heart-beat check, and flap OFFLINE and back. None of this has been
+  measured for this app. See §11.5.
 
 #### Statuses the user sets
 
@@ -1309,9 +1391,28 @@ grace period.
   [WEBSOCKETS.md](WEBSOCKETS.md#why-the-simple-broker) and
   [IMPROVEMENTS.md](IMPROVEMENTS.md#move-off-the-in-memory-broker--later--l)).
 
+**24. The connection dies silently while the app stays open**
+
+A network switch, a NAT or proxy timeout, or waking from sleep on a different network can leave a
+connection that neither side has seen close.
+
+- *Client:* its `/app/heartbeat` frames and heart-beats go nowhere, and nothing arrives. After 20 s
+  with no server heart-beat, stompjs closes the socket. After its 5 s reconnect delay it opens a new
+  connection, about 25 s after the failure, and resubscribes.
+- *Server:* the presence heartbeat key expires 20–30 s after the last frame that arrived, and OFFLINE
+  is broadcast unless the reconnect lands first (scenario 5). The new connection counts as activity,
+  so ONLINE follows if OFFLINE went out. The old session is closed by the heart-beat check 30–40 s
+  after its last frame. Its disconnect removes only the old session ID; the new session is still in
+  the set, so nothing else happens.
+- *Friends see:* at most a brief OFFLINE → ONLINE.
+- *Still wrong:* messages and presence frames sent to the user while the connection was dead are not
+  delivered again. The client refetches neither friend statuses nor channel history after
+  reconnecting (§11.5). Before §10.15, the client never noticed the dead connection at all, and the
+  user stayed cut off until something else failed.
+
 ### 11.5 What is still not right
 
-§10 fixes the fourteen findings in §9, but these gaps remain in the corrected design:
+§10 fixes the fifteen findings in §9, but these gaps remain in the corrected design:
 
 | Problem | Scenario | Suggested change |
 |---|---|---|
@@ -1320,7 +1421,8 @@ grace period.
 | Frames processed in the same React batch are dropped, because providers read only the last element | 21, 22 | Handle each frame in the subscription callback ([BUGS.md B27](BUGS.md#b27-batched-status-updates-are-dropped)) |
 | After a backend crash, stale session IDs can keep a user's session set non-empty, so their next clean close takes the 20–30 s fallback instead of 8 s | 22 | One key per session with its own TTL, refreshed only by that session's heartbeat (§10.14, known limitations) |
 | For up to 10 s after Redis loses its data, closing one of several tabs can briefly mark the user OFFLINE | 21 | Accept it, or keep the session sets in a Redis setup with persistence (AOF) |
-| Background-tab timer throttling could make heartbeats slower than the TTL | 11 | Run the heartbeat timer in a Web Worker (unverified; test with a tab hidden for more than 5 minutes) |
+| Hidden-tab behaviour is unmeasured, even with Web Worker timers (§10.15) | 11 | Test with a tab hidden for more than 10 minutes on Chrome, Firefox, and Safari. Confirm the session survives and no OFFLINE is broadcast |
+| Frames sent while a connection was dead are lost; nothing is refetched after a reconnect | 22, 24 | On every STOMP reconnect, refetch own and friend statuses, and the open channel's recent history |
 | Reset shows OFFLINE, then IDLE, then ONLINE | 17 | Either also delete the heartbeat key and close the sessions, or make reset only clear the override and re-evaluate |
 | Presence does not work across more than one instance | 23 | STOMP broker relay, or a Redis/Kafka fan-out bridge |
 
@@ -1335,6 +1437,7 @@ grace period.
 | Network loss, sleep, crash (unclean) | OFFLINE | 20–30 s after the last heartbeat |
 | Reload or reconnect within the grace period | No change | — |
 | One of several tabs closes | No change | — |
+| Connection dies silently, app stays open | No change, or a brief OFFLINE → ONLINE | Client reconnects about 25 s after the failure |
 | User sets or clears a status | The new status | Immediately |
 | A set status expires after 24 h | The derived status | Within 10 s |
 | Friend request accepted | Each other's current status | Right after the commit |
