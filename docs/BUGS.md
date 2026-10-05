@@ -1,6 +1,8 @@
 # Bugs and Implementation Mistakes
 
-A numbered catalog of every defect found in `main` (`d10d627`), with its location, impact, and fix.
+A numbered catalog of every defect found in `main` (`d10d627`) and in the companion
+[`message-consumer-service`](https://github.com/anilkr09/message-consumer-service) (`4fcde05`), with
+its location, impact, and fix.
 The other docs explain *how the system works*. This one is the checklist for *what is wrong with it*.
 Forward-looking suggestions that are not defects are in [IMPROVEMENTS.md](IMPROVEMENTS.md).
 
@@ -23,7 +25,8 @@ Forward-looking suggestions that are not defects are in [IMPROVEMENTS.md](IMPROV
 | `inferred` | Follows from framework semantics (Spring Data, Kafka client, JPA). Not executed, because no JRE was available when this was written |
 
 Line numbers refer to `main`. `J/` abbreviates `src/main/java/com/discordclone/`, and `F/` abbreviates
-`frontend/src/`.
+`frontend/src/`. `CS/` abbreviates the consumer repository's
+`src/main/java/com/discordclone/message/consumer/`; other consumer files are named `CS:<path>`.
 
 IDs are stable. A defect added after the first pass gets the next free number and is listed under
 its severity, so numbers are not strictly in severity order.
@@ -41,7 +44,6 @@ its severity, so numbers are not strictly in severity order.
 | [B07](#b07-signing-secret-and-sonarcloud-token-are-committed) | Signing secret and SonarCloud token are committed | Critical | Security |
 | [B08](#b08-the-backend-does-not-compile) | The backend does not compile | Critical | Build |
 | [B09](#b09-two-test-classes-do-not-compile) | Two test classes do not compile | Critical | Build |
-| [B10](#b10-the-kafka-profile-never-stores-messages) | The `kafka` profile never stores messages | Critical | Kafka |
 | [B11](#b11-dms-are-delivered-to-the-wrong-username) | DMs are delivered to the wrong username | High | Messaging |
 | [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled | High | Security |
 | [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 | High | Messaging |
@@ -51,6 +53,7 @@ its severity, so numbers are not strictly in severity order.
 | [B17](#b17-access-tokens-are-accepted-as-refresh-tokens) | Access tokens are accepted as refresh tokens | High | Auth |
 | [B18](#b18-chatarea-leaks-a-subscription-on-every-render) | `ChatArea` leaks a subscription on every render | High | WebSocket |
 | [B19](#b19-a-kafka-outage-stalls-all-websocket-traffic) | A Kafka outage stalls all WebSocket traffic | High | Kafka |
+| [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save | High | Kafka consumer |
 | [B20](#b20-message-times-are-wrong-outside-utc) | Message times are wrong outside UTC | Medium | Messaging |
 | [B21](#b21-delete-apimessagesid-can-never-succeed) | `DELETE /api/messages/{id}` can never succeed | Medium | API |
 | [B22](#b22-put-apiserversidrolesroleid-can-never-succeed) | `PUT /api/servers/{id}/roles/{roleId}` can never succeed | Medium | API |
@@ -73,6 +76,12 @@ its severity, so numbers are not strictly in severity order.
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |
 | [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
+| [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service | Medium | Kafka |
+| [B53](#b53-the-consumers-dead-letter-setup-would-fail-if-wired) | The consumer's dead-letter setup would fail if wired | Medium | Kafka consumer |
+| [B54](#b54-latest-offset-reset-loses-messages) | `latest` offset reset loses messages | Medium | Kafka consumer |
+| [B55](#b55-two-services-manage-one-schema) | Two services manage one schema | Medium | Data |
+| [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored | Medium | Kafka |
+| [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start | Medium | Kafka consumer |
 | [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice | Low | Redis |
 | [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation | Low | Redis |
 | [B43](#b43-dead-presence-logic) | Dead presence logic | Low | Redis |
@@ -83,6 +92,7 @@ its severity, so numbers are not strictly in severity order.
 | [B48](#b48-two-userservice-beans) | Two `UserService` beans | Low | Backend |
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
 | [B50](#b50-infrastructure-drift) | Infrastructure drift | Low | Ops |
+| [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
 
 ---
 
@@ -201,15 +211,6 @@ interface. `MessageServiceTest` mocks four of `MessageService`'s six dependencie
 `build_jar_command.txt` skips `test`.
 **Fix:** rewrite `UserStatusServiceTest` against `handleHeartbeat`/`handleActivity`/`getUserStatus`,
 and add `@Mock`s for the two publisher interfaces.
-
-### B10. The `kafka` profile never stores messages
-
-`read` · `J/service/NoOpMessagePersistenceService.java`, `J/service/KafkaMessageEventPublisher.java`
-
-Under the `kafka` profile, persistence is a no-op, and no `@KafkaListener` exists on any branch.
-Messages are produced and broadcast, then lost. History is always empty.
-**Fix:** implement the consumer ([KAFKA.md §4](KAFKA.md#4-the-missing-consumer)), or remove the
-profile.
 
 ---
 
@@ -337,6 +338,25 @@ waiting for metadata. It blocks on the `clientInboundChannel` worker that is pro
 frame. A few concurrent senders can occupy the whole pool, which stops heartbeats, activity, and
 every other inbound frame for every user.
 **Fix:** set `max.block.ms` to about 1–2 s, and hand the send off to a separate executor.
+
+### B52. The consumer drops messages it fails to save
+
+`read` · `CS/config/KafkaConsumerConfig.java:19-38`, `CS/consumer/MessageKafkaConsumer.java:34-37`
+
+`KafkaConsumerConfig` builds a listener container factory with a back-off and a dead-letter
+recoverer. The method has **no `@Bean` annotation**, so it is never called. Spring Boot's
+auto-configured factory runs instead, with Spring Kafka's default error handler, `FixedBackOff(0, 9)`:
+10 delivery attempts with no delay. After that, the record is logged at ERROR, its offset is
+committed, and it is skipped.
+
+**Impact:** any transient failure while saving makes messages disappear from history. A PostgreSQL
+restart, a failover, or a stalled connection pool exhausts the ten attempts in milliseconds. A
+deleted user or channel does too, after ten pointless retries. Users already saw the message live,
+because it was broadcast on Kafka's acknowledgement, and it is gone on their next reload.
+**Fix:** register a `DefaultErrorHandler` **bean** (Boot attaches it to its own factory), with an
+exponential back-off in seconds and a working dead-letter recoverer (B53). Classify not-found errors
+as non-retryable. Delete the unused factory method. See
+[KAFKA.md §4.4](KAFKA.md#44-error-handling-what-was-written-versus-what-runs).
 
 ---
 
@@ -588,6 +608,105 @@ Full reasoning, rejected alternatives, per-file changes, and limitations are in
 [REDIS.md §10.14](REDIS.md#1014-finding-14--mark-offline-on-a-clean-disconnect-with-a-grace-period).
 It depends on B14 being fixed.
 
+### B10. Kafka-profile persistence depends on an unmanaged external service
+
+`read` · `J/service/NoOpMessagePersistenceService.java`, `J/service/KafkaMessageEventPublisher.java`
+
+*Earlier editions rated this Critical, as "the `kafka` profile never stores messages", because this
+repository has no consumer. The consumer lives in a separate repository,
+[`message-consumer-service`](https://github.com/anilkr09/message-consumer-service), which persists
+the messages, so this was re-rated.*
+
+Under the `kafka` profile, the main app persists nothing itself and relies entirely on that service.
+Nothing here starts it, configures it, documents it, or checks that it is running. It is not in
+`docker-compose.yml`, and neither repository explains how the two fit together.
+
+**Impact:** if the consumer is not running, messages appear live but not in history until it
+catches up. If it is first started after messages were produced, they are lost (B54). Its failure
+handling drops messages (B52).
+**Fix:** run the consumer as a compose service next to Kafka, with a health check. Document the
+start-up order. Add consumer-group lag to monitoring. The details are in
+[KAFKA.md §4–5](KAFKA.md#4-the-consumer-service).
+
+### B53. The consumer's dead-letter setup would fail if wired
+
+`inferred` · `CS/config/KafkaConsumerConfig.java:21`, `CS/config/KafkaDLTProducerConfig.java:3,22,24`
+
+This is the trap waiting for whoever fixes B52 by adding `@Bean`:
+
+1. The factory method injects `KafkaTemplate<String, MessageResponse>`, but the only template defined
+   is `KafkaTemplate<String, Object>`. Spring matches generic types when injecting, so the consumer
+   would fail to start.
+2. The dead-letter producer's value serializer is `com.fasterxml.jackson.databind.JsonSerializer`,
+   Jackson's abstract serializer base class, not a Kafka `Serializer`. The producer is created lazily,
+   so creating it would fail on the first dead-letter publish. Spring Kafka then resets its back-off
+   and redelivers the record, so one bad message is retried forever and blocks every channel on its
+   partition.
+
+The producer's broker address is also hard-coded to `localhost:9092`.
+**Fix:** build the recoverer's template with Spring Kafka's JSON serializer (`JacksonJsonSerializer`
+on Spring Kafka 4) and the bootstrap address from properties. Inject it as
+`KafkaOperations<?, ?>`. Create `message-events-dlt` with at least the source topic's 4 partitions,
+because the recoverer publishes to the same partition number.
+
+### B54. `latest` offset reset loses messages
+
+`read` · `CS:src/main/resources/application.properties:13-14`
+
+`spring.kafka.consumer.auto-offset-reset=latest`, with the `earliest` line commented out. A consumer
+group with no committed offset starts at the **end** of the topic. That happens on the group's first
+start, and again whenever its committed offsets expire, which Kafka does by default 7 days after the
+group becomes empty.
+
+**Impact:** messages produced before the consumer was first deployed, or during an outage longer
+than offset retention, are never stored. Deployment order becomes a source of data loss.
+**Fix:** use `earliest`. The idempotent insert makes re-reading old records harmless.
+
+### B55. Two services manage one schema
+
+`read` · `CS/entity/*.java`, `CS:src/main/resources/application.properties:42`,
+`src/main/resources/application.properties`
+
+The consumer keeps its own copies of the `User`, `Server`, `Channel`, and `Message` entities, and it
+runs `ddl-auto=update` against the same database as the main app. Its `Message` join columns lack
+`nullable = false`. If the consumer starts first on an empty database, it creates `messages.channel_id`
+and `messages.user_id` as nullable, and the main app's later `update` never tightens them. Any future
+entity change made in one repository but not the other drifts the schema silently.
+
+**Impact:** constraints depend on which service started first, and the two definitions can diverge
+without any error.
+**Fix:** the consumer should not manage schema. Set its `ddl-auto` to `validate` or `none`, and let
+the main app own the tables through migrations.
+
+### B56. Messages are visible before they are stored
+
+`read` · `J/service/KafkaMessageEventPublisher.java`, consumer service
+
+In the `kafka` profile, the broadcast happens on Kafka's acknowledgement, and the row is written
+later by a different process. The gap is normally milliseconds. It is unbounded while the consumer is
+down or lagging, and permanent for any message the consumer skips (B52).
+
+**Impact:** a reload or a history fetch can miss messages everyone has already seen. Edits and
+deletes, which the main app makes directly in the database, cannot find a message that is not yet
+written. Nothing monitors the gap.
+**Fix:** treat consumer lag as a monitored metric. In the client, keep live-received messages until
+history confirms them, rather than replacing the list on fetch. Longer term, consider the
+transactional outbox in [IMPROVEMENTS.md](IMPROVEMENTS.md#messaging-pipeline).
+
+### B57. The consumer's packaged jar likely fails to start
+
+`inferred` · `CS:build.gradle:5,8-10`
+
+`application { mainClass = 'com/discordclone/message/consumer/MessageConsumerServiceApplication' }`
+uses slashes. When the `application` plugin is applied, the Spring Boot Gradle plugin takes its main
+class from it, and `bootJar` writes that value into the jar manifest. A slash-separated name is not a
+valid binary class name, so the packaged jar would fail when it loads the main class. `bootRun` may
+still work. This was not run.
+
+**Impact:** the consumer may not be deployable as a jar, the normal way to ship it.
+**Fix:** remove the `application` plugin, which Spring Boot does not need, or use the dotted class
+name.
+
 ---
 
 ## Low
@@ -676,6 +795,25 @@ unused.
 - Committed artifacts include a stale 50 MB jar, root `node_modules/`, `.DS_Store`, H2 database
   files, and two unused compose files.
 
+### B58. Consumer operational gaps
+
+`read` · consumer repository
+
+- **No health signal.** There is no web starter, so `server.port=8081` does nothing and no Actuator
+  endpoint exists. A stopped or stuck consumer is visible only as Kafka lag.
+- **The only test, `contextLoads`, needs live Kafka and PostgreSQL**, so it fails in CI.
+- **Four queries per message** (existence check, user, channel, and a pre-insert `SELECT`, because the
+  entity has an assigned ID) where two would do. Use `getReferenceById` and `Persistable`.
+- **Dead code.** `exception/KafkaErrorHandler` is an empty class. The listener's `event == null`
+  branch is reached only for genuinely null payloads, because records that fail to deserialize go
+  straight to the error handler as fatal.
+- **Contract by copy.** `dto/MessageResponse` duplicates the producer's DTO by hand (see
+  [KAFKA.md §4.5](KAFKA.md#45-the-event-contract)). `spring.json.trusted.packages=*` is unused while
+  type headers are ignored, but should be narrowed if they are ever used.
+- **Deprecated deserializer.** The Jackson 2 `JsonDeserializer` is deprecated in Spring Kafka 4, the
+  version Boot 4 uses. It still works, but should move to `JacksonJsonDeserializer`. The two services
+  are also on different Spring Boot major versions (3.2.2 and 4.0.5).
+
 ---
 
 ## Implementation mistakes: the patterns behind the bugs
@@ -694,6 +832,7 @@ cheaper than fixing its bugs one at a time.
 | **Zone-less time.** `LocalDateTime` everywhere | `Message`, `Friendship`, `UserStatusEntity` | B20 |
 | **Subscriptions outside effect lifecycles.** Subscribing in render bodies or effects without cleanup | `ChatArea`, `useChannels` | B18, B30 |
 | **Reading an accumulated array's last element** instead of handling events | `useWebSocketTopic` consumers | B27 |
-| **Configuration that looks live but is not.** Explicit beans that silently override properties, and unloaded files | `KafkaProducerConfig`, `application1.properties`, `spring.websocket.*` | B19, B50 |
+| **Configuration that looks live but is not.** Explicit beans that silently override properties, unloaded files, and a factory method without `@Bean` | `KafkaProducerConfig`, `application1.properties`, `spring.websocket.*`, consumer `KafkaConsumerConfig` | B19, B50, B52, B53 |
+| **A second service with nothing tying it in.** The consumer is not started, configured, tested, or monitored from the main repository, and the two share a database and a DTO by copy | consumer repository | B10, B54, B55, B56, B57, B58 |
 | **Two sources of truth without reconciliation.** Custom status in Redis and Postgres; server/client API contracts hand-maintained | presence, frontend services | B40, B43 |
 | **Code and tests not updated together.** Refactors land without updating tests or the client | tests, frontend services | B09, B40, B49 |

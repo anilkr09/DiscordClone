@@ -17,7 +17,7 @@ Each item is tagged with a **priority** and a rough **effort**:
 
 | Phase | Goal | Items |
 |---|---|---|
-| **0 — Stop the bleeding** | No exploitable holes; green build | DTO boundary, authorization layer, secret rotation, build and test repair |
+| **0 — Stop the bleeding** | No exploitable holes; no silent data loss; green build | DTO boundary, authorization layer, secret rotation, build and test repair, consumer error handling and offset reset |
 | **1 — Correct by construction** | Make the fixed bugs impossible to reintroduce | Authorization tests, generated API client, `Instant` timestamps, error model, migrations |
 | **2 — Reliable real-time** | Presence and delivery that survive restarts and reconnects | Presence redesign, WebSocket subscription manager, after-commit events, token lifecycle |
 | **3 — Scale and operate** | More than one instance; observable; deployable | Broker relay or Kafka fan-out, Actuator and metrics, CI/CD, container hardening |
@@ -217,33 +217,66 @@ only the channel ID.
 
 ## Messaging pipeline
 
+### Fix the consumer's data-loss paths — Now · S
+
+*Subsumes B52, B53, B54, B55.*
+
+The consumer service ([`message-consumer-service`](https://github.com/anilkr09/message-consumer-service))
+has the right core design: an idempotent insert keyed on the producer's UUID, with manual
+acknowledgement after the save. Four small configuration changes stop it losing or corrupting data:
+
+- **Register the error handler as a bean.** A `DefaultErrorHandler` bean is picked up by Boot's own
+  container factory. Give it an exponential back-off measured in seconds and a
+  `DeadLetterPublishingRecoverer`, whose template uses Spring Kafka's JSON serializer and the broker
+  address from properties. Make not-found failures non-retryable, delete the unused factory method,
+  and create `message-events-dlt` with 4 partitions.
+- **Switch `auto-offset-reset` to `earliest`.** The idempotent insert makes replay safe.
+- **Stop the consumer from managing schema.** Set `ddl-auto` to `validate` or `none`, and let the main
+  app own the tables.
+- **Fix `build.gradle`.** Remove the `application` plugin, whose slash-separated main class likely
+  breaks the packaged jar (B57).
+
 ### Decide whether Kafka earns its place — Next · S (decision)
 
 *Subsumes B10, B19.*
 
-Today Kafka adds a broker, a profile, and a data-loss mode, and it buys nothing. There is no
-consumer, and it does not help with multi-instance fan-out while the STOMP broker is in-memory.
-Choose one:
+Kafka now has a consumer, so the `kafka` profile is a real persistence path rather than a data-loss
+mode. It still costs a broker, a second service in a second repository, a second Spring Boot major
+version, and an eventual-consistency gap between what users see and what history contains (B56). It
+still does not help multi-instance fan-out while the STOMP broker is in-memory. Choose one:
 
-- **A. Remove it for now (recommended until scale demands it).** Delete the `kafka` profile and its
-  three classes. Keep the `MessageEventPublisher` seam, which is well designed, and implement it with
-  after-commit Spring events.
-- **B. Finish it properly.** See below.
+- **A. Keep it, and make it operable.** Apply the fixes above, plus the items below. This is the
+  natural choice if horizontal scaling is a real goal, because the per-instance fan-out group is
+  what lets Kafka solve it.
+- **B. Remove it until scale demands it.** Delete the `kafka` profile and its three classes, and
+  archive the consumer repository. Keep the `MessageEventPublisher` seam, which is well designed,
+  and implement it with after-commit Spring events.
 
 ### If keeping Kafka: complete the pipeline — Later · L
+
+- **Operate the consumer from this repository.** Add it to `docker-compose.yml` with a health check,
+  give it Actuator for liveness and readiness, alert on consumer-group lag, and document the start
+  order (B10, B58). Consider moving it into this repository as a Gradle module, which would also give
+  the next item a natural home.
+- **One event contract.** Today both repositories copy `MessageResponse` by hand. Put a versioned
+  `MessageCreatedV1` in a shared module or a schema registry, so that an incompatible change becomes a
+  build error instead of a dropped message.
+- **Persistence tests** for the consumer, using Testcontainers Kafka and PostgreSQL: a happy-path
+  round trip, a duplicate delivery, a database outage (the message must be retried, then
+  dead-lettered, never silently dropped), and a malformed record.
 
 - **Transactional outbox** instead of dual writes: insert the message and an `outbox` row in one DB
   transaction, then relay the outbox to Kafka (a polling relay, or Debezium). This removes the "sent
   to Kafka but not stored" and "stored but not sent" failure modes, and it also fixes B28.
-- **Two consumer groups.** A shared `persistence` group performs an idempotent insert
-  (`INSERT … ON CONFLICT (id) DO NOTHING`, keyed on the producer's UUID). A **per-instance**
-  `fanout-{instanceId}` group broadcasts to that instance's local STOMP sessions. This is what makes
-  Kafka solve horizontal scaling.
-- **A dedicated event schema** (`MessageCreatedV1`) decoupled from the WebSocket DTO, with type
-  headers configured intentionally.
+- **Two consumer groups.** The existing `message-persistence-group` already performs the idempotent
+  insert; a single `INSERT … ON CONFLICT (id) DO NOTHING` would replace its check-then-save.
+  Add a **per-instance** `fanout-{instanceId}` group that broadcasts to that instance's local STOMP
+  sessions. That is what makes Kafka solve horizontal scaling.
+- **A dedicated event schema**, decoupled from the WebSocket DTO, with type headers configured
+  intentionally (see "One event contract" above).
 - Delete `KafkaProducerConfig` and configure the producer entirely through
   `spring.kafka.producer.*`, so the tuning in `application-kafka.properties` finally applies. Set
-  `max.block.ms` low, and add a `DefaultErrorHandler` with a dead-letter topic.
+  `max.block.ms` low.
 
 ### Broadcast after commit — Now · S
 
@@ -422,7 +455,7 @@ The six existing unit test classes only cover the service layer, and two of them
 | Unit | JUnit 5, Mockito, injected `Clock` | `resolveStatus` boundaries; publisher selection; DTO mapping | B25, B26, B43 |
 | Web slice | `@WebMvcTest` + `spring-security-test` | **An authorization matrix**: every endpoint × {owner, member, stranger, anonymous} | B01–B05, B22, B29 |
 | Persistence | `@DataJpaTest` + Testcontainers Postgres | Derived queries, constraints, cascades, migrations | B21, B23 |
-| Integration | `@SpringBootTest` + Testcontainers Redis/Kafka | Presence expiry end to end; Kafka round trip | B10, B14 |
+| Integration | `@SpringBootTest` + Testcontainers Redis/Kafka/PostgreSQL | Presence expiry end to end; producer → consumer → database round trip, including a database outage | B14, B52, B54 |
 | WebSocket | `WebSocketStompClient` against a random port | CONNECT auth, SUBSCRIBE authorization, DM delivery to the right user | B04, B11, B12 |
 | Architecture | ArchUnit | No entities in controllers; no `System.out`; layering rules | B01, B02 |
 | Frontend unit | Vitest + React Testing Library + MSW | Hooks, reducers, the subscription manager | B18, B27, B30 |
@@ -471,6 +504,10 @@ Run on every pull request, not only `workflow_dispatch`:
 
 Use current action versions (`actions/checkout@v4`, `actions/setup-java@v4` with `temurin`), store the
 Sonar token as a repository secret, and protect `main` so these checks are required.
+
+`message-consumer-service` has no CI at all. Give it the same backend steps, with its context test
+running against Testcontainers instead of live services. If it moves into this repository as a
+module, it inherits the pipeline.
 
 ### Container and compose hardening — Next · S
 

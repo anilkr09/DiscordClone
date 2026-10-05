@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 ./gradlew bootRun                                  # run with default 'local' profile
-SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # run with Kafka producer path
+SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # Kafka path; start message-consumer-service first
 ./gradlew build                                    # full build (currently FAILS — see Build state)
 ./gradlew clean bootJar -x test -x pmdMain -x pmdTest   # the build command that actually works
 ./gradlew test                                     # run tests (currently FAILS to compile)
@@ -63,11 +63,14 @@ over propagating the workaround.
 ## Architecture
 
 Spring Boot monolith + React SPA. PostgreSQL is the system of record, Redis holds ephemeral presence,
-Kafka is an optional message path. Real-time is STOMP over native WebSocket.
+Kafka is an optional message path. Real-time is STOMP over native WebSocket. Under the `kafka`
+profile, messages are persisted by a **separate repository**,
+[`message-consumer-service`](https://github.com/anilkr09/message-consumer-service) (Spring Boot 4,
+no web server), not by this one.
 
 Detailed docs live in `docs/` (ARCHITECTURE, IMPLEMENTATION, WEBSOCKETS, KAFKA, REDIS). Read those
 before changing the messaging or presence layers. `docs/BUGS.md` is the numbered defect catalog
-(B01–B51). When you fix one, reference its ID in the commit and remove or mark it in that file.
+(B01–B58). When you fix one, reference its ID in the commit and remove or mark it in that file.
 `docs/IMPROVEMENTS.md` holds the prioritized roadmap.
 
 ### The profile seam (most important structural decision)
@@ -82,11 +85,20 @@ before changing the messaging or presence layers. `docs/BUGS.md` is the numbered
 
 `Message.id` is an app-generated `String` UUID rather than a DB sequence **because of this seam** —
 in the Kafka path the ID must exist before any write, so it stays stable across the broadcast, the
-topic record, and any future consumer-side insert.
+topic record, and the consumer's insert. The consumer uses it as an idempotency key, skipping any
+UUID already stored.
 
-> **The `kafka` profile loses data.** There is no `@KafkaListener` anywhere, and persistence is a
-> no-op under that profile, so messages are broadcast live and never stored. Do not use it for
-> anything real until a consumer exists.
+> **The `kafka` profile can lose data.** This repository has no `@KafkaListener`, and persistence is a
+> no-op under that profile. Rows are written by `message-consumer-service`, which:
+> - drops any message it fails to save after 10 instant retries, because its error-handler factory
+>   method lacks `@Bean` (B52);
+> - starts at the **end** of the topic on its first run (`auto-offset-reset=latest`), so start it
+>   before producing anything (B54);
+> - runs `ddl-auto=update` against the same schema with copied entities (B55).
+>
+> Changing `payload/MessageResponse` changes the Kafka event contract. The consumer has a hand-copied
+> `dto/MessageResponse`, and a renamed or removed field becomes `null` there. A null `author` makes
+> the save fail, and the message is dropped. See `docs/KAFKA.md` §4.
 
 `app.kafka.enabled` exists in both profile properties files but is read by nothing — profile
 selection alone drives wiring. `KafkaProducerConfig` defines an explicit `ProducerFactory`, which

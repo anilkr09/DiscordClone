@@ -86,7 +86,7 @@ reads as live consumer configuration but is never applied. It does not exist on 
 | Profile | `MessageEventPublisher` | `MessagePersistenceService` | Messages persisted? |
 |---|---|---|---|
 | `local` (default) | `LocalMessageEventPublisher` | `LocalMessagePersistenceService` | Yes |
-| `kafka` | `KafkaMessageEventPublisher` | `NoOpMessagePersistenceService` | **No** — no consumer exists |
+| `kafka` | `KafkaMessageEventPublisher` | `NoOpMessagePersistenceService` | **Only by the separate [`message-consumer-service`](https://github.com/anilkr09/message-consumer-service)**, and only while it runs (§8.15) |
 
 `app.kafka.enabled` is defined in both profile files but **read by nothing**. No
 `@ConditionalOnProperty` or `@Value` references it, so profile selection alone drives the wiring.
@@ -396,7 +396,7 @@ docker compose up -d                               # + kafka, kafka-init, kafka-
 
 # 2. backend (http://localhost:8080)
 ./gradlew bootRun                                  # local profile (default)
-SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # kafka profile — see warning below
+SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # kafka profile; start the consumer first (below)
 
 # 3. frontend (http://localhost:5173)
 cd frontend
@@ -420,8 +420,12 @@ existing as **ID 1**, because every DM channel is attached to it (§8.7). Two ca
 > **Before any of this works**, apply the blocking fixes in §8.1 and §8.2. As committed, the backend
 > does not compile, and presence never reaches OFFLINE.
 
-> **Do not use the `kafka` profile** until a consumer exists — messages are broadcast but never
-> stored ([KAFKA.md](KAFKA.md#4-the-missing-consumer)).
+> **Using the `kafka` profile** requires the consumer service from its own repository,
+> [`message-consumer-service`](https://github.com/anilkr09/message-consumer-service). Start Kafka and
+> PostgreSQL, run `./gradlew bootRun` in the consumer's checkout **before** starting this app with the
+> `kafka` profile, and keep it running. It reads from the end of the topic on its first start, so
+> anything produced earlier is never stored. Even then, a message it fails to save is dropped after
+> ten instant retries (§8.15, [KAFKA.md §5](KAFKA.md#5-operating-the-kafka-profile)).
 
 Supporting UIs: pgAdmin <http://localhost:5050> (`admin@dev.com` / `admin`), Kafka UI
 <http://localhost:8085>.
@@ -468,7 +472,7 @@ Jest, or Testing Library).
 
 ## 8. Known issues
 
-> [BUGS.md](BUGS.md) is the complete, numbered catalog (B01–B51), with an evidence tag and a fix
+> [BUGS.md](BUGS.md) is the complete, numbered catalog (B01–B58), with an evidence tag and a fix
 > for each item. This section is a narrative summary of the most important ones, and
 > [IMPROVEMENTS.md](IMPROVEMENTS.md) covers the structural changes that prevent them.
 
@@ -668,12 +672,23 @@ token ([WEBSOCKETS.md](WEBSOCKETS.md#61-connection-management)).
 grow with every render and are never released. Redux de-duplication hides the symptom.
 [WEBSOCKETS.md](WEBSOCKETS.md#64-message-reception).
 
-### 8.15 The `kafka` profile silently discards all messages
+### 8.15 The `kafka` profile depends on a consumer service that can lose messages
 
-No `@KafkaListener` exists on any branch, and `NoOpMessagePersistenceService` is active under that
-profile. Messages are produced and broadcast, then lost. A Kafka outage also blocks STOMP worker
-threads for up to 60 s per send. [KAFKA.md](KAFKA.md#4-the-missing-consumer) includes a reference
-consumer.
+This repository has no `@KafkaListener`. Under the `kafka` profile, `NoOpMessagePersistenceService`
+is active, and messages are stored only by the separate
+[`message-consumer-service`](https://github.com/anilkr09/message-consumer-service). That service
+has the right design, an idempotent insert keyed on the producer's UUID with manual
+acknowledgement, but:
+
+- **Its error handler is never registered.** The factory method lacks `@Bean`, so any failed save is
+  retried 10 times with no delay and then dropped (BUGS.md B52).
+- **It starts at the end of the topic** (`auto-offset-reset=latest`), so messages produced before its
+  first start, or during a long outage, are never stored (B54).
+- **It manages the same schema as this app** with copied entities and `ddl-auto=update` (B55).
+- **Nothing in this repository runs or monitors it** (B10).
+
+On the producer side, a Kafka outage also blocks STOMP worker threads for up to 60 s per send.
+[KAFKA.md §4](KAFKA.md#4-the-consumer-service) covers the consumer in full.
 
 ### 8.16 Broken server endpoints
 
@@ -737,7 +752,9 @@ are wrong (§1).
    `registerGroupMessageSocket` into an effect (§8.14).
 6. Give DMs participant-based authorization instead of server 1 (§8.7). Fix message delete (§8.8) and
    the seeder (§8.11).
-7. Either implement the Kafka consumer or drop the `kafka` profile (§8.15). A profile that loses data
-   is worse than no profile.
+7. Either harden the Kafka path or drop the `kafka` profile (§8.15). Hardening means registering the
+   consumer's error handler with a working dead-letter topic, switching it to `earliest`, taking
+   schema management away from it, and running it from `docker-compose.yml` with a health check. A
+   profile that loses data is worse than no profile.
 8. Add migrations (Flyway), move off `ddl-auto=update`, and add controller tests. Every item in step 1
    is an authorization rule that a `@WebMvcTest` would pin down.

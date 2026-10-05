@@ -4,8 +4,10 @@
 
 DiscordClone is a two-tier application: a Spring Boot 3.2.2 monolith (Java 17) serving a React 18 +
 Vite single-page app. Real-time delivery runs over STOMP-on-WebSocket. PostgreSQL is the system of
-record, Redis holds ephemeral presence state, and Kafka is an optional fan-out path for chat
-messages selected by Spring profile.
+record, Redis holds ephemeral presence state, and Kafka is an optional path for chat messages,
+selected by Spring profile. On that path the monolith only produces events. A separate service,
+[`message-consumer-service`](https://github.com/anilkr09/message-consumer-service), consumes them and
+writes the messages to PostgreSQL.
 
 ```mermaid
 graph TB
@@ -27,6 +29,10 @@ graph TB
         KF[[Kafka<br/>message-events]]
     end
 
+    subgraph Consumer["message-consumer-service (separate repo, Boot 4)"]
+        MKC[MessageKafkaConsumer<br/>group message-persistence-group]
+    end
+
     UI -->|HTTP + JWT Bearer| REST
     STOMP <-->|WebSocket| WS
     REST --> SVC
@@ -37,12 +43,12 @@ graph TB
     SVC --> PG
     SVC --> RD
     RD -.->|keyevent expired| SVC
-    KF -.->|NO CONSUMER EXISTS| PG
-
-    style KF stroke-dasharray: 5 5
+    KF --> MKC
+    MKC -->|idempotent insert| PG
 ```
 
-The dashed Kafka→PostgreSQL edge is **not implemented**. See [KAFKA.md](KAFKA.md#4-the-missing-consumer).
+The consumer service is not part of this repository and nothing here runs it. Its behaviour, and its
+problems, are covered in [KAFKA.md §4](KAFKA.md#4-the-consumer-service).
 
 ## 2. Runtime topology
 
@@ -77,6 +83,12 @@ at `https://discordclone-hd22.onrender.com`, and `SecurityConfig` allows CORS fr
 so production appears to be a Render backend with a Vercel frontend. Two other compose files,
 `docker-compose-bkp.yml` and `updated-docker-compose.yml`, define containerised backend, frontend,
 and Jenkins-agent services, but neither includes Postgres, Redis, or Kafka.
+
+The **consumer service** is not in any compose file either. It is a separate Spring Boot 4.0.5
+application with no web server, run on the host with `./gradlew bootRun` from its own repository.
+It connects to the same `localhost:9092` broker and the same `dev_database`. With the `kafka`
+profile, it has to be started before the main app produces anything, because it begins reading at
+the end of the topic ([KAFKA.md §4.7](KAFKA.md#47-offsets-what-happens-to-messages-produced-while-the-consumer-is-not-running)).
 
 ### Port note
 
@@ -311,6 +323,7 @@ sequenceDiagram
     else kafka profile
         P->>P: kafkaTemplate.send("message-events", channelId, response)
         P->>B: broadcast in the producer ack callback
+        Note over P: message-consumer-service later reads<br/>the record and inserts the row
     end
     B-->>C: MESSAGE frame
 ```
@@ -318,7 +331,7 @@ sequenceDiagram
 The branch at `publish` is the central architectural seam of the codebase — see
 [KAFKA.md](KAFKA.md#1-the-profile-seam).
 
-Three properties of this path that are easy to miss:
+Four properties of this path that are easy to miss:
 
 - **No authorization.** Neither `MessageController.sendMessage` nor `MessageService.sendMessage`
   checks that the sender belongs to the channel's server. Any authenticated user can post to any
@@ -331,6 +344,10 @@ Three properties of this path that are easy to miss:
   the frame before the row is committed. If the commit then fails, clients have displayed a message
   that does not exist. A `TransactionSynchronization.afterCommit` hook, or
   `@TransactionalEventListener(phase = AFTER_COMMIT)`, would order these correctly.
+- **In the `kafka` profile the broadcast happens before the row exists at all.** The row is written
+  by another process whenever the consumer service gets to it. That is normally milliseconds, but it
+  is unbounded while the consumer is down, and never if the consumer skips the message after a failed
+  save ([KAFKA.md §4.8](KAFKA.md#48-consistency-between-the-two-services)).
 
 ### 5.3 Presence
 
@@ -462,11 +479,14 @@ Generating the message ID in the producer is the correct call for that seam. On 
 deriving status from TTL'd Redis keys rather than from socket lifecycle is the right instinct — it
 survives process restarts and abrupt disconnects that a connection-scoped map would not.
 
-**Where it is incomplete.** The Kafka half of that seam has a producer but no consumer, so the
-`kafka` profile silently drops every message from durable storage. The Redis half depends on
-keyspace notifications that are not switched on, so the OFFLINE transition never fires. Both halves
-are one small change away from working, but as committed each is a functioning front end attached to
-a missing back end.
+**Where it is incomplete.** The Kafka half of that seam is split across two repositories. This one
+produces, and `message-consumer-service` persists, with an idempotent insert keyed on the
+producer's UUID, which is the right design. But the consumer's error handler is never registered, so
+it drops any message it fails to save after ten instant retries. It starts reading at the end of the
+topic, so deployment order can lose messages. Both services also manage the same schema. The Redis
+half depends on keyspace notifications that are not switched on, so the OFFLINE transition never
+fires. Each half is a few small changes from working, but as committed neither delivers what its
+design promises.
 
 **Where it is unsafe.** Authorization is the weakest layer. It is applied per service method rather
 than centrally, so it is missing wherever someone forgot it: message send and read, server

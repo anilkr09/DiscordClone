@@ -9,9 +9,9 @@ Engineering documentation for the DiscordClone real-time chat application.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System topology, module layout, domain model, end-to-end flows, branch topology |
 | [IMPLEMENTATION.md](IMPLEMENTATION.md) | Package-by-package walkthrough, REST/STOMP surface, configuration, profiles, local setup |
 | [WEBSOCKETS.md](WEBSOCKETS.md) | STOMP broker internals, handshake & authentication, destination map, client implementation |
-| [KAFKA.md](KAFKA.md) | Producer configuration, the profile seam, delivery semantics, the missing consumer |
+| [KAFKA.md](KAFKA.md) | Producer configuration, the profile seam, delivery semantics, and the separate consumer service that persists messages |
 | [REDIS.md](REDIS.md) | Presence key schema, TTL state machine, keyspace-expiry listener, status resolution |
-| [BUGS.md](BUGS.md) | **Numbered defect catalog** (B01–B51) with severity, evidence, location, and fix, plus the implementation patterns behind them |
+| [BUGS.md](BUGS.md) | **Numbered defect catalog** (B01–B58) with severity, evidence, location, and fix, plus the implementation patterns behind them |
 | [IMPROVEMENTS.md](IMPROVEMENTS.md) | Prioritized improvements (security, API, data, messaging, presence, scaling, frontend, testing, ops) and a phased roadmap |
 
 ## Scope
@@ -28,6 +28,15 @@ Because `main` and `feature/redis` have identical trees, the documentation descr
 codebase and treats `feature/kafka` as the historical predecessor. Where the two differ in design,
 the difference is called out explicitly — see [REDIS.md](REDIS.md#8-evolution-from-featurekafka-to-main)
 for the presence rewrite, which is the single largest behavioural change between them.
+
+They also cover one related repository:
+
+| Repository | Commit | Relationship |
+|---|---|---|
+| [`message-consumer-service`](https://github.com/anilkr09/message-consumer-service) | `4fcde05` (`main`, its only commit) | Consumes `message-events` and writes messages to PostgreSQL under the `kafka` profile. Separate Spring Boot 4.0.5 service; nothing in this repository runs it |
+
+[KAFKA.md §4](KAFKA.md#4-the-consumer-service) documents it, and BUGS.md lists its defects as
+B52–B58 (plus B10).
 
 ## Read this first
 
@@ -56,7 +65,10 @@ are summarised here because they affect everything else.
 8. **Presence never reaches `OFFLINE`.** Redis keyspace notifications are not enabled.
 9. **Token refresh is broken end to end.** The frontend calls a non-existent `/api/refresh-token`,
    so sessions end at the 24-hour access-token expiry.
-10. **In the `kafka` profile, messages are never persisted.** The topic has no consumer.
+10. **In the `kafka` profile, messages can be silently lost.** They are persisted by the separate
+    consumer service, whose error handler is never registered. Any failed save is dropped after ten
+    instant retries. It also starts at the end of the topic, so messages produced before its first
+    start are never stored.
 
 ### Secrets in git history
 
@@ -66,9 +78,12 @@ are summarised here because they affect everything else.
 
 ## Verification notes
 
-Every claim was checked against the source on `main` (commit `d10d627`). A few could not be
-executed, because no JRE was available where these docs were written. Those are marked
+Every claim was checked against the source on `main` (commit `d10d627`), and consumer claims against
+`message-consumer-service` at `4fcde05`. Spring Kafka behaviour (default error handler, dead-letter
+naming, recoverer failure) was checked against the Spring Kafka reference documentation. A few
+claims could not be executed, because no JRE was available where these docs were written. Those are marked
 *not exercised* or *likely* where they appear. They are the compile failure (§8.1, inferred from
 the dependency block against the imports), the server-delete foreign-key failure, the lazy-entity
-serialization failure on `GET /api/channels/.../{id}`, and the `POST /api/users` account overwrite
-(from Spring Data `save`/`merge` semantics).
+serialization failure on `GET /api/channels/.../{id}`, the `POST /api/users` account overwrite
+(from Spring Data `save`/`merge` semantics), and two consumer items: the dead-letter wiring failure
+(B53) and the packaged-jar main class (B57).
