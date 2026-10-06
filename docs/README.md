@@ -13,6 +13,7 @@ Engineering documentation for the DiscordClone real-time chat application.
 | [REDIS.md](REDIS.md) | Presence key schema, TTL state machine, keyspace-expiry listener, status resolution |
 | [BUGS.md](BUGS.md) | **Numbered defect catalog** (B01–B58) with severity, evidence, location, and fix, plus the implementation patterns behind them |
 | [IMPROVEMENTS.md](IMPROVEMENTS.md) | Prioritized improvements (security, API, data, messaging, presence, scaling, frontend, testing, ops) and a phased roadmap |
+| [guides/](guides/README.md) | **Technology guides** for STOMP over WebSocket, Redis and Kafka: how each works, its features with example scenarios, comparisons, pitfalls and self-check questions |
 
 ## Scope
 
