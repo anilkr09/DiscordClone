@@ -82,6 +82,7 @@ its severity, so numbers are not strictly in severity order.
 | [B55](#b55-two-services-manage-one-schema) | Two services manage one schema | Medium | Data |
 | [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored | Medium | Kafka |
 | [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start | Medium | Kafka consumer |
+| [B60](#b60-unknown-urls-return-500-instead-of-404) | Unknown URLs return 500 instead of 404 | Medium | API |
 | [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice | Low | Redis |
 | [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation | Low | Redis |
 | [B43](#b43-dead-presence-logic) | Dead presence logic | Low | Redis |
@@ -93,6 +94,7 @@ its severity, so numbers are not strictly in severity order.
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
 | [B50](#b50-infrastructure-drift) | Infrastructure drift | Low | Ops |
 | [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
+| [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call | Low | Backend |
 
 ---
 
@@ -707,6 +709,30 @@ still work. This was not run.
 **Fix:** remove the `application` plugin, which Spring Boot does not need, or use the dotted class
 name.
 
+### B60. Unknown URLs return 500 instead of 404
+
+`inferred` · `J/exception/GlobalExceptionHandler.java:240-257,324-339`
+
+Spring Boot maps static resources at `/**`, so a request that no controller matches is handled by
+Spring's `ResourceHttpRequestHandler`. Since Spring Framework 6.1, the version Boot 3.2.2 uses, that
+handler **throws** `NoResourceFoundException` when no resource exists, instead of sending a 404.
+Because `GlobalExceptionHandler` is a `@ControllerAdvice` with exception handlers, Spring routes the
+exception to it. `NoResourceFoundException` is a `ServletException`, not a `RuntimeException`, so the
+`Exception` catch-all handles it: the client gets a 500 "Something went wrong", and the server logs
+an ERROR with a stack trace. The `NoHandlerFoundException` handler never fires, because the resource
+handler matches every path first.
+
+This affects authenticated requests of any method. Unauthenticated requests are rejected by Spring
+Security before they reach MVC. It was derived from the Spring Framework 6.1 source and not executed,
+because the backend does not compile (B08).
+
+**Impact:** a mistyped or removed route looks like a server fault to clients and to monitoring, and
+each one writes an ERROR log entry. The calls to non-existent routes in B40 would get 500s.
+**Fix:** add an `@ExceptionHandler(NoResourceFoundException.class)` that returns 404. Alternatively,
+since the backend serves no static files, set `spring.web.resources.add-mappings=false`. Unmatched
+requests then raise `NoHandlerFoundException`, which `DispatcherServlet` throws by default since
+Spring 6.1, and the existing handler returns 404.
+
 ---
 
 ## Low
@@ -814,6 +840,27 @@ unused.
   version Boot 4 uses. It still works, but should move to `JacksonJsonDeserializer`. The two services
   are also on different Spring Boot major versions (3.2.2 and 4.0.5).
 
+### B59. `@Async` starts a new thread for every call
+
+`inferred` · `J/config/AsyncConfig.java:6-8`, `J/config/WebSocketConfig.java:16`,
+`J/service/impl/UserStatusServiceImpl.java:273`
+
+`AsyncConfig` enables `@Async` but defines no executor. Spring Boot creates its pooled
+`applicationTaskExecutor` (8 threads, also registered as `taskExecutor`) only when the context has no
+`Executor` bean. `@EnableWebSocketMessageBroker` registers three: `clientInboundChannelExecutor`,
+`clientOutboundChannelExecutor` and `brokerChannelExecutor`. Boot's executor is therefore never
+created. `@Async` then finds several `TaskExecutor` beans and none named `taskExecutor`, logs this at
+INFO, and falls back to `SimpleAsyncTaskExecutor`, which starts a new, unpooled thread for every
+call. Today the only call that goes through the proxy is `WebSocketEventListener`'s `persistLastSeen`
+on each disconnect; the call from `resetPresence` runs synchronously (B42). It was derived from the
+Spring Boot 3.2.2 and Spring Framework 6.1 source and not executed (B08).
+
+**Impact:** nothing limits the number of threads, or how many of them compete for database
+connections. A reconnect storm creates one thread per disconnect. This is harmless at the current
+scale.
+**Fix:** define a bounded `ThreadPoolTaskExecutor` bean named `taskExecutor`, or implement
+`AsyncConfigurer` on `AsyncConfig`, which also lets you set an `AsyncUncaughtExceptionHandler`.
+
 ---
 
 ## Implementation mistakes: the patterns behind the bugs
@@ -828,11 +875,11 @@ cheaper than fixing its bugs one at a time.
 | **Trusting client-supplied identity.** Recipient, channel, and IDs in bodies are taken at face value | `MessageRequest`, `POST /api/users`, message edit | B02, B05, B11, B12 |
 | **Modeling DMs as a special case of server channels** instead of their own participant model | `ChannelService.getOrCreateDmChannel` | B13, B12, B24 |
 | **Side effects inside transactions or on I/O threads.** Broadcasts before commit, blocking sends on inbound workers | publishers | B19, B28 |
-| **Error signalling by exception where a boolean was expected**, and bare `RuntimeException` for business errors | `JwtService.validateToken`, services | B17, B29, B47 |
+| **Error signalling by exception where a boolean was expected**, bare `RuntimeException` for business errors, and catch-all handlers that turn everything else into 500 | `JwtService.validateToken`, services, `GlobalExceptionHandler` | B17, B29, B47, B60 |
 | **Zone-less time.** `LocalDateTime` everywhere | `Message`, `Friendship`, `UserStatusEntity` | B20 |
 | **Subscriptions outside effect lifecycles.** Subscribing in render bodies or effects without cleanup | `ChatArea`, `useChannels` | B18, B30 |
 | **Reading an accumulated array's last element** instead of handling events | `useWebSocketTopic` consumers | B27 |
-| **Configuration that looks live but is not.** Explicit beans that silently override properties, unloaded files, and a factory method without `@Bean` | `KafkaProducerConfig`, `application1.properties`, `spring.websocket.*`, consumer `KafkaConsumerConfig` | B19, B50, B52, B53 |
+| **Configuration that looks live but is not.** Explicit beans that silently override properties or suppress Boot's defaults, unloaded files, and a factory method without `@Bean` | `KafkaProducerConfig`, `AsyncConfig`, `application1.properties`, `spring.websocket.*`, consumer `KafkaConsumerConfig` | B19, B50, B52, B53, B59 |
 | **A second service with nothing tying it in.** The consumer is not started, configured, tested, or monitored from the main repository, and the two share a database and a DTO by copy | consumer repository | B10, B54, B55, B56, B57, B58 |
 | **Two sources of truth without reconciliation.** Custom status in Redis and Postgres; server/client API contracts hand-maintained | presence, frontend services | B40, B43 |
 | **Code and tests not updated together.** Refactors land without updating tests or the client | tests, frontend services | B09, B40, B49 |

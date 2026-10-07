@@ -344,7 +344,8 @@ are enforced when the parameter is marked `@Valid`. A failure throws
   authenticated `GET /api/nonexistent` gets a 500. The `NoHandlerFoundException` handler never fires,
   because the resource handler matches first. Adding an `@ExceptionHandler(NoResourceFoundException.class)`
   that returns 404 fixes it. This follows from the Spring Framework 6.1 source; it was not observed
-  in a running instance, because the backend does not currently compile (B08).
+  in a running instance, because the backend does not currently compile
+  ([BUGS.md B60](../BUGS.md#b60-unknown-urls-return-500-instead-of-404)).
 - **Filter-level errors are handled elsewhere.** An exception that escapes a servlet filter never
   reaches `@ControllerAdvice`. The container forwards to `/error` (an *ERROR dispatch*), where Boot's
   `BasicErrorController` renders a JSON error. That is why `SecurityConfig` permits
@@ -576,7 +577,7 @@ creates a thread. That is harmless at this project's scale, but it is unbounded 
 is to define the executor explicitly: a `ThreadPoolTaskExecutor` bean named `taskExecutor`, or an
 `AsyncConfigurer` on `AsyncConfig`. This follows from the Spring Boot 3.2.2 and Spring Framework 6.1
 source; it was not observed in a running instance, because the backend does not currently compile
-(B08).
+([BUGS.md B59](../BUGS.md#b59-async-starts-a-new-thread-for-every-call)).
 
 ### 9.2 Application events and `@EventListener`
 
@@ -747,8 +748,8 @@ functional.
 | `open-in-view=false` plus returning lazy entities | Serialization fails outside the transaction | B36 |
 | Returning or binding entities in controllers | Password hashes leak; mass assignment | B01, B02, B05 |
 | A catch-all `@ExceptionHandler(RuntimeException)` | Business errors become 500s; `@ResponseStatus` ignored | B29 |
-| Spring 6.1 throws `NoResourceFoundException` for unmatched paths, and a catch-all `@ExceptionHandler(Exception)` catches it | Unknown URLs return 500 instead of 404 | §5.6 |
-| Boot's task executor backs off when any `Executor` bean exists, and the WebSocket broker defines three | `@Async` runs on an unbounded thread-per-call `SimpleAsyncTaskExecutor` | §9.1 |
+| Spring 6.1 throws `NoResourceFoundException` for unmatched paths, and a catch-all `@ExceptionHandler(Exception)` catches it | Unknown URLs return 500 instead of 404 | B60 |
+| Boot's task executor backs off when any `Executor` bean exists, and the WebSocket broker defines three | `@Async` runs on an unbounded thread-per-call `SimpleAsyncTaskExecutor` | B59 |
 | Transactions do not cover side effects | Broadcast before commit | B28 |
 | Unknown properties are silently ignored | Several inert settings | B50 |
 | `ddl-auto=update` in two services | Schema drift | B55 |

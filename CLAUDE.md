@@ -70,7 +70,7 @@ no web server), not by this one.
 
 Detailed docs live in `docs/` (ARCHITECTURE, IMPLEMENTATION, WEBSOCKETS, KAFKA, REDIS). Read those
 before changing the messaging or presence layers. `docs/BUGS.md` is the numbered defect catalog
-(B01–B58). When you fix one, reference its ID in the commit and remove or mark it in that file.
+(B01–B60). When you fix one, reference its ID in the commit and remove or mark it in that file.
 `docs/IMPROVEMENTS.md` holds the prioritized roadmap.
 
 ### The profile seam (most important structural decision)
