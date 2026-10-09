@@ -12,4 +12,10 @@ public class WebSocketExceptionHandler {
     public String handleJwtException(JwtAuthenticationException ex) {
         return "Authentication Error: " + ex.getMessage();
     }
+
+    @MessageExceptionHandler(ChannelAccessDeniedException.class)
+    @SendToUser("/queue/errors")
+    public String handleChannelAccessDenied(ChannelAccessDeniedException ex) {
+        return "Channel Access Denied: " + ex.getMessage();
+    }
 }

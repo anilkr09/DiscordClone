@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -92,6 +93,11 @@ public class MessageService {
                 messages.map(MessageResp::fromEntity);
 
         return response;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Message> getMessageById(String messageId) {
+        return messageRepository.findById(messageId);
     }
 
 

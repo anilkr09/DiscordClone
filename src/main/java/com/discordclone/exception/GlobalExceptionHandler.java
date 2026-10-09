@@ -190,6 +190,23 @@ public class GlobalExceptionHandler {
                             null
                     ));
         }
+    
+    @ExceptionHandler(ChannelAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleChannelAccessDenied(
+            ChannelAccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+        log.warn("❌ Channel access denied: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ErrorResponse(
+                        HttpStatus.FORBIDDEN.value(),
+                        "FORBIDDEN",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                ));
+    }
+    
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex,
