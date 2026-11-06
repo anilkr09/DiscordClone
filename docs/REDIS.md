@@ -920,6 +920,56 @@ whose member is the session ID and whose score is that session's deadline in epo
 | Count live sessions | `ZREMRANGEBYSCORE presence:sessions:{id} -inf {now}`, then `ZCARD presence:sessions:{id}` |
 | Marker expires | count again under the per-user lock (§10.8). OFFLINE only if the count is 0 and the heartbeat key exists, as in the chosen design |
 
+**How a single session expires.** Redis cannot expire a member of a sorted set; a TTL applies only
+to a whole key. The expiry here is logical and lazy:
+
+1. **The score is the deadline.** Each heartbeat's `ZADD` moves only that session's score forward. A
+   session that stops heartbeating, for example because its instance crashed, keeps its old score.
+2. **Nothing happens when the deadline passes.** The member stays in the set and no event fires.
+3. **The next count removes it.** `ZREMRANGEBYSCORE … -inf {now}` deletes every member whose deadline
+   has passed, and `ZCARD` then counts only live sessions.
+
+Example, with times in seconds and each score written as the time its deadline falls on:
+
+| t | Event | Commands | Set after |
+|---|---|---|---|
+| 0 | Tab A connects | `ZADD … 30 A` | A→30 |
+| 5 | Tab B connects, on instance 2 | `ZADD … 35 B` | A→30, B→35 |
+| 10 | A heartbeats | `ZADD … 40 A` | A→40, B→35 |
+| 15 | B heartbeats | `ZADD … 45 B` | A→40, B→45 |
+| 22 | **Instance 2 crashes**, so B gets no disconnect event | none | A→40, B→45 (B is now frozen) |
+| 30, 40 | A heartbeats | `ZADD … 60 A`, then `ZADD … 70 A` | A→70, B→45 |
+| 47 | A closes | `ZREM A`, then prune `-inf 47` removes B (45 < 47), then `ZCARD` returns 0 | empty, so the pending marker is written |
+| 55 | The marker expires | count again: still 0 | user goes **OFFLINE** |
+
+With the plain set of the chosen design, A's heartbeats would have kept renewing the set's single
+TTL, B would still be in it at t=47, no marker would be written, and the user would wait for the
+heartbeat fallback. Had A closed at t=35, B's deadline (45) would not yet have passed, and the
+fallback would apply here too. That is the exception noted below.
+
+The two other commands in the connect row:
+
+- **`EXPIRE presence:sessions:{id} 30` is only cleanup.** It deletes the whole set 30 s after the
+  last heartbeat from any session. It does not decide which sessions are alive; the scores do. Once
+  the key has expired, the next `ZADD` creates it again.
+- **Deleting `presence:offline_pending:{id}` cancels a pending OFFLINE.** It is a separate key. A
+  reload closes the tab, writes the marker, and then reconnects within the 8 s grace period. The
+  connect deletes the marker before it expires, so friends see nothing.
+
+**What triggers a count.** The application sends `ZREMRANGEBYSCORE` and `ZCARD` itself; Redis never
+runs them. There is no scheduled job and no polling, and connects and heartbeats only `ZADD`. Two
+event handlers run the count:
+
+| Trigger | Who notices it | Where the count runs |
+|---|---|---|
+| A tab disconnects cleanly | Spring publishes `SessionDisconnectEvent` | `WebSocketEventListener.handleSessionDisconnect` → `unregisterSession`: `ZREM`, then the count. If it is 0, write the pending marker |
+| The pending marker expires, 8 s later | Redis publishes on `__keyevent@*__:expired` | `PresenceExpirationListener` → `completePendingOffline`, under the per-user lock (§10.8): count again. If it is 0 and the heartbeat key exists, go OFFLINE |
+
+Only the marker key's expiry produces a Redis event. A session's deadline passing produces none,
+because it is only a number inside the set, which is why every count prunes first. The second trigger
+depends on expired-key notifications, which are off today (§10.2). Without them, the marker never
+fires and this design cannot work.
+
 What this changes:
 
 - **Stale sessions are dropped by their own score.** A crashed instance's session IDs stop being
