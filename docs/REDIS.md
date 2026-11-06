@@ -887,9 +887,7 @@ its per-user lock (§10.8), and the single-argument `setOfflineAndBroadcast` (§
   refreshing the set's TTL, so the crashed instance's stale IDs stay in it. When the user later
   closes their last live session, the set is not empty, no marker is written, and the user goes
   OFFLINE through the heartbeat fallback (20–30 s) instead. The status is never wrong, only slower.
-  A stricter design uses one key per session (`presence:session:{userId}:{sessionId}`), each with its
-  own TTL refreshed only by that session's heartbeat. That removes stale entries automatically, at
-  the cost of a `SCAN` to count a user's sessions.
+  The *stricter variant* after the checks below removes this limitation.
 - **For up to 10 s after Redis loses its data,** the session sets are empty until heartbeats rebuild
   them. Closing one of several tabs in that window can mark the user OFFLINE. Their other tab's next
   heartbeat brings them back.
@@ -906,6 +904,64 @@ its per-user lock (§10.8), and the single-argument `setOfflineAndBroadcast` (§
 - Disable Wi-Fi: OFFLINE 20–30 s later, and only once, even when the server notices the dead socket
   afterwards.
 - While connected, the session set holds one entry per open tab.
+
+#### Stricter variant: a sorted set scored by deadline
+
+The crash limitation above exists because the set has a single TTL, and any live session's heartbeat
+renews it for every member. The fix is to give each session its own expiry. That is done by storing
+the expiry *inside* the set, not on the key: make `presence:sessions:{userId}` a **sorted set**
+whose member is the session ID and whose score is that session's deadline in epoch milliseconds.
+
+| Event | Commands |
+|---|---|
+| Connect | `ZADD presence:sessions:{id} {now+30000} {sessionId}`, `EXPIRE presence:sessions:{id} 30`, delete the pending marker |
+| Heartbeat | the same `ZADD` and `EXPIRE`. Only this session's score moves forward |
+| Disconnect | `ZREM presence:sessions:{id} {sessionId}`, then count (below). If the count is 0, write the pending marker |
+| Count live sessions | `ZREMRANGEBYSCORE presence:sessions:{id} -inf {now}`, then `ZCARD presence:sessions:{id}` |
+| Marker expires | count again under the per-user lock (§10.8). OFFLINE only if the count is 0 and the heartbeat key exists, as in the chosen design |
+
+What this changes:
+
+- **Stale sessions are dropped by their own score.** A crashed instance's session IDs stop being
+  refreshed, their deadlines pass, and the next count removes them, even while another session of the
+  same user keeps heartbeating. The user then goes OFFLINE through the 8 s grace marker, not the
+  20–30 s heartbeat fallback.
+  The exception is a crash less than 30 s before the last close: the crashed sessions are still
+  within their deadline, no marker is written, and the user takes the heartbeat fallback as today.
+- **Counting costs O(log n + m) in that user's own sessions**, where n is the number of the user's
+  sessions (a handful) and m the number removed. It never touches other keys.
+- **The key's TTL is now only housekeeping.** It makes an idle user's sorted set disappear, but it
+  no longer decides which sessions are alive.
+- **Duplicate events stay harmless.** `ZADD` of an existing member only updates its score, and
+  `ZREM` of a missing member does nothing, so the idempotence argument for the set still holds.
+- **Run the count as one unit.** Send `ZREMRANGEBYSCORE` and `ZCARD` in a `MULTI`/`EXEC` or a short
+  Lua script, so another instance cannot interleave between the prune and the count.
+
+Code changes on top of the chosen design: `opsForSet().add/remove/size` become
+`opsForZSet().add(key, sessionId, now + 30_000)`, `opsForZSet().remove(...)`, and
+`removeRangeByScore(key, Double.NEGATIVE_INFINITY, now)` followed by `zCard(key)`. Add a constant for
+the per-session lifetime (30 s, three heartbeat intervals).
+
+Costs and caveats:
+
+- **Scores come from each instance's clock.** A session written by an instance whose clock runs
+  ahead lives longer, and one that runs behind can be pruned early. Keep instance clocks within a few
+  seconds of each other (ordinary NTP is enough). Alternatively, take `now` from Redis `TIME` inside
+  the Lua script, so every instance uses the same clock.
+- **`now` must be the same unit everywhere.** Mixing seconds and milliseconds silently prunes every
+  session, or none.
+
+Rejected alternative: one key per session (`presence:session:{userId}:{sessionId}`), each with its
+own TTL. Per-session expiry comes for free, but counting a user's sessions needs
+`SCAN 0 MATCH presence:session:{userId}:*`. `MATCH` filters after the cursor has walked the slots, so
+SCAN visits the **whole keyspace** to prove a user has no sessions left. The "no sessions left" case
+is exactly the one that leads to OFFLINE, and it would run on every tab close. On Redis Cluster,
+SCAN also covers only the node it is sent to.
+
+**Check (variant):** the checks above still pass, plus: open a tab on each of two instances, kill one
+instance with `kill -9`, then close the other tab. Friends see OFFLINE about 8 s later, not 20–30 s.
+`ZRANGE presence:sessions:{id} 0 -1 WITHSCORES` shows one entry per open tab, each with a deadline
+under 30 s ahead.
 
 ### 10.15 Finding 15 — enable STOMP heart-beats
 
