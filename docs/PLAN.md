@@ -63,8 +63,9 @@ compile; S2's logic is fixed in M1.
 Before any code, the repository owner must do the manual steps in
 [Owner-only steps](#owner-only-steps): revoke the SonarCloud token and rotate the JWT secret.
 
-**Status:** code changes made. Unticked items are written but not yet verified, and the app has not
-been started with the new configuration.
+**Status:** done, except that the workflows have not run on GitHub yet (they run on the first pull
+request). The build, the secret scan, the compose stack and application startup were verified
+locally.
 
 **Build**
 - [x] Add `org.springframework.boot:spring-boot-starter-data-redis` to `build.gradle` (B08).
@@ -93,7 +94,7 @@ been started with the new configuration.
   `application1.properties`.
 - [x] Delete the inert properties: `spring.websocket.*`, `spring.h2.*`, and `spring.cache.*`.
   `spring.kafka.producer.*` and `app.kafka.enabled` are handled in M2.
-- [ ] Mount the declared `kafka-data` volume, and replace `kafka-init`'s `sleep 10` with a
+- [x] Mount the declared `kafka-data` volume, and replace `kafka-init`'s `sleep 10` with a
   health-gated `depends_on`.
 
 **CI (B38)**
