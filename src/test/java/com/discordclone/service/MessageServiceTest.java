@@ -28,7 +28,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -47,11 +47,17 @@ class MessageServiceTest {
     @Mock
     private SimpMessagingTemplate messagingTemplate;
 
+    @Mock
+    private MessagePersistenceService persistenceService;
+
+    @Mock
+    private MessageEventPublisher eventPublisher;
+
     @InjectMocks
     private MessageService messageService;
 
     @Captor
-    private ArgumentCaptor<String> destinationCaptor;
+    private ArgumentCaptor<Message> messageCaptor;
 
     @Captor
     private ArgumentCaptor<MessageResponse> messageResponseCaptor;
@@ -72,7 +78,7 @@ class MessageServiceTest {
         testChannel.setName("testChannel");
 
         testMessage = new Message();
-        testMessage.setId(1L);
+        testMessage.setId("message-1");
         testMessage.setSender(testUser);
         testMessage.setChannel(testChannel);
         testMessage.setContent("Test message");
@@ -87,13 +93,17 @@ class MessageServiceTest {
     void sendMessage_Success() {
         when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
-        when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
 
         Message result = messageService.sendMessage(testMessageRequest, testUser.getId());
 
-        assertNotNull(result);
-        assertEquals(testMessage.getContent(), result.getContent());
-        verify(messagingTemplate).convertAndSend(anyString(), any(MessageResponse.class));
+        verify(eventPublisher).publish(messageCaptor.capture(), messageResponseCaptor.capture(),
+                eq(testMessageRequest), eq(testUser));
+        assertSame(result, messageCaptor.getValue());
+        assertEquals("Test message", result.getContent());
+        assertNotNull(result.getId());
+        assertEquals(result.getId(), messageResponseCaptor.getValue().getId());
+        assertEquals(testChannel.getId(), messageResponseCaptor.getValue().getChannelId());
+        assertEquals(testUser.getId(), messageResponseCaptor.getValue().getAuthor().getId());
     }
 
     @Test
@@ -102,7 +112,7 @@ class MessageServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> messageService.sendMessage(testMessageRequest, 999L));
-        verify(messageRepository, never()).save(any(Message.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test
@@ -112,7 +122,7 @@ class MessageServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> messageService.sendMessage(testMessageRequest, testUser.getId()));
-        verify(messageRepository, never()).save(any(Message.class));
+        verifyNoInteractions(eventPublisher);
     }
 
     @Test

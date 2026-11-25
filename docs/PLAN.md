@@ -63,32 +63,35 @@ compile; S2's logic is fixed in M1.
 Before any code, the repository owner must do the manual steps in
 [Owner-only steps](#owner-only-steps): revoke the SonarCloud token and rotate the JWT secret.
 
+**Status:** code changes made. Unticked items are written but not yet verified, and the app has not
+been started with the new configuration.
+
 **Build**
-- [ ] Add `org.springframework.boot:spring-boot-starter-data-redis` to `build.gradle` (B08).
-- [ ] `UserStatusServiceTest`: rewrite it against the current presence API, replacing the removed
+- [x] Add `org.springframework.boot:spring-boot-starter-data-redis` to `build.gradle` (B08).
+- [x] `UserStatusServiceTest`: rewrite it against the current presence API, replacing the removed
   `updateUserStatus(...)` (B09).
-- [ ] `MessageServiceTest`: add `@Mock`s for `MessageEventPublisher` and
+- [x] `MessageServiceTest`: add `@Mock`s for `MessageEventPublisher` and
   `MessagePersistenceService`, so that all 6 constructor arguments are injected (B09).
-- [ ] Make `security/ChannelAuthorizationService.java` and `MessageController` compile:
+- [x] Make `security/ChannelAuthorizationService.java` and `MessageController` compile:
   - drop `ChannelType.GROUP_DM`;
   - pass a `String` message ID to `getMessageById`.
 
   Change only what is needed to compile; M1 fixes the logic (S2).
-- [ ] Delete `build_jar_command.txt`. The normal command is `./gradlew build`.
+- [x] Delete `build_jar_command.txt`. The normal command is `./gradlew build`.
 
 **Secrets (B07, S6)**
-- [ ] In `application.properties`, replace the JWT secret and the database and Redis passwords
+- [x] In `application.properties`, replace the JWT secret and the database and Redis passwords
   with environment placeholders (`app.jwt.secret=${JWT_SECRET}` and so on). The `local` profile may
   keep obviously fake defaults.
-- [ ] Remove the Sonar token from `build.gradle:29`, and read it from `SONAR_TOKEN`.
-- [ ] Add a `.env.example` with placeholder values only. `.env` must be gitignored.
+- [x] Remove the Sonar token from `build.gradle:29`, and read it from `SONAR_TOKEN`.
+- [x] Add a `.env.example` with placeholder values only. `.env` must be gitignored.
 
 **Repository hygiene (B50)**
-- [ ] Untrack the build junk with `git rm --cached -r build/ node_modules/ data/` and every
+- [x] Untrack the build junk with `git rm --cached -r build/ node_modules/ data/` and every
   `.DS_Store`. Add `data/` and `*.db` to `.gitignore`.
-- [ ] Delete `docker-compose-bkp.yml`, `updated-docker-compose.yml`, and
+- [x] Delete `docker-compose-bkp.yml`, `updated-docker-compose.yml`, and
   `application1.properties`.
-- [ ] Delete the inert properties: `spring.websocket.*`, `spring.h2.*`, and `spring.cache.*`.
+- [x] Delete the inert properties: `spring.websocket.*`, `spring.h2.*`, and `spring.cache.*`.
   `spring.kafka.producer.*` and `app.kafka.enabled` are handled in M2.
 - [ ] Mount the declared `kafka-data` volume, and replace `kafka-init`'s `sleep 10` with a
   health-gated `depends_on`.

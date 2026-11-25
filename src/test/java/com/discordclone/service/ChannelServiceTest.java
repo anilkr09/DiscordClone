@@ -1,9 +1,14 @@
 package com.discordclone.service;
 
+import com.discordclone.exception.UnauthorizedException;
 import com.discordclone.model.Channel;
 import com.discordclone.model.ChannelType;
 import com.discordclone.model.Server;
+import com.discordclone.payload.ChannelPayload;
 import com.discordclone.repository.ChannelRepository;
+import com.discordclone.websocket.destination.WsDestinations;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.publisher.WebSocketPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +22,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,6 +33,12 @@ class ChannelServiceTest {
 
     @Mock
     private ServerService serverService;
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private WebSocketPublisher webSocketPublisher;
 
     @InjectMocks
     private ChannelService channelService;
@@ -53,27 +65,36 @@ class ChannelServiceTest {
         testChannel.setServer(testServer);
     }
 
+    private ChannelPayload payload() {
+        ChannelPayload payload = new ChannelPayload();
+        payload.setName(testChannel.getName());
+        payload.setDescription(testChannel.getDescription());
+        return payload;
+    }
+
     @Test
     void createChannel_Success() {
         when(serverService.isUserAdmin(serverId, userId)).thenReturn(true);
         when(serverService.getServerById(serverId)).thenReturn(testServer);
         when(channelRepository.save(any(Channel.class))).thenReturn(testChannel);
 
-        Channel result = channelService.createChannel(testChannel, serverId, userId);
+        var result = channelService.createChannel(payload(), serverId, userId);
 
         assertNotNull(result);
         assertEquals(testChannel.getName(), result.getName());
         assertEquals(testChannel.getDescription(), result.getDescription());
         assertEquals(testChannel.getType(), result.getType());
         verify(channelRepository).save(any(Channel.class));
+        verify(webSocketPublisher).sendToTopic(eq(WsDestinations.CHANNELS), any(WsEvent.class));
     }
 
     @Test
     void createChannel_NotAdmin_ThrowsException() {
+        when(serverService.getServerById(serverId)).thenReturn(testServer);
         when(serverService.isUserAdmin(serverId, userId)).thenReturn(false);
 
-        assertThrows(RuntimeException.class,
-                () -> channelService.createChannel(testChannel, serverId, userId));
+        assertThrows(UnauthorizedException.class,
+                () -> channelService.createChannel(payload(), serverId, userId));
         verify(channelRepository, never()).save(any(Channel.class));
     }
 

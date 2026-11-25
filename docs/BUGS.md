@@ -41,9 +41,9 @@ its severity, so numbers are not strictly in severity order.
 | [B04](#b04-channels-have-no-read-or-write-authorization) | Channels have no read or write authorization | Critical | Security |
 | [B05](#b05-any-message-can-be-rewritten) | Any message can be rewritten | Critical | Security |
 | [B06](#b06-plaintext-passwords-are-written-to-the-log) | Plaintext passwords are written to the log | Critical | Security |
-| [B07](#b07-signing-secret-and-sonarcloud-token-are-committed) | Signing secret and SonarCloud token are committed | Critical | Security |
-| [B08](#b08-the-backend-does-not-compile) | The backend does not compile | Critical | Build |
-| [B09](#b09-two-test-classes-do-not-compile) | Two test classes do not compile | Critical | Build |
+| [B07](#b07-signing-secret-and-sonarcloud-token-are-committed) | Signing secret and SonarCloud token are committed — **Removed from files; rotation pending** | Critical | Security |
+| [B08](#b08-the-backend-does-not-compile) | The backend does not compile — **Fixed** | Critical | Build |
+| [B09](#b09-two-test-classes-do-not-compile) | Two test classes do not compile — **Fixed** | Critical | Build |
 | [B11](#b11-dms-are-delivered-to-the-wrong-username) | DMs are delivered to the wrong username | High | Messaging |
 | [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled | High | Security |
 | [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 | High | Messaging |
@@ -72,7 +72,7 @@ its severity, so numbers are not strictly in severity order.
 | [B35](#b35-the-seeder-creates-an-unusable-account-and-server) | The seeder creates an unusable account and server | Medium | Data |
 | [B36](#b36-single-channel-endpoints-return-a-lazy-entity) | Single-channel endpoints return a lazy entity | Medium | API |
 | [B37](#b37-invites-are-racy-unshareable-and-over-created) | Invites are racy, unshareable, and over-created | Medium | API |
-| [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed | Medium | CI |
+| [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed — **Workflows rewritten; not yet run** | Medium | CI |
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |
 | [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
@@ -92,7 +92,7 @@ its severity, so numbers are not strictly in severity order.
 | [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects | Low | WebSocket |
 | [B48](#b48-two-userservice-beans) | Two `UserService` beans | Low | Backend |
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
-| [B50](#b50-infrastructure-drift) | Infrastructure drift | Low | Ops |
+| [B50](#b50-infrastructure-drift) | Infrastructure drift — **Partly fixed; Kafka properties remain** | Low | Ops |
 | [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
 | [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call | Low | Backend |
 

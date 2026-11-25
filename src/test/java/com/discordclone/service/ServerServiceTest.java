@@ -1,6 +1,7 @@
 package com.discordclone.service;
 
 import com.discordclone.model.*;
+import com.discordclone.payload.ServerPayload;
 import com.discordclone.repository.MemberRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
@@ -60,8 +61,7 @@ class ServerServiceTest {
         testMemberId = new MemberId(testUser.getId(), testServer.getId());
         
         testMember = Member.builder()
-                .userId(testUser.getId())
-                .serverId(testServer.getId())
+                .id(new MemberId(testUser.getId(), testServer.getId()))
                 .user(testUser)
                 .server(testServer)
                 .nickname(testUser.getUsername())
@@ -70,13 +70,20 @@ class ServerServiceTest {
                 .build();
     }
 
+    private ServerPayload payload() {
+        ServerPayload payload = new ServerPayload();
+        payload.setName(testServer.getName());
+        payload.setDescription(testServer.getDescription());
+        return payload;
+    }
+
     @Test
     void createServer_Success() {
         when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
         when(serverRepository.save(any(Server.class))).thenReturn(testServer);
         when(memberRepository.save(any(Member.class))).thenReturn(testMember);
 
-        Server result = serverService.createServer(testServer, testUser.getId());
+        Server result = serverService.createServer(payload(), testUser.getId());
 
         assertNotNull(result);
         assertEquals(testServer.getName(), result.getName());
@@ -89,7 +96,7 @@ class ServerServiceTest {
         when(userRepository.findById(anyLong())).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class,
-                () -> serverService.createServer(testServer, 999L));
+                () -> serverService.createServer(payload(), 999L));
         verify(serverRepository, never()).save(any(Server.class));
     }
 

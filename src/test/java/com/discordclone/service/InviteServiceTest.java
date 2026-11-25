@@ -16,6 +16,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,8 +62,7 @@ class InviteServiceTest {
                 .build();
 
         testMember = Member.builder()
-                .userId(testUser.getId())
-                .serverId(testServer.getId())
+                .id(new MemberId(testUser.getId(), testServer.getId()))
                 .user(testUser)
                 .server(testServer)
                 .nickname(testUser.getUsername())
@@ -103,7 +103,7 @@ class InviteServiceTest {
 
         when(inviteRepository.findById(testInvite.getCode())).thenReturn(Optional.of(testInvite));
         when(userService.getUserById(joiningUser.getId())).thenReturn(joiningUser);
-        when(memberRepository.existsByUserIdAndServerId(joiningUser.getId(), testServer.getId())).thenReturn(false);
+        when(memberRepository.existsByIdUserIdAndIdServerId(joiningUser.getId(), testServer.getId())).thenReturn(false);
         when(memberRepository.save(any(Member.class))).thenReturn(testMember);
         when(inviteRepository.save(any(Invite.class))).thenReturn(testInvite);
 
@@ -148,7 +148,7 @@ class InviteServiceTest {
     void joinViaInvite_AlreadyMember_ThrowsException() {
         when(inviteRepository.findById(testInvite.getCode())).thenReturn(Optional.of(testInvite));
         when(userService.getUserById(testUser.getId())).thenReturn(testUser);
-        when(memberRepository.existsByUserIdAndServerId(testUser.getId(), testServer.getId())).thenReturn(true);
+        when(memberRepository.existsByIdUserIdAndIdServerId(testUser.getId(), testServer.getId())).thenReturn(true);
 
         assertThrows(RuntimeException.class,
                 () -> inviteService.joinViaInvite(testInvite.getCode(), testUser.getId()));

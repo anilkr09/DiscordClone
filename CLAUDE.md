@@ -2,16 +2,29 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git workflow
+
+Commit and push automatically after finishing a change, without asking first.
+
+- Push only the checked-out working branch. Never push to `main`, force-push, or open a PR unless
+  asked.
+- Stage only the files you changed, by name. Leave the user's own uncommitted edits alone, and never
+  stage `.env` or `.claude/settings.local.json`.
+- No attribution lines in commit messages.
+- `docs/PLAN.md` is the roadmap. Reference bug IDs in commit messages.
+
 ## Commands
+
+Secrets come from the environment: copy `.env.example` to `.env` (gitignored) before running the app
+or `docker compose`.
 
 ### Backend (Gradle, Java 17, port 8080)
 
 ```bash
 ./gradlew bootRun                                  # run with default 'local' profile
 SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # Kafka path; start message-consumer-service first
-./gradlew build                                    # full build (currently FAILS — see Build state)
-./gradlew clean bootJar -x test -x pmdMain -x pmdTest   # the build command that actually works
-./gradlew test                                     # run tests (currently FAILS to compile)
+./gradlew build                                    # full build: compile, PMD, tests, JaCoCo
+./gradlew test                                     # run tests
 ./gradlew test --tests "com.discordclone.service.ChannelServiceTest"
 ./gradlew test --tests "com.discordclone.service.ChannelServiceTest.methodName"
 ```
@@ -26,7 +39,7 @@ cd frontend
 npm install
 npm run dev
 npm run build      # note: `tsc --noEmit || true` — type errors never fail the build
-npm run lint
+npm run lint   # existing errors are baselined in eslint-suppressions.json; new ones fail
 ```
 
 `VITE_API_BASE_URL` comes from the committed `frontend/.env.development` (`http://localhost:8080`)
@@ -41,24 +54,14 @@ docker compose up -d db redis     # enough for the 'local' profile
 docker compose up -d              # adds kafka, kafka-init, kafka-ui, pgadmin
 ```
 
-Postgres 5432, Redis 6379 (password `redis123`), Kafka 9092 (KRaft, no ZooKeeper), pgAdmin 5050,
+Postgres 5432, Redis 6379 (password from `REDIS_PASSWORD`), Kafka 9092 (KRaft, no ZooKeeper), pgAdmin 5050,
 Kafka UI 8085.
 
 ## Build state
 
-The repo does not currently build. Two independent blockers:
-
-1. **`spring-boot-starter-data-redis` is missing from `build.gradle`** while `RedisConfig`,
-   `RedisKeyExpirationListenerConfig`, and `UserStatusServiceImpl` import
-   `org.springframework.data.redis.*`. It was removed in `cd97e97`, before the presence rewrite
-   brought Redis code back.
-2. **Two test classes are stale.** `UserStatusServiceTest` calls `updateUserStatus(...)`, removed in
-   the Redis presence rewrite. `MessageServiceTest` declares 4 `@Mock`s but `MessageService` now
-   takes 6 constructor args — `MessageEventPublisher` and `MessagePersistenceService` inject as
-   `null`.
-
-This is why `build_jar_command.txt` uses `-x test -x pmdMain -x pmdTest`. Prefer fixing the cause
-over propagating the workaround.
+The backend builds and its unit tests pass. `.github/workflows/ci.yml` runs the backend build, the
+frontend lint and build, and `gitleaks` on pull requests. No test loads a Spring context, so a green
+build does not prove the application starts.
 
 ## Architecture
 
@@ -183,11 +186,8 @@ while the backend route is `/api/auth/refresh` with `{refreshToken}`.
 ## Conventions and gotchas
 
 - **Port is 8080** (`application.properties`), not 8082 as the root README claims.
-- **`application1.properties` is dead config** — Spring loads `application.properties` and
-  `application-{profile}.properties` only. It contains a `spring.kafka.consumer.group-id` that reads
-  as live but is never applied.
-- **`spring.cache.type=redis` is inert** — there is no `@EnableCaching` or `@Cacheable` anywhere. All
-  Redis access is explicit via `StringRedisTemplate`.
+- **No caching layer** — there is no `@EnableCaching` or `@Cacheable` anywhere. All Redis access is
+  explicit via `StringRedisTemplate`.
 - **`UserController` and `UserStatusController` share `/api/users`.** Spring resolves the overlap by
   preferring literal segments over templates; adding a `GET /{id}/{x}` route to either will break it.
 - **Service layering is inconsistent.** Some services are interfaces with `service/impl/`
@@ -202,8 +202,7 @@ while the backend route is `/api/auth/refresh` with `{refreshToken}`.
 - **Several `{serverId}` path variables are ignored** in `ChannelController`. The channel's real
   server comes from the database. `PUT /api/servers/{id}/roles/{roleId}` declares a `userId` path
   variable that is not in the route, so it always fails.
-- **Inert settings** (look live, do nothing): `spring.websocket.*`, `spring.h2.*` (no H2 dependency),
-  `spring.cache.*`, `app.kafka.enabled`, `spring.kafka.producer.*`.
+- **Inert settings** (look live, do nothing): `app.kafka.enabled`, `spring.kafka.producer.*`.
 - **Entities use Lombok `@Data`**, which generates `equals`/`hashCode` over lazy associations. Avoid
   adding entities to `HashSet`s.
 - **`dto/` and `payload/` both exist** and both contain a `UserDTO`. `MessageService` uses the
@@ -215,14 +214,10 @@ while the backend route is `/api/auth/refresh` with `{refreshToken}`.
   `UserService.createUser` (where BCrypt is applied), so that seeded account can never log in. To
   test locally, register a user through `/api/auth/register`. The seeder creates "Default Server",
   which must be ID 1 for DMs to work, and it creates no `Member` rows.
-- **Dead frontend files:** `components/chat/ChatArea copy.tsx`, `services/StatusProvider.tsx`,
-  `src/test_command`. Nothing imports them, so ignore them when tracing behaviour.
+- **Dead frontend files:** `components/chat/ChatArea copy.tsx` and `services/StatusProvider.tsx`.
+  Nothing imports them, so ignore them when tracing behaviour.
 - **`/user/queue/errors` has no frontend subscriber.** Server-side error pushes (Kafka send failure,
   STOMP JWT errors) are invisible to users.
-- **Committed build junk:** `build/libs/*.jar` (stale, 50 MB), root `node_modules/`, `.DS_Store`,
-  `data/*.db` (H2), and two unused compose files. `.gitignore` lists `build/`, `.DS_Store`, and
-  `node_modules/`, but these files are already tracked, and ignore rules do not untrack files
-  (`git rm --cached` does).
 
 ## Branches
 
@@ -232,8 +227,12 @@ Presence there was connection-scoped and DB-backed. Kafka code is identical on a
 only presence and the frontend WebSocket plumbing differ. The `docs` branch adds `docs/` and this
 file.
 
-## Committed secrets
+## Secrets
 
-`build.gradle:29` contains a SonarCloud token and `application.properties:56` the JWT signing secret.
-Both are in git history. If touching either file, do not propagate them — and flag to the user that
-the Sonar token needs revoking, not just deleting.
+`application.properties` reads `JWT_SECRET`, `DB_PASSWORD` and `REDIS_PASSWORD` from the environment,
+or from `.env` through `spring.config.import`. `./gradlew sonar` reads `SONAR_TOKEN`. Never write
+secret values into tracked files.
+
+The old JWT secret, a SonarCloud token, and a WireGuard private key (formerly
+`frontend/src/test_command`) remain in the git history of this **public** repository. Deleting them
+did not make them safe: they must be revoked or rotated.

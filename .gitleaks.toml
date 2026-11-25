@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "RFC 6455 sample WebSocket key, quoted in the STOMP guide"
+regexes = ['''dGhlIHNhbXBsZSBub25jZQ==''']
+
+[[allowlists]]
+description = "Untracked local files; CI scans a clean checkout"
+paths = [
+  '''(^|/)\.env$''',
+  '''(^|/)(build|node_modules|\.gradle|DiscordClone\.git)/''',
+]

@@ -2,14 +2,12 @@ package com.discordclone.security;
 
 import com.discordclone.model.Channel;
 import com.discordclone.model.ChannelType;
-import com.discordclone.model.Member;
+import com.discordclone.exception.ChannelAccessDeniedException;
 import com.discordclone.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -44,11 +42,6 @@ public class ChannelAuthorizationService {
             return isParticipantInDm(channel.getDmKey(), userId);
         }
 
-        // Group DM - check if user is a participant
-        if (channel.getType() == ChannelType.GROUP_DM && channel.getDmKey() != null) {
-            return isParticipantInGroupDm(channel.getDmKey(), userId);
-        }
-
         log.warn("Unknown channel type or missing server/dmKey: channelId={}, type={}", 
                  channel.getId(), channel.getType());
         return false;
@@ -75,29 +68,6 @@ public class ChannelAuthorizationService {
             }
         } catch (NumberFormatException e) {
             log.error("Invalid DM key format: {}", dmKey, e);
-        }
-        return false;
-    }
-
-    /**
-     * Checks if a user is a participant in a Group DM.
-     * Group DM key format: "groupdm_userId1_userId2_userId3..."
-     */
-    private boolean isParticipantInGroupDm(String dmKey, Long userId) {
-        try {
-            // Remove "groupdm_" prefix if present
-            String participantPart = dmKey.startsWith("groupdm_") 
-                ? dmKey.substring("groupdm_".length()) 
-                : dmKey;
-            
-            String[] participants = participantPart.split("_");
-            for (String participantId : participants) {
-                if (Long.parseLong(participantId) == userId) {
-                    return true;
-                }
-            }
-        } catch (NumberFormatException e) {
-            log.error("Invalid Group DM key format: {}", dmKey, e);
         }
         return false;
     }

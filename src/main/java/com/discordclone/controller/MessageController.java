@@ -90,7 +90,7 @@ public class MessageController {
 
     @PutMapping("/{messageId}")
     public ResponseEntity<Message> editMessage(
-            @PathVariable Long messageId,
+            @PathVariable String messageId,
             @RequestBody Message message,
             @CurrentUser UserPrincipal currentUser) {
         
@@ -110,7 +110,7 @@ public class MessageController {
 
     @DeleteMapping("/{messageId}")
     public ResponseEntity<Void> deleteMessage(
-            @PathVariable Long messageId,
+            @PathVariable String messageId,
             @CurrentUser UserPrincipal currentUser) {
         
         Message message = messageService.getMessageById(messageId)

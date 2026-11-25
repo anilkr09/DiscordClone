@@ -26,8 +26,6 @@ sonar {
 		property "sonar.projectKey", "discord-clone"
 		property "sonar.organization", "anilkr09"
 		property "sonar.host.url", "https://sonarcloud.io"
-		property "sonar.token", "07d85ed23560c71b29a01f13ee8a7b0c8694bdc7"
-
 	}
 }
 
@@ -44,6 +42,7 @@ repositories {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
