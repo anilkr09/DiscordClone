@@ -3,11 +3,12 @@ package com.discordclone.model;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "user_status")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserStatusEntity {
@@ -24,8 +25,22 @@ public class UserStatusEntity {
     private UserStatus customStatus;
 
     @Column(name = "status_expires_at")
-    private LocalDateTime statusExpiresAt;
+    private Instant statusExpiresAt;
 
     @Column(name = "last_activity")
-    private LocalDateTime lastActivity;
+    private Instant lastActivity;
+
+    /** Identity is the database key, so equality never touches lazy associations. */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof UserStatusEntity that && id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return UserStatusEntity.class.hashCode();
+    }
 }

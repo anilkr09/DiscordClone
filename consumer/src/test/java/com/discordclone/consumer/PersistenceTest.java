@@ -39,7 +39,9 @@ import static org.junit.jupiter.api.Assertions.*;
         "spring.datasource.hikari.connection-timeout=1000",
         "spring.datasource.hikari.data-source-properties.socketTimeout=2",
         "spring.sql.init.mode=always",
-        "spring.sql.init.schema-locations=classpath:schema-test.sql"
+        "spring.flyway.locations=filesystem:../src/main/resources/db/migration",
+        "spring.sql.init.data-locations=classpath:data-test.sql",
+        "spring.jpa.defer-datasource-initialization=true"
 })
 class PersistenceTest {
 
@@ -82,7 +84,7 @@ class PersistenceTest {
 
     private static String event(String id, long channelId) {
         return """
-                {"id":"%s","channelId":%d,"content":"hi","timestamp":"2026-01-01T10:00:00",\
+                {"id":"%s","channelId":%d,"content":"hi","timestamp":"2026-01-01T10:00:00Z",\
                 "author":{"id":1,"username":"a"}}""".formatted(id, channelId);
     }
 

@@ -4,7 +4,7 @@ import com.discordclone.contract.MessageCreatedV1;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Timestamp;
+import java.time.ZoneOffset;
 
 @Repository
 public class MessageStore {
@@ -28,6 +28,6 @@ public class MessageStore {
             throw new InvalidEventException("Message event is missing a required field: id=" + event.id());
         }
         jdbc.update(INSERT, event.id(), event.content(), event.channelId(), event.author().id(),
-                Timestamp.valueOf(event.timestamp()));
+                event.timestamp().atOffset(ZoneOffset.UTC));
     }
 }

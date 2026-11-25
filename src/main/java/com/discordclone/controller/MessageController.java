@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
 import com.discordclone.payload.MessageRequest;
 import com.discordclone.payload.UpdateMessageRequest;
@@ -8,9 +9,6 @@ import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.MessageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -37,11 +35,11 @@ public class MessageController {
 
     @GetMapping("/channels/{channelId}")
     @PreAuthorize("@perm.isChannelMember(#channelId, principal.id)")
-    public ResponseEntity<Page<MessageResp>> getChannelMessages(
+    public ResponseEntity<MessagePage> getChannelMessages(
             @PathVariable Long channelId,
-            @PageableDefault(page = 0, size = 20, sort = "timestamp")
-            Pageable pageable) {
-        return ResponseEntity.ok(messageService.getChannelMessages(channelId, pageable));
+            @RequestParam(required = false) String before,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ResponseEntity.ok(messageService.getChannelMessages(channelId, before, limit));
     }
 
     @PutMapping("/{messageId}")

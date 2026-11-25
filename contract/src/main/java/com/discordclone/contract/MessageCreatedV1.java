@@ -1,6 +1,6 @@
 package com.discordclone.contract;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * A chat message that has been accepted for delivery. Changes must stay readable by the previous
@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  * @param timestamp when the application accepted the message
  * @param author    sender
  */
-public record MessageCreatedV1(String id, Long channelId, String content, LocalDateTime timestamp, Author author) {
+public record MessageCreatedV1(String id, Long channelId, String content, Instant timestamp, Author author) {
 
     public static final String TOPIC = "message-events";
     public static final String DEAD_LETTER_TOPIC = TOPIC + "-dlt";

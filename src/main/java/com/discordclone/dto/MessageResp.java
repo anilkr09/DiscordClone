@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 @AllArgsConstructor
 @NoArgsConstructor  // <--- Add this for Jackson
 @Getter
@@ -16,7 +16,7 @@ public class MessageResp {
     private Long channelId;
     private Long senderId;
     private Author author; // optional, helpful for display
-    private LocalDateTime timestamp;
+    private Instant timestamp;
     private boolean edited;
 
 

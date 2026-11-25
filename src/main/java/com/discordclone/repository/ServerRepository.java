@@ -16,4 +16,6 @@ public interface ServerRepository extends JpaRepository<Server, Long> {
     Optional<Server> findWithOwnerById(Long id);
 
     boolean existsByName(String name);
+
+    Optional<Server> findByName(String name);
 }

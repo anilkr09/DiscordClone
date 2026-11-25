@@ -4,15 +4,14 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "messages")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
-@Getter
 
 public class Message {
 
@@ -31,8 +30,22 @@ public class Message {
     private User sender;
 
     @Column(nullable = false)
-    private LocalDateTime timestamp = LocalDateTime.now();
+    private Instant timestamp = Instant.now();
 
 
     private boolean edited = false;
+
+    /** Identity is the database key, so equality never touches lazy associations. */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Message that && id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Message.class.hashCode();
+    }
 }

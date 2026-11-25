@@ -82,7 +82,7 @@ const [codeCopied, setCodeCopied] = useState(false);
       setLoading(true);
 
       // 👉 Replace with your API
-      const response = await api.post<any>(`/invites/create?serverId=${serverId}`);
+      const response = await api.post<any>(`/invites/create?serverId=${serverId}&fresh=true`);
       
 
       const data =  response.data;

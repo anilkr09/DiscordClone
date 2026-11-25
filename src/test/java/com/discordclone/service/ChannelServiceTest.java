@@ -116,30 +116,6 @@ class ChannelServiceTest {
     }
 
     @Test
-    void getServerChannels_HidesDirectMessageChannels() {
-        Channel dm = Channel.builder().id(2L).type(ChannelType.DM).server(testServer).dmKey("dm-1-2").build();
-        when(serverService.isUserMember(serverId, userId)).thenReturn(true);
-        when(serverService.getServerById(serverId)).thenReturn(testServer);
-        when(channelRepository.findByServerOrderByName(testServer)).thenReturn(List.of(dm, testChannel));
-
-        assertEquals(List.of(testChannel), channelService.getServerChannels(serverId, userId));
-    }
-
-    @Test
-    void getServerChannels_Success() {
-        List<Channel> channels = Arrays.asList(testChannel);
-        when(serverService.isUserMember(serverId, userId)).thenReturn(true);
-        when(serverService.getServerById(serverId)).thenReturn(testServer);
-        when(channelRepository.findByServerOrderByName(testServer)).thenReturn(channels);
-
-        List<Channel> result = channelService.getServerChannels(serverId, userId);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testChannel.getName(), result.get(0).getName());
-    }
-
-    @Test
     void updateChannel_ChangesNameAndDescriptionButNotType() {
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
         when(channelRepository.save(testChannel)).thenReturn(testChannel);

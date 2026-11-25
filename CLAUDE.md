@@ -145,10 +145,16 @@ frames. When you touch subscriptions, put them in an effect with an unsubscribe 
 
 ### DMs
 
-DMs are `Channel` rows with `type = DM` and `dmKey = "dm-{minId}-{maxId}"` (see `service/DmKey`),
-still attached to the hard-coded server ID 1. Access is decided by participation, never by server
-membership, and `MessageService` derives the recipient from the key. The client's `dm` and
-`receiver` fields are ignored.
+DMs are `Channel` rows with `type = DM`, no server, and two rows in `channel_members`. `dmKey`
+(`service/DmKey`) only keeps one channel per pair. Access and the recipient come from
+`channel_members`; the client's `dm` and `receiver` fields are ignored. Open one with
+`POST /api/dms/{userId}`.
+
+### Schema
+
+Flyway owns the schema (`src/main/resources/db/migration`); Hibernate runs with `ddl-auto=validate`.
+Every entity change needs a new migration. Timestamps are `Instant` / `timestamptz`. Entities use
+`@Getter`/`@Setter` with ID-based equality; do not add `@Data` to one.
 
 ### Auth and authorization
 
@@ -190,17 +196,12 @@ while the backend route is `/api/auth/refresh` with `{refreshToken}`.
 - **Several `{serverId}` path variables are ignored** in `ChannelController`. The channel's real
   server comes from the database. `PUT /api/servers/{id}/roles/{roleId}` declares a `userId` path
   variable that is not in the route, so it always fails.
-- **Entities use Lombok `@Data`**, which generates `equals`/`hashCode` over lazy associations. Avoid
-  adding entities to `HashSet`s.
 - **`dto/` and `payload/` both exist** and both contain a `UserDTO`. `MessageService` uses the
   `payload` one.
-- **Schema is `ddl-auto=update`** — no Flyway/Liquibase, no migrations.
 - `presence:last_seen:{id}` is written but never read and has no TTL. The variable named `lastSeen`
   in `resolveStatus` actually reads the *heartbeat* key.
-- `DataInitializer` saves `testuser` with a **plaintext** password by bypassing
-  `UserService.createUser` (where BCrypt is applied), so that seeded account can never log in. To
-  test locally, register a user through `/api/auth/register`. The seeder creates "Default Server",
-  which must be ID 1 for DMs to work, and it creates no `Member` rows.
+- `DataInitializer` runs only with `app.seed.enabled=true` and `SEED_PASSWORD`. To test locally you
+  can also register through `/api/auth/register`.
 - **Dead frontend files:** `components/chat/ChatArea copy.tsx` and `services/StatusProvider.tsx`.
   Nothing imports them, so ignore them when tracing behaviour.
 - **`/user/queue/errors` has no frontend subscriber.** Server-side error pushes (Kafka send failure,

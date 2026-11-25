@@ -45,8 +45,8 @@ its severity, so numbers are not strictly in severity order.
 | [B08](#b08-the-backend-does-not-compile) | The backend does not compile — **Fixed** | Critical | Build |
 | [B09](#b09-two-test-classes-do-not-compile) | Two test classes do not compile — **Fixed** | Critical | Build |
 | [B11](#b11-dms-are-delivered-to-the-wrong-username) | DMs are delivered to the wrong username — **Fixed** | High | Messaging |
-| [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled — **Fixed in M1 by parsing dmKey; participant table follows in M3** | High | Security |
-| [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 | High | Messaging |
+| [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled — **Fixed** | High | Security |
+| [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 — **Fixed** | High | Messaging |
 | [B14](#b14-presence-never-reaches-offline) | Presence never reaches OFFLINE | High | Redis |
 | [B15](#b15-presence-is-visible-to-everyone) | Presence is visible to everyone | High | Privacy |
 | [B16](#b16-token-refresh-is-broken-end-to-end) | Token refresh is broken end to end | High | Auth |
@@ -54,11 +54,11 @@ its severity, so numbers are not strictly in severity order.
 | [B18](#b18-chatarea-leaks-a-subscription-on-every-render) | `ChatArea` leaks a subscription on every render | High | WebSocket |
 | [B19](#b19-a-kafka-outage-stalls-all-websocket-traffic) | A Kafka outage stalls all WebSocket traffic — **Fixed** | High | Kafka |
 | [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save — **Fixed** | High | Kafka consumer |
-| [B20](#b20-message-times-are-wrong-outside-utc) | Message times are wrong outside UTC | Medium | Messaging |
-| [B21](#b21-delete-apimessagesid-can-never-succeed) | `DELETE /api/messages/{id}` can never succeed | Medium | API |
+| [B20](#b20-message-times-are-wrong-outside-utc) | Message times are wrong outside UTC — **Fixed** | Medium | Messaging |
+| [B21](#b21-delete-apimessagesid-can-never-succeed) | `DELETE /api/messages/{id}` can never succeed — **Fixed** | Medium | API |
 | [B22](#b22-put-apiserversidrolesroleid-can-never-succeed) | `PUT /api/servers/{id}/roles/{roleId}` can never succeed | Medium | API |
-| [B23](#b23-servers-cannot-be-deleted) | Servers cannot be deleted | Medium | API |
-| [B24](#b24-dm-view-hangs-or-mislabels) | DM view hangs or mislabels | Medium | Frontend |
+| [B23](#b23-servers-cannot-be-deleted) | Servers cannot be deleted — **Fixed** | Medium | API |
+| [B24](#b24-dm-view-hangs-or-mislabels) | DM view hangs or mislabels — **Fixed** | Medium | Frontend |
 | [B25](#b25-offline-users-reappear-with-their-custom-status) | Offline users reappear with their custom status | Medium | Redis |
 | [B26](#b26-active-users-flicker-between-online-and-idle) | Active users flicker between ONLINE and IDLE | Medium | Redis |
 | [B27](#b27-batched-status-updates-are-dropped) | Batched status updates are dropped | Medium | Frontend |
@@ -69,9 +69,9 @@ its severity, so numbers are not strictly in severity order.
 | [B32](#b32-failed-sends-are-silent) | Failed sends are silent | Medium | Frontend |
 | [B33](#b33-websocket-reconnect-uses-the-original-token) | WebSocket reconnect uses the original token | Medium | WebSocket |
 | [B34](#b34-logout-leaves-the-previous-users-data-cached) | Logout leaves the previous user's data cached | Medium | Frontend |
-| [B35](#b35-the-seeder-creates-an-unusable-account-and-server) | The seeder creates an unusable account and server | Medium | Data |
+| [B35](#b35-the-seeder-creates-an-unusable-account-and-server) | The seeder creates an unusable account and server — **Fixed** | Medium | Data |
 | [B36](#b36-single-channel-endpoints-return-a-lazy-entity) | Single-channel endpoints return a lazy entity — **Fixed** | Medium | API |
-| [B37](#b37-invites-are-racy-unshareable-and-over-created) | Invites are racy, unshareable, and over-created | Medium | API |
+| [B37](#b37-invites-are-racy-unshareable-and-over-created) | Invites are racy, unshareable, and over-created — **Fixed** | Medium | API |
 | [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed — **Workflows rewritten; not yet run** | Medium | CI |
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes — **Fixed** | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |

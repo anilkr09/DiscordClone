@@ -30,6 +30,8 @@ dependencies {
 	testImplementation 'org.testcontainers:junit-jupiter'
 	testImplementation 'org.testcontainers:postgresql'
 	testImplementation 'org.testcontainers:kafka'
+	// The tests run against the schema the application's own migrations produce.
+	testImplementation 'org.flywaydb:flyway-core'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -221,7 +221,7 @@ public class UserStatusServiceImpl implements UserStatusService {
 
         entity.setUserId(userId);
         entity.setCustomStatus(customStatus);
-        entity.setStatusExpiresAt(LocalDateTime.now().plusDays(1));
+        entity.setStatusExpiresAt(Instant.now().plus(Duration.ofDays(1)));
 
         userStatusRepository.save(entity);
 
@@ -277,7 +277,7 @@ public class UserStatusServiceImpl implements UserStatusService {
                 .orElse(new UserStatusEntity());
 
         entity.setUserId(userId);
-        entity.setLastActivity(LocalDateTime.now());
+        entity.setLastActivity(Instant.now());
 
         userStatusRepository.save(entity);
     }

@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -14,7 +14,7 @@ public class FriendshipDTO {
     private Long id;
     private Long friendshipId;
     private FriendshipStatus status;
-    private LocalDateTime lastInteraction;
+    private Instant lastInteraction;
     
     // Additional fields for friend requests
     private Long senderId;
@@ -23,5 +23,5 @@ public class FriendshipDTO {
     private Long receiverId;
     private String receiverUsername;
     private String receiverAvatarUrl;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 } 

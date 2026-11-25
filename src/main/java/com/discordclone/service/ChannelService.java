@@ -4,7 +4,9 @@ import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.*;
 import com.discordclone.payload.ChannelPayload;
 import com.discordclone.payload.UpdateChannelRequest;
+import com.discordclone.repository.ChannelMemberRepository;
 import com.discordclone.repository.ChannelRepository;
+import org.springframework.transaction.support.TransactionTemplate;
 import com.discordclone.websocket.destination.WsDestinations;
 import com.discordclone.websocket.event.WsEvent;
 import com.discordclone.websocket.event.WsEventType;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,8 @@ public class ChannelService {
     private final ServerService serverService;
     private final UserService userService;
     private final WebSocketPublisher webSocketPublisher;
+    private final ChannelMemberRepository channelMemberRepository;
+    private final TransactionTemplate transactions;
     // Authorization for admin actions (create, update, delete)
     private void checkUserIsAdmin(Long serverId, Long userId) {
         if (!serverService.isUserAdmin(serverId, userId)) {
@@ -50,37 +55,28 @@ public class ChannelService {
         );
         return channelDTO;
     }
-    @Transactional
+    /** The conversation between two users, created on first use. */
     public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
-
-        User user1 = userService.getUserById(userId1);
-        User user2 = userService.getUserById(userId2);
+        userService.getUserById(userId1);
+        userService.getUserById(userId2);
         String dmKey = DmKey.of(userId1, userId2);
 
-        Optional<Channel> existing =
-                channelRepository.findBydmKeyAndType(dmKey, ChannelType.DM);
-
+        Optional<Channel> existing = channelRepository.findBydmKeyAndType(dmKey, ChannelType.DM);
         if (existing.isPresent()) {
             return existing.get();
         }
-
         try {
-
-            Server server = serverService.getServerById(1L);
-
-            Channel dmChannel = new Channel();
-            dmChannel.setType(ChannelType.DM);
-            dmChannel.setDmKey(dmKey);
-            dmChannel.setServer(server);
-
-            return channelRepository.save(dmChannel);
-
+            return transactions.execute(status -> {
+                Channel channel = channelRepository.save(
+                        Channel.builder().type(ChannelType.DM).dmKey(dmKey).build());
+                Stream.of(userId1, userId2).distinct()
+                        .forEach(userId -> channelMemberRepository.save(new ChannelMember(channel.getId(), userId)));
+                return channel;
+            });
         } catch (DataIntegrityViolationException ex) {
-
-            // Another thread created it between find and save
-            return channelRepository
-                    .findBydmKeyAndType(dmKey, ChannelType.DM)
-                    .orElseThrow(() -> ex);
+            // Another request created it between the lookup and the insert. The failed transaction
+            // is over, so this lookup runs in a fresh one.
+            return channelRepository.findBydmKeyAndType(dmKey, ChannelType.DM).orElseThrow(() -> ex);
         }
     }
 
@@ -89,8 +85,7 @@ public class ChannelService {
     @Transactional(readOnly = true)
     public Channel getChannel(Long serverId, Long channelId) {
         Channel channel = getChannelByIdInternal(channelId);
-        if (channel.getType() == ChannelType.DM || channel.getServer() == null
-                || !channel.getServer().getId().equals(serverId)) {
+        if (channel.getServer() == null || !channel.getServer().getId().equals(serverId)) {
             throw new ResourceNotFoundException("Channel", "channelId", channelId);
         }
         return channel;
@@ -104,10 +99,7 @@ public class ChannelService {
             throw new AccessDeniedException("You are not a member of this server");
         }
 
-        // DM channels are attached to a server for now, but they are not part of it.
-        return channelRepository.findByServerOrderByName(server).stream()
-                .filter(channel -> channel.getType() != ChannelType.DM)
-                .toList();
+        return channelRepository.findByServerOrderByName(server);
     }
 
     @Transactional

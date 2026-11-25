@@ -1,6 +1,8 @@
 package com.discordclone.service;
 
+import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
+import com.discordclone.repository.ChannelMemberRepository;
 import com.discordclone.exception.ChannelAccessDeniedException;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.ChannelType;
@@ -24,12 +26,11 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Limit;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -66,6 +67,9 @@ class MessageServiceTest {
     @Mock
     private PermissionService permissions;
 
+    @Mock
+    private ChannelMemberRepository channelMemberRepository;
+
     @InjectMocks
     private MessageService messageService;
 
@@ -95,7 +99,7 @@ class MessageServiceTest {
         testMessage.setSender(testUser);
         testMessage.setChannel(testChannel);
         testMessage.setContent("Test message");
-        testMessage.setTimestamp(LocalDateTime.now());
+        testMessage.setTimestamp(Instant.now());
 
         testMessageRequest = new MessageRequest();
         testMessageRequest.setChannelId(1L);
@@ -164,6 +168,7 @@ class MessageServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
         when(channelRepository.findById(5L)).thenReturn(Optional.of(dm));
         when(permissions.hasAccess(dm, 1L)).thenReturn(true);
+        when(channelMemberRepository.findUserIds(5L)).thenReturn(java.util.List.of(1L, 2L));
 
         messageService.sendMessage(testMessageRequest, 1L);
 
@@ -182,6 +187,7 @@ class MessageServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
         when(channelRepository.findById(5L)).thenReturn(Optional.of(dm));
         when(permissions.hasAccess(dm, 1L)).thenReturn(true);
+        when(channelMemberRepository.findUserIds(5L)).thenReturn(java.util.List.of(1L, 2L));
         when(friendshipRepository.findBySenderAndReceiver(testUser, friend)).thenReturn(Optional.empty());
         when(friendshipRepository.findBySenderAndReceiver(friend, testUser)).thenReturn(Optional.of(block));
 
@@ -191,16 +197,13 @@ class MessageServiceTest {
     }
 
     @Test
-    void getChannelMessages_Success() {
-        Page<Message> messagePage = new PageImpl<>(Arrays.asList(testMessage));
-        when(channelRepository.findById(1L)).thenReturn(Optional.of(testChannel));
-        when(messageRepository.findByChannelOrderByTimestampDesc(any(Channel.class), any(Pageable.class)))
-                .thenReturn(messagePage);
+    void getChannelMessages_ReportsWhetherOlderMessagesRemain() {
+        when(messageRepository.findLatest(eq(1L), any(Limit.class))).thenReturn(Arrays.asList(testMessage, testMessage));
 
-        Page<MessageResp> result = messageService.getChannelMessages(1L, Pageable.unpaged());
+        MessagePage page = messageService.getChannelMessages(1L, null, 1);
 
-        assertEquals(1, result.getContent().size());
-        assertEquals(testMessage.getContent(), result.getContent().get(0).getContent());
+        assertEquals(1, page.content().size());
+        assertTrue(page.hasMore());
     }
 
     @Test

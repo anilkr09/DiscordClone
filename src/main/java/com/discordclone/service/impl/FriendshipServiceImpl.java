@@ -17,7 +17,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +77,7 @@ public class FriendshipServiceImpl implements FriendshipService {
             }
 
             friendship.setStatus(FriendshipStatus.PENDING);
-            friendship.setUpdatedAt(LocalDateTime.now());
+            friendship.setUpdatedAt(Instant.now());
             friendship = friendshipRepository.save(friendship);
         }
         else {
@@ -96,7 +96,7 @@ public class FriendshipServiceImpl implements FriendshipService {
 
                 // Auto-accept reverse pending request
                 friendship.setStatus(FriendshipStatus.ACCEPTED);
-                friendship.setUpdatedAt(LocalDateTime.now());
+                friendship.setUpdatedAt(Instant.now());
                 friendship = friendshipRepository.save(friendship);
             }
             else {
@@ -104,8 +104,8 @@ public class FriendshipServiceImpl implements FriendshipService {
                 friendship.setSender(sender);
                 friendship.setReceiver(receiver);
                 friendship.setStatus(FriendshipStatus.PENDING);
-                friendship.setCreatedAt(LocalDateTime.now());
-                friendship.setUpdatedAt(LocalDateTime.now());
+                friendship.setCreatedAt(Instant.now());
+                friendship.setUpdatedAt(Instant.now());
 
                 friendship = friendshipRepository.save(friendship);
             }
@@ -142,7 +142,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         }
 
         friendship.setStatus(FriendshipStatus.ACCEPTED);
-        friendship.setUpdatedAt(LocalDateTime.now());
+        friendship.setUpdatedAt(Instant.now());
 
         friendshipRepository.save(friendship);
 
@@ -184,7 +184,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         }
 
         friendship.setStatus(FriendshipStatus.REJECTED);
-        friendship.setUpdatedAt(LocalDateTime.now());
+        friendship.setUpdatedAt(Instant.now());
 
         friendshipRepository.save(friendship);
 
@@ -253,20 +253,19 @@ public class FriendshipServiceImpl implements FriendshipService {
         if (existingFriendship.isPresent()) {
             friendship = existingFriendship.get();
         } else if (reverseFriendship.isPresent()) {
-            friendshipRepository.delete(reverseFriendship.get());
-            friendship = new Friendship();
+            // One row per pair: turn it around, so that the blocker is recorded as the sender.
+            friendship = reverseFriendship.get();
             friendship.setSender(user);
             friendship.setReceiver(target);
-            friendship.setCreatedAt(LocalDateTime.now());
         } else {
             friendship = new Friendship();
             friendship.setSender(user);
             friendship.setReceiver(target);
-            friendship.setCreatedAt(LocalDateTime.now());
+            friendship.setCreatedAt(Instant.now());
         }
 
         friendship.setStatus(FriendshipStatus.BLOCKED);
-        friendship.setUpdatedAt(LocalDateTime.now());
+        friendship.setUpdatedAt(Instant.now());
 
         return friendshipRepository.save(friendship);
     }

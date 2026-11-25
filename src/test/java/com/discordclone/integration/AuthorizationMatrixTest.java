@@ -56,7 +56,7 @@ class AuthorizationMatrixTest extends IntegrationTest {
                 new Endpoint(HttpMethod.GET, "/api/channels/{server}/{channel}", null, MEMBERS),
                 new Endpoint(HttpMethod.PUT, "/api/channels/{server}/{channel}", named, OWNER),
                 new Endpoint(HttpMethod.DELETE, "/api/channels/{server}/{channel}", null, OWNER),
-                new Endpoint(HttpMethod.POST, "/api/channels/{server}/dm/{outsider}", null, EVERYONE),
+                new Endpoint(HttpMethod.POST, "/api/dms/{outsider}", null, EVERYONE),
                 new Endpoint(HttpMethod.POST, "/api/invites/create?serverId={server}", null, MEMBERS),
                 new Endpoint(HttpMethod.GET, "/api/messages/channels/{channel}", null, MEMBERS),
                 new Endpoint(HttpMethod.PUT, "/api/messages/{message}", "{\"content\":\"edited\"}", AUTHOR),

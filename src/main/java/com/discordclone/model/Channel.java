@@ -1,10 +1,7 @@
 package com.discordclone.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 @Entity
 @Table(
         name = "channels",
@@ -12,7 +9,8 @@ import lombok.NoArgsConstructor;
                 @UniqueConstraint(columnNames = {"server_id", "name"})
         }
 )
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -36,4 +34,18 @@ public class Channel {
 
     @Column(unique = true)
     private String dmKey; // ✅ ONLY for DM
+
+    /** Identity is the database key, so equality never touches lazy associations. */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Channel that && id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Channel.class.hashCode();
+    }
 }

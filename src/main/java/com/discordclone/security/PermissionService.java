@@ -2,13 +2,14 @@ package com.discordclone.security;
 
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.Channel;
+import com.discordclone.model.ChannelMember;
+import com.discordclone.repository.ChannelMemberRepository;
 import com.discordclone.model.ChannelType;
 import com.discordclone.model.Message;
 import com.discordclone.model.Server;
 import com.discordclone.repository.ChannelRepository;
 import com.discordclone.repository.MessageRepository;
 import com.discordclone.repository.ServerRepository;
-import com.discordclone.service.DmKey;
 import com.discordclone.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class PermissionService {
     private final ServerRepository serverRepository;
     private final ChannelRepository channelRepository;
     private final MessageRepository messageRepository;
+    private final ChannelMemberRepository channelMemberRepository;
 
     public boolean isServerMember(Long serverId, Long userId) {
         return serverService.isUserMember(serverId, userId);
@@ -61,7 +63,7 @@ public class PermissionService {
     /** DMs are decided by participation, before and instead of any server check. */
     public boolean hasAccess(Channel channel, Long userId) {
         if (channel.getType() == ChannelType.DM) {
-            return DmKey.parse(channel.getDmKey()).map(key -> key.includes(userId)).orElse(false);
+            return channelMemberRepository.existsById(new ChannelMember.Key(channel.getId(), userId));
         }
         return channel.getServer() != null && isServerMember(channel.getServer().getId(), userId);
     }

@@ -1,6 +1,8 @@
 package com.discordclone.service;
 
+import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
+import com.discordclone.repository.ChannelMemberRepository;
 import com.discordclone.exception.ChannelAccessDeniedException;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.ChannelType;
@@ -19,20 +21,23 @@ import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Limit;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MessageService {
-    
+
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final MessageRepository messageRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private  final UserRepository userRepository;
@@ -41,6 +46,7 @@ public class MessageService {
     private final MessageEventPublisher eventPublisher;
     private final FriendshipRepository friendshipRepository;
     private final PermissionService permissions;
+    private final ChannelMemberRepository channelMemberRepository;
     @Transactional
     public Message sendMessage(MessageRequest request, Long userId) {
 
@@ -57,7 +63,8 @@ public class MessageService {
 
         // 🔥 Generate ID in producer (important for kafka mode)
         message.setId(UUID.randomUUID().toString());
-        message.setTimestamp(LocalDateTime.now());
+        // Microseconds are what the database keeps, so cursors compare equal after a round trip.
+        message.setTimestamp(Instant.now().truncatedTo(ChronoUnit.MICROS));
         message.setSender(user);
         message.setChannel(channel);
         message.setContent(request.getContent());
@@ -82,11 +89,27 @@ public class MessageService {
 
         return message;
     }
+    /**
+     * One page of history, newest first. {@code before} is the ID of the oldest message the caller
+     * already has; paging by cursor stays correct while new messages arrive.
+     */
     @Transactional(readOnly = true)
-    public Page<MessageResp> getChannelMessages(Long channelId, Pageable pageable) {
-        Channel channel = findChannel(channelId);
-        return messageRepository.findByChannelOrderByTimestampDesc(channel, pageable)
-                .map(MessageResp::fromEntity);
+    public MessagePage getChannelMessages(Long channelId, String before, int limit) {
+        int size = Math.max(1, Math.min(limit, MAX_PAGE_SIZE));
+        // One extra row tells whether anything older remains.
+        Limit fetch = Limit.of(size + 1);
+        List<Message> rows;
+        if (before == null) {
+            rows = messageRepository.findLatest(channelId, fetch);
+        } else {
+            Message cursor = findMessage(before);
+            if (!cursor.getChannel().getId().equals(channelId)) {
+                throw new ResourceNotFoundException("Message", "id", before);
+            }
+            rows = messageRepository.findOlderThan(channelId, cursor.getTimestamp(), cursor.getId(), fetch);
+        }
+        List<MessageResp> content = rows.stream().limit(size).map(MessageResp::fromEntity).toList();
+        return new MessagePage(content, rows.size() > size);
     }
 
     /** Changes only the content of an existing message; the caller has already been authorized. */
@@ -130,9 +153,11 @@ public class MessageService {
             request.setReceiver(null);
             return;
         }
-        long recipientId = DmKey.parse(channel.getDmKey())
-                .orElseThrow(() -> new ChannelAccessDeniedException("This conversation is not available"))
-                .otherThan(senderId);
+        // The other participant; in a conversation with oneself, the sender.
+        long recipientId = channelMemberRepository.findUserIds(channel.getId()).stream()
+                .filter(id -> !id.equals(senderId))
+                .findFirst()
+                .orElse(senderId);
         User sender = findUser(senderId);
         User recipient = findUser(recipientId);
         if (isBlocked(sender, recipient) || isBlocked(recipient, sender)) {

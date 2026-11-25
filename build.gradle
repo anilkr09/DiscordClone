@@ -53,6 +53,7 @@ dependencies {
 	implementation 'org.springframework.kafka:spring-kafka'
 	implementation project(':contract')
 	implementation 'org.postgresql:postgresql:42.7.3'
+	implementation 'org.flywaydb:flyway-core'
 
 	implementation 'org.springframework.security:spring-security-messaging'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -65,7 +66,6 @@ dependencies {
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
 
-	runtimeOnly 'com.mysql:mysql-connector-j'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'

@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
 
 @Data
     @NoArgsConstructor
@@ -18,6 +17,6 @@ import java.time.LocalDateTime;
         private String content;
         private UserDTO author;
         private Long channelId;
-        private LocalDateTime timestamp; // or LocalDateTime, depending on your use
+        private Instant timestamp; // or Instant, depending on your use
     }
 

@@ -4,11 +4,12 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "server_members")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -41,5 +42,19 @@ public class Member {
 
     @Column(name = "joined_at", nullable = false)
     @Builder.Default
-    private LocalDateTime joinedAt = LocalDateTime.now();
+    private Instant joinedAt = Instant.now();
+
+    /** Identity is the database key, so equality never touches lazy associations. */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Member that && id != null && id.equals(that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Member.class.hashCode();
+    }
 }

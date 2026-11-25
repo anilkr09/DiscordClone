@@ -13,7 +13,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -67,7 +68,7 @@ class ServerServiceTest {
                 .server(testServer)
                 .nickname(testUser.getUsername())
                 .role(Role.OWNER)
-                .joinedAt(LocalDateTime.now())
+                .joinedAt(Instant.now())
                 .build();
     }
 

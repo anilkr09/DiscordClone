@@ -15,7 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 @Slf4j
 
@@ -67,7 +67,7 @@ public class ServerService {
                 .server(savedServer)
                 .nickname(owner.getUsername())
                 .role(Role.OWNER)
-                .joinedAt(LocalDateTime.now())
+                .joinedAt(Instant.now())
                 .build();
 
         memberRepository.save(ownerMember);
@@ -107,7 +107,7 @@ public class ServerService {
                 .server(server)
                 .nickname(user.getUsername())
                 .role(Role.MEMBER)
-                .joinedAt(LocalDateTime.now())
+                .joinedAt(Instant.now())
                 .build();
         memberRepository.save(member);
         return server;

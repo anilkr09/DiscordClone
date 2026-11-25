@@ -33,14 +33,6 @@ public class ChannelController {
         return ResponseEntity.ok(channelService.createChannel(channel, serverId, userPrincipal.getId()));
     }
 
-    /** Any user may open a DM with another; the caller is always one of the two participants. */
-    @PostMapping("/dm/{userId}")
-    public ResponseEntity<Long> getOrCreateDmChannel(
-            @PathVariable Long userId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(channelService.getOrCreateDmChannel(userPrincipal.getId(), userId).getId());
-    }
-
     @GetMapping("")
     @PreAuthorize("@perm.isServerMember(#serverId, principal.id)")
     public ResponseEntity<List<ChannelDTO>> getServerChannels(

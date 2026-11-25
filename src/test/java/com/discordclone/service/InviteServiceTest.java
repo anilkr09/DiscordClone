@@ -11,12 +11,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -58,7 +59,7 @@ class InviteServiceTest {
                 .server(testServer)
                 .maxUses(10)
                 .uses(0)
-                .expiry(LocalDateTime.now().plusDays(1))
+                .expiry(Instant.now().plus(Duration.ofDays(1)))
                 .build();
 
         testMember = Member.builder()
@@ -67,7 +68,7 @@ class InviteServiceTest {
                 .server(testServer)
                 .nickname(testUser.getUsername())
                 .role(Role.MEMBER)
-                .joinedAt(LocalDateTime.now())
+                .joinedAt(Instant.now())
                 .build();
     }
 
@@ -77,7 +78,7 @@ class InviteServiceTest {
         when(serverService.getServerById(testServer.getId())).thenReturn(testServer);
         when(inviteRepository.save(any(Invite.class))).thenReturn(testInvite);
 
-        Invite result = inviteService.createInvite(testServer.getId(), 10, Duration.ofDays(1), testUser.getId());
+        Invite result = inviteService.createInvite(testServer.getId(), 10, Duration.ofDays(1), testUser.getId(), false);
 
         assertNotNull(result);
         assertEquals(testServer, result.getServer());
@@ -91,7 +92,7 @@ class InviteServiceTest {
         when(serverService.isUserMember(testServer.getId(), testUser.getId())).thenReturn(false);
 
         assertThrows(RuntimeException.class,
-                () -> inviteService.createInvite(testServer.getId(), 10, Duration.ofDays(1), testUser.getId()));
+                () -> inviteService.createInvite(testServer.getId(), 10, Duration.ofDays(1), testUser.getId(), false));
         verify(inviteRepository, never()).save(any(Invite.class));
     }
 
@@ -105,14 +106,13 @@ class InviteServiceTest {
         when(userService.getUserById(joiningUser.getId())).thenReturn(joiningUser);
         when(memberRepository.existsByIdUserIdAndIdServerId(joiningUser.getId(), testServer.getId())).thenReturn(false);
         when(memberRepository.save(any(Member.class))).thenReturn(testMember);
-        when(inviteRepository.save(any(Invite.class))).thenReturn(testInvite);
+        when(inviteRepository.claimUse(eq(testInvite.getCode()), any(Instant.class))).thenReturn(1);
 
         Server result = inviteService.joinViaInvite(testInvite.getCode(), joiningUser.getId());
 
         assertNotNull(result);
         assertEquals(testServer.getId(), result.getId());
         verify(memberRepository).save(any(Member.class));
-        verify(inviteRepository).save(any(Invite.class));
     }
 
     @Test
@@ -126,7 +126,7 @@ class InviteServiceTest {
 
     @Test
     void joinViaInvite_ExpiredInvite_ThrowsException() {
-        testInvite.setExpiry(LocalDateTime.now().minusDays(1));
+        testInvite.setExpiry(Instant.now().minus(Duration.ofDays(1)));
         when(inviteRepository.findById(testInvite.getCode())).thenReturn(Optional.of(testInvite));
 
         assertThrows(RuntimeException.class,

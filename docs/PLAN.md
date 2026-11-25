@@ -240,10 +240,15 @@ with the event contract in `contract`, so the fixes below apply there; the separ
 have explicit participants, so authorization, delivery and recipient lookup all derive from one
 table. **Effort:** M. **Owns:** B12 (final), B13, B20, B21, B23, B24, B35, B37, B55.
 
+**Status:** done. Notes: V3 reads existing local timestamps as UTC. The seeder is now off unless
+`app.seed.enabled=true` and `SEED_PASSWORD` are set, because a working seeded account with a known
+password would be a backdoor. DMs are opened with `POST /api/dms/{userId}`. The invite landing page
+itself is part of M9.
+
 **Migrations (B23, B55)**
-- [ ] Add Flyway. Generate `V1__baseline.sql` from the current schema, and set
+- [x] Add Flyway. Generate `V1__baseline.sql` from the current schema, and set
   `spring.jpa.hibernate.ddl-auto=validate`.
-- [ ] Add `V2__indexes_and_constraints.sql`:
+- [x] Add `V2__indexes_and_constraints.sql`:
   - `messages (channel_id, timestamp DESC)`;
   - `server_members (user_id)`;
   - a unique friendship pair on `LEAST/GREATEST(sender_id, receiver_id)`;
@@ -251,37 +256,37 @@ table. **Effort:** M. **Owns:** B12 (final), B13, B20, B21, B23, B24, B35, B37, 
 - [x] Done in M2: the consumer module uses JDBC and manages no schema.
 
 **Time (B20)**
-- [ ] Replace `LocalDateTime` with `Instant` in `Message`, `Friendship`, `UserStatusEntity` and
+- [x] Replace `LocalDateTime` with `Instant` in `Message`, `Friendship`, `UserStatusEntity` and
   `Invite`. Migrate the columns to `timestamptz`, and set
   `spring.jpa.properties.hibernate.jdbc.time_zone=UTC`.
 
 **DM participants (B12, B13, B24)**
-- [ ] Add a `channel_members (channel_id, user_id)` table, and make `Channel.server` nullable for
+- [x] Add a `channel_members (channel_id, user_id)` table, and make `Channel.server` nullable for
   `type = DM`. Migrate the existing DM rows from their `dmKey`.
-- [ ] Rewrite `ChannelService.getOrCreateDmChannel` without server 1. Delete the unused
+- [x] Rewrite `ChannelService.getOrCreateDmChannel` without server 1. Delete the unused
   `DmChannel` and `DmChannelRepository`.
-- [ ] Have `PermissionService.isChannelMember` and the DM recipient derivation read
+- [x] Have `PermissionService.isChannelMember` and the DM recipient derivation read
   `channel_members`. Remove the interim `dmKey` parser from M1 (B12, B13).
-- [ ] Frontend: route DMs without the hard-coded `/channels/1/`, and fix the DM view's loading and
+- [x] Frontend: route DMs without the hard-coded `/channels/1/`, and fix the DM view's loading and
   label states (B24).
 
 **Fixes**
-- [ ] Fix `DELETE /api/messages/{id}`, so that it can succeed for the author (B21).
-- [ ] Seeder:
+- [x] Fix `DELETE /api/messages/{id}`, so that it can succeed for the author (B21).
+- [x] Seeder:
   - create the user through `UserService`, so BCrypt is applied;
   - add the owner's `Member` row;
   - make each seed step independent and idempotent (B35).
-- [ ] Invites (B37):
+- [x] Invites (B37):
   - claim a use with an atomic
     `UPDATE invites SET uses = uses + 1 WHERE code = ? AND uses < max_uses`;
   - return a frontend URL, not the backend `POST` route;
   - reuse an unexpired invite instead of creating one each time the dialog opens.
 
 **Entities**
-- [ ] Replace `@Data` on entities with `@Getter`/`@Setter`, plus `equals`/`hashCode` based on the
+- [x] Replace `@Data` on entities with `@Getter`/`@Setter`, plus `equals`/`hashCode` based on the
   ID.
-- [ ] Load friend lists with `JOIN FETCH` or `@EntityGraph` to remove the N+1.
-- [ ] Use cursor pagination for message history (`?before=<messageId>&limit=50`) on the new index.
+- [x] Load friend lists with `JOIN FETCH` or `@EntityGraph` to remove the N+1.
+- [x] Use cursor pagination for message history (`?before=<messageId>&limit=50`) on the new index.
 
 **Exit criteria**
 - `@DataJpaTest` with Testcontainers PostgreSQL applies all migrations, and checks the

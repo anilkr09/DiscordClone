@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -21,7 +21,7 @@ public class MemberDTO {
 
     private String nickname;
     private Role role;
-    private LocalDateTime joinedAt;
+    private Instant joinedAt;
 
     public static MemberDTO fromEntity(Member member) {
         if (member == null) {

@@ -3,6 +3,7 @@ package com.discordclone.repository;
 import com.discordclone.model.Friendship;
 import com.discordclone.model.FriendshipStatus;
 import com.discordclone.model.User;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,17 +23,20 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
     /**
      * Find all friendships where the user is either sender or receiver and status is ACCEPTED
      */
-    @Query("SELECT f FROM Friendship f WHERE (f.sender = :user OR f.receiver = :user) AND f.status = 'ACCEPTED'")
+    @Query("SELECT f FROM Friendship f JOIN FETCH f.sender JOIN FETCH f.receiver "
+            + "WHERE (f.sender = :user OR f.receiver = :user) AND f.status = 'ACCEPTED'")
     List<Friendship> findAcceptedFriendships(@Param("user") User user);
     
     /**
      * Find all pending friend requests sent by the user
      */
+    @EntityGraph(attributePaths = {"sender", "receiver"})
     List<Friendship> findBySenderAndStatus(User sender, FriendshipStatus status);
     
     /**
      * Find all pending friend requests received by the user
      */
+    @EntityGraph(attributePaths = {"sender", "receiver"})
     List<Friendship> findByReceiverAndStatus(User receiver, FriendshipStatus status);
     
     /**

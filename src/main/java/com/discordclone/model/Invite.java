@@ -2,11 +2,12 @@ package com.discordclone.model;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "invites")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,5 +21,19 @@ public class Invite {
 
     private int maxUses;
     private int uses;
-    private LocalDateTime expiry;
+    private Instant expiry;
+
+    /** Identity is the database key, so equality never touches lazy associations. */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        return other instanceof Invite that && code != null && code.equals(that.getCode());
+    }
+
+    @Override
+    public int hashCode() {
+        return Invite.class.hashCode();
+    }
 }
