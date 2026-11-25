@@ -3,13 +3,11 @@ package com.discordclone.service;
 import com.discordclone.model.Message;
 import com.discordclone.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile("local")
 @RequiredArgsConstructor
-public class LocalMessagePersistenceService implements MessagePersistenceService {
+public class DatabaseMessagePersistenceService implements MessagePersistenceService {
 
     private final MessageRepository messageRepository;
 

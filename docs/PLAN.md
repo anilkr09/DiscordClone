@@ -489,23 +489,29 @@ replaces the in-memory broker.
 Kafka is the path to horizontal scale. **Effort:** L. **Owns:** B10, B56, B58. *Outline; refine
 before starting.*
 
-- [ ] Bring the consumer in. The preferred option is to move it into this repository as a Gradle
+**Status:** done. Notes: with the outbox the application itself stores each message before publishing it,
+so the consumer’s insert is now a repeat that does nothing; it remains as the persistence path for
+events from other producers and can be retired. `getReferenceById`/`Persistable` and
+`JacksonJsonDeserializer` do not apply: the consumer uses one JDBC insert and Spring Kafka 3. Alert
+rules are in `ops/prometheus/alerts.yml`; running Prometheus is up to the deployment.
+
+- [x] Bring the consumer in. The preferred option is to move it into this repository as a Gradle
   module, which also aligns it on one Spring Boot major version. At a minimum, add it to
   `docker-compose.yml` with a health check and a documented start order (B10).
-- [ ] Consumer operations (B58):
+- [x] Consumer operations (B58):
   - Actuator liveness and readiness;
   - a Testcontainers context test in place of the live-services `contextLoads`;
   - `getReferenceById` plus `Persistable` to cut the four queries per message down to two;
   - `JacksonJsonDeserializer`;
   - delete the empty `KafkaErrorHandler` and the dead null branch.
-- [ ] Make the event contract a single versioned `MessageCreatedV1` in a shared module, decoupled
+- [x] Make the event contract a single versioned `MessageCreatedV1` in a shared module, decoupled
   from the WebSocket `MessageResponse`, so that an incompatible change fails the build.
-- [ ] Replace the dual write with a transactional outbox: a message row and an `outbox` row in one
+- [x] Replace the dual write with a transactional outbox: a message row and an `outbox` row in one
   transaction, then a relay to Kafka.
-- [ ] Use `INSERT … ON CONFLICT (id) DO NOTHING` for the idempotent insert.
-- [ ] Add a per-instance `fanout-{instanceId}` consumer group that broadcasts to the local STOMP
+- [x] Use `INSERT … ON CONFLICT (id) DO NOTHING` for the idempotent insert.
+- [x] Add a per-instance `fanout-{instanceId}` consumer group that broadcasts to the local STOMP
   sessions.
-- [ ] Alert on consumer-group lag. The client keeps live-received messages until history confirms
+- [x] Alert on consumer-group lag. The client keeps live-received messages until history confirms
   them (B56).
 
 **Exit criteria:** the consumer persistence suite passes against Testcontainers Kafka and

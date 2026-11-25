@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -31,7 +32,8 @@ import java.util.UUID;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(classes = ConsumerApplication.class, properties = {
+@SpringBootTest(classes = ConsumerApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.config.name=consumer",
         "consumer.retry.max-retries=2",
         "consumer.retry.initial-interval-ms=200",
@@ -43,6 +45,8 @@ import static org.junit.jupiter.api.Assertions.*;
         "spring.sql.init.data-locations=classpath:data-test.sql",
         "spring.jpa.defer-datasource-initialization=true"
 })
+// Tests switch metrics export off unless asked for it.
+@AutoConfigureObservability
 class PersistenceTest {
 
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
@@ -80,6 +84,19 @@ class PersistenceTest {
     @AfterAll
     static void close() {
         deadLetters.close();
+    }
+
+    @Autowired
+    org.springframework.boot.test.web.client.TestRestTemplate rest;
+
+    @Test
+    void reportsHealthAndLagMetrics() {
+        await().atMost(Duration.ofSeconds(30)).until(() ->
+                rest.getForEntity("/actuator/health/readiness", String.class).getStatusCode().is2xxSuccessful());
+        assertTrue(rest.getForEntity("/actuator/health/liveness", String.class).getStatusCode().is2xxSuccessful());
+        // The metric the lag alert watches; it appears once partitions are assigned.
+        await().atMost(Duration.ofSeconds(30)).until(() -> rest.getForObject("/actuator/prometheus", String.class)
+                .contains("kafka_consumer_fetch_manager_records_lag_max"));
     }
 
     private static String event(String id, long channelId) {
@@ -132,6 +149,10 @@ class PersistenceTest {
 
         await().atMost(Duration.ofSeconds(30)).until(() -> rows(List.of(good)) == 1
                 && deadLettered(List.of(unknownChannel, missingAuthor, malformed)) == 3);
+        // The metric the dead-letter alert watches.
+        assertTrue(rest.getForObject("/actuator/prometheus", String.class).lines()
+                .anyMatch(line -> line.startsWith("spring_kafka_template_seconds_count")
+                        && line.contains("name=\"deadLetterTemplate\"")));
     }
 
     @Test

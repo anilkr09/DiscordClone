@@ -105,6 +105,31 @@ services:
         --bootstrap-server kafka:29092 --partitions 4 --replication-factor 1 || exit 1;
         done
   # ---------------------------
+  # Message consumer (docker compose --profile kafka up -d)
+  # ---------------------------
+  # Start order: db and kafka healthy, topics created, then this. The tables come from the
+  # application's migrations, so start the application before sending messages.
+  consumer:
+    profiles: ["kafka"]
+    build:
+      context: .
+      dockerfile: consumer/Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/dev_database
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+
+  # ---------------------------
   # 📊 Kafka UI
   # ---------------------------
   kafka-ui:

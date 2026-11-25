@@ -80,26 +80,25 @@ before changing the messaging or presence layers. `docs/BUGS.md` is the numbered
 ### The profile seam (most important structural decision)
 
 `MessageService` never knows how a message is delivered. It loads entities, assigns a UUID, builds a
-`MessageResponse`, and delegates to two profile-selected interfaces:
+`MessageResponse`, and delegates to a profile-selected `MessageEventPublisher`. Both store the message
+through `MessagePersistenceService` inside the same transaction.
 
-| Bean | `local` (default) | `kafka` |
-|---|---|---|
-| `MessageEventPublisher` | `LocalMessageEventPublisher` — save to DB, then broadcast | `KafkaMessageEventPublisher` — produce, broadcast in the ack callback |
-| `MessagePersistenceService` | `LocalMessagePersistenceService` | `NoOpMessagePersistenceService` |
+- `local` (default): `LocalMessageEventPublisher` broadcasts after the commit.
+- `kafka`: `kafka/OutboxMessageEventPublisher` also writes an `outbox` row. `OutboxRelay` publishes
+  rows in order and deletes them once acknowledged (one instance at a time, via an advisory lock).
+  Each instance's `MessageFanOut`, in its own `fanout-{instance-id}` group, delivers to its sockets.
+  Events can repeat but are not lost.
 
-`Message.id` is an app-generated `String` UUID rather than a DB sequence **because of this seam** —
-in the Kafka path the ID must exist before any write, so it stays stable across the broadcast, the
-topic record, and the consumer's insert. The consumer uses it as an idempotency key, skipping any
-UUID already stored.
+`Message.id` is an app-generated `String` UUID, so it is stable across the row, the broadcast and the
+topic record.
 
-Under the `kafka` profile this application does not persist messages. The `consumer` module does
-(`./gradlew :consumer:bootRun`): one `INSERT ... ON CONFLICT DO NOTHING` per event, retries with
-back-off, then the `message-events-dlt` topic. The event type is `contract/MessageCreatedV1`, shared
-by both sides; add only optional fields to it, and make a new version for anything else. The old
-separate `message-consumer-service` repository is superseded.
+The `consumer` module (`./gradlew :consumer:bootRun`, or `docker compose --profile kafka up -d`)
+also persists events with `INSERT ... ON CONFLICT DO NOTHING`, retrying and then dead-lettering to
+`message-events-dlt`; health and metrics are on port 8081. The event type is
+`contract/MessageCreatedV1`, shared by both sides: add only optional fields, and make a new version
+for anything else. The old `message-consumer-service` repository is superseded.
 
 The producer is configured entirely by `spring.kafka.producer.*` in `application-kafka.properties`.
-Sends run on the single-threaded `kafkaSendExecutor`, never on a STOMP inbound thread.
 
 ### Presence (Redis)
 

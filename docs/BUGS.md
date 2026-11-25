@@ -76,11 +76,11 @@ its severity, so numbers are not strictly in severity order.
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes — **Fixed** | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist — **Fixed** | Medium | Frontend |
 | [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL — **Fixed** | Medium | Redis |
-| [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service | Medium | Kafka |
+| [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service — **Fixed** | Medium | Kafka |
 | [B53](#b53-the-consumers-dead-letter-setup-would-fail-if-wired) | The consumer's dead-letter setup would fail if wired — **Fixed** | Medium | Kafka consumer |
 | [B54](#b54-latest-offset-reset-loses-messages) | `latest` offset reset loses messages — **Fixed** | Medium | Kafka consumer |
 | [B55](#b55-two-services-manage-one-schema) | Two services manage one schema — **Fixed** | Medium | Data |
-| [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored | Medium | Kafka |
+| [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored — **Fixed** | Medium | Kafka |
 | [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start — **Fixed** | Medium | Kafka consumer |
 | [B60](#b60-unknown-urls-return-500-instead-of-404) | Unknown URLs return 500 instead of 404 — **Fixed** | Medium | API |
 | [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice — **Fixed** | Low | Redis |
@@ -93,7 +93,7 @@ its severity, so numbers are not strictly in severity order.
 | [B48](#b48-two-userservice-beans) | Two `UserService` beans — **Fixed** | Low | Backend |
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync — **Fixed** | Low | WebSocket |
 | [B50](#b50-infrastructure-drift) | Infrastructure drift — **Fixed** | Low | Ops |
-| [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
+| [B58](#b58-consumer-operational-gaps) | Consumer operational gaps — **Fixed** | Low | Kafka consumer |
 | [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call — **Fixed** | Low | Backend |
 
 ---

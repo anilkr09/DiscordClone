@@ -3,43 +3,50 @@ package com.discordclone.integration;
 import com.discordclone.model.User;
 import com.discordclone.payload.MessageRequest;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.mock.mockito.SpyBean;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertTimeout;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.*;
 
-/** The kafka profile with no broker listening: senders must not be held up, and must be told. */
+/** The kafka profile with no broker listening: nothing blocks and nothing is lost. */
 @ActiveProfiles("kafka")
+// Closed afterwards: a cached context's relay would go on draining the shared outbox.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestPropertySource(properties = {
         "spring.kafka.bootstrap-servers=localhost:1",
         "spring.kafka.admin.auto-create=false"
 })
 class KafkaOutageTest extends IntegrationTest {
 
-    @SpyBean
-    private SimpMessagingTemplate messagingTemplate;
+    @Autowired
+    JdbcTemplate jdbc;
 
     @Test
-    void sendingReturnsAtOnceAndTheSenderLearnsOfTheFailure() {
+    void messagesAreStoredAtOnceAndWaitInTheOutbox() throws Exception {
         User owner = newUser("owner");
         Long channelId = newChannel(newServer(owner), owner);
+        List<String> ids = new ArrayList<>();
 
-        // Several sends in a row: none may wait for the broker on the calling thread.
         assertTimeout(Duration.ofSeconds(1), () -> {
             for (int i = 0; i < 3; i++) {
-                messageService.sendMessage(new MessageRequest("hi", channelId), owner.getId());
+                ids.add(messageService.sendMessage(new MessageRequest("hi", channelId), owner.getId()).getId());
             }
         });
+        // Long enough for the relay to have tried and failed.
+        Thread.sleep(3000);
 
-        verify(messagingTemplate, timeout(3000).atLeastOnce())
-                .convertAndSendToUser(eq(owner.getUsername()), eq("/queue/errors"), any());
+        for (String id : ids) {
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM messages WHERE id = ?", Integer.class, id));
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM outbox WHERE payload LIKE ?", Integer.class, "%" + id + "%"));
+        }
     }
 }

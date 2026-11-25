@@ -3,3 +3,7 @@
 *.iml
 .DS_Store
 .env
+**/build/
+**/node_modules/
+*.tar.gz
+DiscordClone.git/

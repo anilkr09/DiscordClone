@@ -1,0 +1,22 @@
+# Prometheus alerting rules for the message pipeline. Scrape the consumer at
+# :8081/actuator/prometheus.
+groups:
+  - name: message-pipeline
+    rules:
+      - alert: MessageConsumerLagging
+        expr: max by (client_id) (kafka_consumer_fetch_manager_records_lag_max) > 1000
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "The persistence consumer is {{ $value }} messages behind ({{ $labels.client_id }})"
+      - alert: MessageConsumerDown
+        expr: up{job="message-consumer"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "The message consumer cannot be scraped"
+      - alert: MessagesDeadLettered
+        expr: increase(spring_kafka_template_seconds_count{name="deadLetterTemplate"}[10m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "Messages were moved to message-events-dlt and need attention"
