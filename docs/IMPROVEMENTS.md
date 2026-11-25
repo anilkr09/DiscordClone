@@ -22,6 +22,9 @@ Each item is tagged with a **priority** and a rough **effort**:
 | **2 — Reliable real-time** | Presence and delivery that survive restarts and reconnects | Presence redesign, WebSocket subscription manager, after-commit events, token lifecycle |
 | **3 — Scale and operate** | More than one instance; observable; deployable | Broker relay or Kafka fan-out, Actuator and metrics, CI/CD, container hardening |
 
+[PLAN.md](PLAN.md) breaks these phases into ordered milestones with exit criteria, and assigns every
+bug to one of them.
+
 ---
 
 ## Security and authentication

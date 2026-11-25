@@ -14,6 +14,7 @@ Engineering documentation for the DiscordClone real-time chat application.
 | [BUGS.md](BUGS.md) | **Numbered defect catalog** (B01–B60) with severity, evidence, location, and fix, plus the implementation patterns behind them |
 | [SECURITY.md](SECURITY.md) | **Security review**: threat model, authentication, authorization matrix, WebSocket, data exposure, input handling, transport, secrets, infrastructure, logging, abuse resistance, supply chain, new findings S1–S7, remediation plan and test checklist |
 | [IMPROVEMENTS.md](IMPROVEMENTS.md) | Prioritized improvements (security, API, data, messaging, presence, scaling, frontend, testing, ops) and a phased roadmap |
+| [PLAN.md](PLAN.md) | **Implementation plan**: the roadmap as ordered milestones (M0–M9) with tasks, dependencies and exit criteria, and the owning milestone for every bug (B01–B60, S1–S7) |
 | [guides/](guides/README.md) | **Technology guides** for STOMP over WebSocket, Redis and Kafka (how each works, its features with example scenarios, comparisons, pitfalls and self-check questions), plus a Spring Boot guide limited to the Spring features this project uses |
 
 ## Scope
