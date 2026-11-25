@@ -51,6 +51,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	implementation 'org.springframework.kafka:spring-kafka'
+	implementation project(':contract')
 	implementation 'org.postgresql:postgresql:42.7.3'
 
 	implementation 'org.springframework.security:spring-security-messaging'

@@ -1,0 +1,12 @@
+CREATE TABLE users (id BIGINT PRIMARY KEY);
+CREATE TABLE channels (id BIGINT PRIMARY KEY);
+CREATE TABLE messages (
+    id VARCHAR(255) PRIMARY KEY,
+    content TEXT NOT NULL,
+    channel_id BIGINT NOT NULL REFERENCES channels (id),
+    user_id BIGINT NOT NULL REFERENCES users (id),
+    timestamp TIMESTAMP NOT NULL,
+    edited BOOLEAN NOT NULL
+);
+INSERT INTO users VALUES (1);
+INSERT INTO channels VALUES (1);

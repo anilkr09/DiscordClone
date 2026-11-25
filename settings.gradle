@@ -1,1 +1,3 @@
 rootProject.name = 'discord-clone'
+
+include 'contract', 'consumer'

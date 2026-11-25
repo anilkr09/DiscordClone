@@ -52,8 +52,8 @@ its severity, so numbers are not strictly in severity order.
 | [B16](#b16-token-refresh-is-broken-end-to-end) | Token refresh is broken end to end | High | Auth |
 | [B17](#b17-access-tokens-are-accepted-as-refresh-tokens) | Access tokens are accepted as refresh tokens | High | Auth |
 | [B18](#b18-chatarea-leaks-a-subscription-on-every-render) | `ChatArea` leaks a subscription on every render | High | WebSocket |
-| [B19](#b19-a-kafka-outage-stalls-all-websocket-traffic) | A Kafka outage stalls all WebSocket traffic | High | Kafka |
-| [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save | High | Kafka consumer |
+| [B19](#b19-a-kafka-outage-stalls-all-websocket-traffic) | A Kafka outage stalls all WebSocket traffic — **Fixed** | High | Kafka |
+| [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save — **Fixed** | High | Kafka consumer |
 | [B20](#b20-message-times-are-wrong-outside-utc) | Message times are wrong outside UTC | Medium | Messaging |
 | [B21](#b21-delete-apimessagesid-can-never-succeed) | `DELETE /api/messages/{id}` can never succeed | Medium | API |
 | [B22](#b22-put-apiserversidrolesroleid-can-never-succeed) | `PUT /api/servers/{id}/roles/{roleId}` can never succeed | Medium | API |
@@ -77,11 +77,11 @@ its severity, so numbers are not strictly in severity order.
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |
 | [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
 | [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service | Medium | Kafka |
-| [B53](#b53-the-consumers-dead-letter-setup-would-fail-if-wired) | The consumer's dead-letter setup would fail if wired | Medium | Kafka consumer |
-| [B54](#b54-latest-offset-reset-loses-messages) | `latest` offset reset loses messages | Medium | Kafka consumer |
-| [B55](#b55-two-services-manage-one-schema) | Two services manage one schema | Medium | Data |
+| [B53](#b53-the-consumers-dead-letter-setup-would-fail-if-wired) | The consumer's dead-letter setup would fail if wired — **Fixed** | Medium | Kafka consumer |
+| [B54](#b54-latest-offset-reset-loses-messages) | `latest` offset reset loses messages — **Fixed** | Medium | Kafka consumer |
+| [B55](#b55-two-services-manage-one-schema) | Two services manage one schema — **Fixed** | Medium | Data |
 | [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored | Medium | Kafka |
-| [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start | Medium | Kafka consumer |
+| [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start — **Fixed** | Medium | Kafka consumer |
 | [B60](#b60-unknown-urls-return-500-instead-of-404) | Unknown URLs return 500 instead of 404 | Medium | API |
 | [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice | Low | Redis |
 | [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation | Low | Redis |
@@ -92,7 +92,7 @@ its severity, so numbers are not strictly in severity order.
 | [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects — **Principal null dereference removed; rest open** | Low | WebSocket |
 | [B48](#b48-two-userservice-beans) | Two `UserService` beans | Low | Backend |
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
-| [B50](#b50-infrastructure-drift) | Infrastructure drift — **Partly fixed; Kafka properties remain** | Low | Ops |
+| [B50](#b50-infrastructure-drift) | Infrastructure drift — **Fixed** | Low | Ops |
 | [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
 | [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call | Low | Backend |
 

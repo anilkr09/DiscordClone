@@ -202,24 +202,28 @@ route, which cannot work until B22 is fixed in M4.
 dead-lettered, never dropped, and a broker outage cannot stall WebSocket traffic. **Effort:** S,
 across two repositories. **Owns:** B19, B52, B53, B54, B57. See [KAFKA.md](KAFKA.md).
 
+**Status:** done. The consumer was moved into this repository as the `consumer` module (the M7 option),
+with the event contract in `contract`, so the fixes below apply there; the separate
+`message-consumer-service` repository is superseded and unchanged.
+
 **`message-consumer-service`**
-- [ ] Register the `DefaultErrorHandler` as a `@Bean`, so that Boot's container factory picks it
+- [x] Register the `DefaultErrorHandler` as a `@Bean`, so that Boot's container factory picks it
   up. Delete the unused factory method (B52).
   - Back-off: exponential, measured in seconds, with a bounded number of attempts.
   - Recoverer: a `DeadLetterPublishingRecoverer` whose `KafkaTemplate` uses Spring Kafka's JSON
     serializer and takes the broker address from properties (B53).
   - Mark not-found failures, for a missing user or channel, as non-retryable.
-- [ ] Create `message-events-dlt` with 4 partitions, matching `message-events`.
-- [ ] Set `spring.kafka.consumer.auto-offset-reset=earliest`. Replay is safe because the insert is
+- [x] Create `message-events-dlt` with 4 partitions, matching `message-events`.
+- [x] Set `spring.kafka.consumer.auto-offset-reset=earliest`. Replay is safe because the insert is
   idempotent on the UUID (B54).
-- [ ] Remove the `application` plugin from `build.gradle`. Confirm that `bootJar` starts (B57).
+- [x] Remove the `application` plugin from `build.gradle`. Confirm that `bootJar` starts (B57).
 
 **This repository**
-- [ ] Delete `KafkaProducerConfig`, so that Boot's auto-configuration applies the
+- [x] Delete `KafkaProducerConfig`, so that Boot's auto-configuration applies the
   `spring.kafka.producer.*` properties. Remove the hard-coded `localhost:9092`.
-- [ ] Set `spring.kafka.producer.properties.max.block.ms` to about 1500, and run `send` on a
+- [x] Set `spring.kafka.producer.properties.max.block.ms` to about 1500, and run `send` on a
   bounded executor, not on the `clientInboundChannel` worker (B19).
-- [ ] Delete `app.kafka.enabled` from both profile files. Profile selection stays the only switch.
+- [x] Delete `app.kafka.enabled` from both profile files. Profile selection stays the only switch.
 
 **Exit criteria**
 - Run the consumer against Testcontainers Kafka and PostgreSQL. Stopping the database mid-stream
@@ -244,8 +248,7 @@ table. **Effort:** M. **Owns:** B12 (final), B13, B20, B21, B23, B24, B35, B37, 
   - `server_members (user_id)`;
   - a unique friendship pair on `LEAST/GREATEST(sender_id, receiver_id)`;
   - server-member and channel foreign keys to `servers` with `ON DELETE CASCADE` (B23).
-- [ ] Set the consumer's `ddl-auto` to `none`, so that this application alone owns the schema
-  (B55).
+- [x] Done in M2: the consumer module uses JDBC and manages no schema.
 
 **Time (B20)**
 - [ ] Replace `LocalDateTime` with `Instant` in `Message`, `Friendship`, `UserStatusEntity` and

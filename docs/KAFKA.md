@@ -1,4 +1,7 @@
 # Kafka
+> **Out of date since milestone M2.** The consumer now lives in this repository as the `consumer`
+> module, shares `contract/MessageCreatedV1` with the application, and fixes B19 and B52–B55 and B57.
+> Sections below describe the earlier design.
 
 Kafka is an **optional, profile-activated** path for chat messages. The main application only
 *produces* to the `message-events` topic. A separate service,

@@ -100,8 +100,10 @@ services:
     # One list item, so that the shell receives the whole script as a single argument.
     command:
       - >-
-        kafka-topics --create --if-not-exists --topic message-events
-        --bootstrap-server kafka:29092 --partitions 4 --replication-factor 1
+        for topic in message-events message-events-dlt; do
+        kafka-topics --create --if-not-exists --topic $$topic
+        --bootstrap-server kafka:29092 --partitions 4 --replication-factor 1 || exit 1;
+        done
   # ---------------------------
   # 📊 Kafka UI
   # ---------------------------

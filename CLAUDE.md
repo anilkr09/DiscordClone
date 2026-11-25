@@ -21,8 +21,9 @@ or `docker compose`.
 ### Backend (Gradle, Java 17, port 8080)
 
 ```bash
-./gradlew bootRun                                  # run with default 'local' profile
-SPRING_PROFILES_ACTIVE=kafka ./gradlew bootRun     # Kafka path; start message-consumer-service first
+./gradlew :bootRun                                 # the application, default 'local' profile
+SPRING_PROFILES_ACTIVE=kafka ./gradlew :bootRun    # Kafka path
+./gradlew :consumer:bootRun                        # persists messages under the kafka profile
 ./gradlew build                                    # full build: compile, PMD, tests, JaCoCo
 ./gradlew test                                     # run tests
 ./gradlew test --tests "com.discordclone.service.ChannelServiceTest"
@@ -66,10 +67,8 @@ frontend lint and build, and `gitleaks` on pull requests.
 ## Architecture
 
 Spring Boot monolith + React SPA. PostgreSQL is the system of record, Redis holds ephemeral presence,
-Kafka is an optional message path. Real-time is STOMP over native WebSocket. Under the `kafka`
-profile, messages are persisted by a **separate repository**,
-[`message-consumer-service`](https://github.com/anilkr09/message-consumer-service) (Spring Boot 4,
-no web server), not by this one.
+Kafka is an optional message path. Real-time is STOMP over native WebSocket. Gradle modules: the
+application (root), `consumer`, and `contract`.
 
 Detailed docs live in `docs/` (ARCHITECTURE, IMPLEMENTATION, WEBSOCKETS, KAFKA, REDIS). Read those
 before changing the messaging or presence layers. `docs/BUGS.md` is the numbered defect catalog
@@ -91,22 +90,14 @@ in the Kafka path the ID must exist before any write, so it stays stable across 
 topic record, and the consumer's insert. The consumer uses it as an idempotency key, skipping any
 UUID already stored.
 
-> **The `kafka` profile can lose data.** This repository has no `@KafkaListener`, and persistence is a
-> no-op under that profile. Rows are written by `message-consumer-service`, which:
-> - drops any message it fails to save after 10 instant retries, because its error-handler factory
->   method lacks `@Bean` (B52);
-> - starts at the **end** of the topic on its first run (`auto-offset-reset=latest`), so start it
->   before producing anything (B54);
-> - runs `ddl-auto=update` against the same schema with copied entities (B55).
->
-> Changing `payload/MessageResponse` changes the Kafka event contract. The consumer has a hand-copied
-> `dto/MessageResponse`, and a renamed or removed field becomes `null` there. A null `author` makes
-> the save fail, and the message is dropped. See `docs/KAFKA.md` §4.
+Under the `kafka` profile this application does not persist messages. The `consumer` module does
+(`./gradlew :consumer:bootRun`): one `INSERT ... ON CONFLICT DO NOTHING` per event, retries with
+back-off, then the `message-events-dlt` topic. The event type is `contract/MessageCreatedV1`, shared
+by both sides; add only optional fields to it, and make a new version for anything else. The old
+separate `message-consumer-service` repository is superseded.
 
-`app.kafka.enabled` exists in both profile properties files but is read by nothing — profile
-selection alone drives wiring. `KafkaProducerConfig` defines an explicit `ProducerFactory`, which
-suppresses Boot's auto-config and therefore **silently ignores every `spring.kafka.producer.*`
-property**; bootstrap servers are hardcoded to `localhost:9092`.
+The producer is configured entirely by `spring.kafka.producer.*` in `application-kafka.properties`.
+Sends run on the single-threaded `kafkaSendExecutor`, never on a STOMP inbound thread.
 
 ### Presence (Redis, TTL-driven)
 
@@ -199,7 +190,6 @@ while the backend route is `/api/auth/refresh` with `{refreshToken}`.
 - **Several `{serverId}` path variables are ignored** in `ChannelController`. The channel's real
   server comes from the database. `PUT /api/servers/{id}/roles/{roleId}` declares a `userId` path
   variable that is not in the route, so it always fails.
-- **Inert settings** (look live, do nothing): `app.kafka.enabled`, `spring.kafka.producer.*`.
 - **Entities use Lombok `@Data`**, which generates `equals`/`hashCode` over lazy associations. Avoid
   adding entities to `HashSet`s.
 - **`dto/` and `payload/` both exist** and both contain a `UserDTO`. `MessageService` uses the
