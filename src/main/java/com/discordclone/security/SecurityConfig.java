@@ -30,19 +30,16 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtService jwtService;
-    private final CustomUserDetailsService customUserDetailsService;
+    private final CorsProperties corsProperties;
 
-    public SecurityConfig(
-            JwtService jwtService,
-            CustomUserDetailsService customUserDetailsService
-    ) {
+    public SecurityConfig(JwtService jwtService, CorsProperties corsProperties) {
         this.jwtService = jwtService;
-        this.customUserDetailsService = customUserDetailsService;
+        this.corsProperties = corsProperties;
     }
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtService, customUserDetailsService);
+        return new JwtAuthenticationFilter(jwtService);
     }
 
     @Bean
@@ -63,9 +60,6 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .headers(headers -> headers
-                        .frameOptions(frame -> frame.sameOrigin()) // ✅ THIS FIXES YOUR SCREEN
-                )
                 // A missing or invalid token is 401; 403 is reserved for authenticated callers.
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
@@ -76,7 +70,6 @@ public class SecurityConfig {
 
                         // Allow preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/h2-console/**").permitAll()
 
                         // Public endpoints
                         .requestMatchers(
@@ -113,10 +106,7 @@ public class SecurityConfig {
 
         CorsConfiguration corsConfig = new CorsConfiguration();
 
-        corsConfig.setAllowedOriginPatterns(List.of(
-                "http://localhost:*",
-                "https://discord-clone-eight-mocha.vercel.app"
-        ));
+        corsConfig.setAllowedOriginPatterns(corsProperties.allowedOrigins());
 
         corsConfig.setAllowedMethods(List.of(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS"

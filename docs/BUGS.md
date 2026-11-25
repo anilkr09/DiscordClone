@@ -49,8 +49,8 @@ its severity, so numbers are not strictly in severity order.
 | [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 — **Fixed** | High | Messaging |
 | [B14](#b14-presence-never-reaches-offline) | Presence never reaches OFFLINE | High | Redis |
 | [B15](#b15-presence-is-visible-to-everyone) | Presence is visible to everyone | High | Privacy |
-| [B16](#b16-token-refresh-is-broken-end-to-end) | Token refresh is broken end to end | High | Auth |
-| [B17](#b17-access-tokens-are-accepted-as-refresh-tokens) | Access tokens are accepted as refresh tokens | High | Auth |
+| [B16](#b16-token-refresh-is-broken-end-to-end) | Token refresh is broken end to end — **Fixed** | High | Auth |
+| [B17](#b17-access-tokens-are-accepted-as-refresh-tokens) | Access tokens are accepted as refresh tokens — **Fixed** | High | Auth |
 | [B18](#b18-chatarea-leaks-a-subscription-on-every-render) | `ChatArea` leaks a subscription on every render | High | WebSocket |
 | [B19](#b19-a-kafka-outage-stalls-all-websocket-traffic) | A Kafka outage stalls all WebSocket traffic — **Fixed** | High | Kafka |
 | [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save — **Fixed** | High | Kafka consumer |
@@ -67,8 +67,8 @@ its severity, so numbers are not strictly in severity order.
 | [B30](#b30-channels-appear-twice-after-revisiting-a-server) | Channels appear twice after revisiting a server | Medium | Frontend |
 | [B31](#b31-channel-creation-is-broadcast-to-every-user) | Channel creation is broadcast to every user | Medium | Privacy |
 | [B32](#b32-failed-sends-are-silent) | Failed sends are silent | Medium | Frontend |
-| [B33](#b33-websocket-reconnect-uses-the-original-token) | WebSocket reconnect uses the original token | Medium | WebSocket |
-| [B34](#b34-logout-leaves-the-previous-users-data-cached) | Logout leaves the previous user's data cached | Medium | Frontend |
+| [B33](#b33-websocket-reconnect-uses-the-original-token) | WebSocket reconnect uses the original token — **Reconnect uses a fresh token; heart-beats open** | Medium | WebSocket |
+| [B34](#b34-logout-leaves-the-previous-users-data-cached) | Logout leaves the previous user's data cached — **Fixed** | Medium | Frontend |
 | [B35](#b35-the-seeder-creates-an-unusable-account-and-server) | The seeder creates an unusable account and server — **Fixed** | Medium | Data |
 | [B36](#b36-single-channel-endpoints-return-a-lazy-entity) | Single-channel endpoints return a lazy entity — **Fixed** | Medium | API |
 | [B37](#b37-invites-are-racy-unshareable-and-over-created) | Invites are racy, unshareable, and over-created — **Fixed** | Medium | API |

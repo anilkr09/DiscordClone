@@ -362,32 +362,37 @@ bound by the M6 redesign and rate limits by M5. The role route is now
 never outlives its authorization. **Effort:** M. **Owns:** B16, B17, B34, S4, S7. **Also does:** the
 token half of B33; M6 owns B33 and adds heart-beats.
 
+**Status:** done. Notes: rate limits are a small Redis token bucket rather than Bucket4j; sign-out is
+`DELETE /api/auth/refresh`, so the refresh cookie reaches it; an access token issued before
+sign-out stays valid for HTTP until it expires (at most 15 minutes); sockets are closed per
+instance. A web client on a different site than the API needs `COOKIE_SAME_SITE=None`.
+
 **Server**
-- [ ] Add a `typ` claim (`access` or `refresh`), plus a `jti`. `/api/auth/refresh` rejects
+- [x] Add a `typ` claim (`access` or `refresh`), plus a `jti`. `/api/auth/refresh` rejects
   anything except `refresh` (B17).
-- [ ] Rotate refresh tokens. Store them hashed in Redis with a TTL, and on reuse revoke the whole
+- [x] Rotate refresh tokens. Store them hashed in Redis with a TTL, and on reuse revoke the whole
   token family.
-- [ ] Access tokens last 15 minutes. The refresh token is set as an `HttpOnly; Secure;
+- [x] Access tokens last 15 minutes. The refresh token is set as an `HttpOnly; Secure;
   SameSite=Strict` cookie scoped to `/api/auth/refresh`, with CSRF protection for that one endpoint.
-- [ ] Make `JwtService.validateToken` return a result instead of throwing, or delete the
+- [x] Make `JwtService.validateToken` return a result instead of throwing, or delete the
   unreachable `if (!validateToken(…))` guards.
-- [ ] STOMP: store the token's `exp` in the session attributes, reject frames after it, schedule a
+- [x] STOMP: store the token's `exp` in the session attributes, reject frames after it, schedule a
   disconnect at `exp`, and close the user's sessions on logout (S4).
-- [ ] Add Bucket4j rate limits backed by Redis, keyed by IP and username, on login, register,
+- [x] Add Bucket4j rate limits backed by Redis, keyed by IP and username, on login, register,
   refresh, invite join and `chat.send`.
-- [ ] Set `server.forward-headers-strategy=native`, and confirm that HSTS is sent behind the proxy
+- [x] Set `server.forward-headers-strategy=native`, and confirm that HSTS is sent behind the proxy
   (S7).
-- [ ] Restrict `/ws` origins to the CORS allowlist for each profile. Remove the `/h2-console/**`
+- [x] Restrict `/ws` origins to the CORS allowlist for each profile. Remove the `/h2-console/**`
   rules and the `frameOptions(sameOrigin)` workaround.
 
 **Client**
-- [ ] Keep the access token in memory. Refresh from a 401-response interceptor that shares a single
+- [x] Keep the access token in memory. Refresh from a 401-response interceptor that shares a single
   in-flight refresh promise. Use `jwt-decode` instead of the hand-written decoder (B16).
-- [ ] On page load, try a refresh before clearing state. Never delete the refresh token on access
+- [x] On page load, try a refresh before clearing state. Never delete the refresh token on access
   expiry (B16).
-- [ ] Use a STOMP `beforeConnect` callback that reads the current token, so that reconnects use a
+- [x] Use a STOMP `beforeConnect` callback that reads the current token, so that reconnects use a
   fresh one (B33).
-- [ ] On logout, call `queryClient.clear()`, reset the message store, and remove `currentUser`
+- [x] On logout, call `queryClient.clear()`, reset the message store, and remove `currentUser`
   (B34).
 
 **Exit criteria**
@@ -663,4 +668,4 @@ The repository owner has to do these; code changes cannot.
 | M0 | Protect `main`: require the CI checks and a PR |
 | M0 | Enable GitHub secret scanning with push protection |
 | M2 | Apply the consumer fixes in the `message-consumer-service` repository, or approve moving it into this repository (M7) |
-| M5 | Configure the production cookie domain and the CORS and WebSocket origin allowlist for the deployed frontend |
+| M5 | For the deployed frontend, set `ALLOWED_ORIGINS`. If it stays on a different site than the API (Vercel and Render), set `COOKIE_SAME_SITE=None`; browsers that block third-party cookies will then still fail, so prefer serving both from one site or proxying `/api` |

@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import com.discordclone.security.RateLimiter;
 import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
 import com.discordclone.payload.MessageRequest;
@@ -23,11 +24,13 @@ import org.springframework.web.bind.annotation.*;
 public class MessageController {
 
     private final MessageService messageService;
+    private final RateLimiter rateLimiter;
 
     @MessageMapping("/chat.send")
     public void sendMessage(@Payload @Valid MessageRequest message, SimpMessageHeaderAccessor headerAccessor) {
         Authentication authentication = (Authentication) headerAccessor.getUser();
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal currentUser) {
+            rateLimiter.check(RateLimiter.Action.CHAT, currentUser.getId());
             // MessageService checks that the sender may write to the channel.
             messageService.sendMessage(message, currentUser.getId());
         }

@@ -7,7 +7,7 @@ import { Tooltip } from "@mui/material";
 import { useStatus } from '../../hooks/useStatus';
 import MenuIcon from '@mui/icons-material/Menu';
 import CreateServerModal from '../servers/CreateServerModel';
-import authService from '../../services/auth.service';
+import userService from '../../services/user.service';
 import { useServers } from '../../hooks/useServers';
 import toast from 'react-hot-toast';
 import UserProfile from '../user/UserProfile';
@@ -29,7 +29,7 @@ export default function MainLayout() {
   const { servers, createServer,joinServer } = useServers();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
    useEffect(() => {
-      setCurrentUser(authService.getCurrentUser());
+      setCurrentUser(userService.getCurrentUser());
     }, []);
   const handleServerClick = (serverId: number) => {
     if (serverId === 0) navigate('/channels/@me');

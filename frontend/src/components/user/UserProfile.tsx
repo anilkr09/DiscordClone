@@ -5,6 +5,8 @@ import UserStatusSelector from './UserStatusSelector';
 import { UserStatus } from '../../types/status';
 import { User } from '../../types/auth';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../providers/AuthProvider";
 
 interface UserProfileProps {
   user: User;
@@ -12,6 +14,8 @@ interface UserProfileProps {
 }
 
 export default function UserProfile({ user, status }: UserProfileProps) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const [statusAnchorEl, setStatusAnchorEl] = useState<HTMLElement | null>(null);
   
   const handleStatusClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -21,18 +25,10 @@ export default function UserProfile({ user, status }: UserProfileProps) {
   const handleStatusClose = () => {
     setStatusAnchorEl(null);
   };
-  const handleLogout = () => {
-    // Remove authentication tokens
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-
-    // Clear any user-related data
-    sessionStorage.clear(); // Optional: if using sessionStorage
-    // Dispatch an action if using Redux (example: dispatch(logoutUser()))
-
-    // Redirect to login page
-    window.location.href = "/login";
-};
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   // Get first letter of username for avatar
   const avatarText = user.username.charAt(0).toUpperCase();

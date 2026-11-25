@@ -71,6 +71,11 @@ const messagesSlice = createSlice({
       }
     },
 
+    /** Forgets every channel, for example when the user signs out. */
+    resetMessages() {
+      return initialState;
+    },
+
     clearChannelMessages(state, action: PayloadAction<string>) {
       delete state.byChannelId[action.payload];
     },
@@ -101,6 +106,7 @@ export const {
   addMessage,
   replaceOptimisticMessage,
   clearChannelMessages,
+  resetMessages,
 } = messagesSlice.actions;
 
 export default messagesSlice.reducer;

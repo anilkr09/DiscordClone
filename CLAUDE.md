@@ -129,10 +129,9 @@ prefix `/user`. The in-memory broker means **the app cannot run more than one in
 subscriptions are process-local heap state. Adding Kafka does not fix this; it distributes events
 between instances, not frames to browsers.
 
-JWT is validated **only on STOMP `CONNECT`**, in `WebSocketAuthInterceptor`, where
-`accessor.setUser(auth)` binds the principal for the session's lifetime. The token travels as a
-STOMP header, not an HTTP header, because browsers cannot set headers on a WebSocket handshake —
-this is why `/ws/**` is `permitAll()` in `SecurityConfig`.
+The access token is checked on STOMP `CONNECT` in `WebSocketAuthInterceptor`, which binds the
+principal and refuses frames after the token expires. The token travels as a STOMP header because
+browsers cannot set HTTP headers on a WebSocket handshake — hence `/ws/**` is `permitAll()`.
 
 Destination rules are in `security/StompSecurityConfig` (Spring Security message authorization).
 Clients may send only to `/app/**`; subscribing to `/topic/channels/{id}/**` requires channel
@@ -158,11 +157,13 @@ Every entity change needs a new migration. Timestamps are `Instant` / `timestamp
 
 ### Auth and authorization
 
-Stateless JWT (**HS512**; jjwt picks the algorithm from the 64-byte key; subject = user ID).
-`JwtAuthenticationFilter` is deliberately non-blocking: on an invalid token it logs and continues,
-leaving rejection to `.anyRequest().authenticated()`. `JwtService.validateToken` **throws** rather
-than returning `false`. It can only return `true` or throw, so `if (!validateToken(...))` guards are
-unreachable, both in the filter and in the STOMP interceptor.
+JWT (**HS512**; jjwt picks the algorithm from the 64-byte key; subject = user ID). Tokens carry
+`typ` (access or refresh) and `sid` (the login). Access tokens last 15 minutes and live only in the
+client's memory. The refresh token is an HttpOnly cookie for `/api/auth/refresh`, rotated on every
+use and tracked in Redis by `security/LoginSessions`; reusing one revokes the login. Calls that rely
+on the cookie need the `X-CSRF-Protection` header. `DELETE /api/auth/refresh` signs out.
+`StompSessionRegistry` closes sockets at token expiry and sign-out. `security/RateLimiter` holds the
+limits (`app.rate-limit.*`).
 
 `Principal.getName()` is the **username** (not the ID), which is why `/user/**` destinations and
 `MessageRequest.receiver` key on username strings.
@@ -174,8 +175,7 @@ Add it to `AuthorizationMatrixTest` too. Presence reads are still unrestricted (
 **Never return or bind JPA entities in controllers.** `ControllerBoundaryTest` (ArchUnit) enforces
 this.
 
-Frontend token refresh is broken. `services/api.ts` posts to `/api/refresh-token` with no body,
-while the backend route is `/api/auth/refresh` with `{refreshToken}`.
+On the client, `src/api/session.ts` owns the tokens and `src/api/client.ts` refreshes once on a 401.
 
 ## API conventions
 

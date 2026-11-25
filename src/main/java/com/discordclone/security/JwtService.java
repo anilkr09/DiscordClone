@@ -1,111 +1,73 @@
 package com.discordclone.security;
 
-import java.nio.charset.StandardCharsets;
 import com.discordclone.exception.JwtAuthenticationException;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-import java.security.Key;
-import java.util.Date;
 
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
+import java.util.UUID;
+
+/** Issues and verifies tokens. Every token says what it is for, so one kind cannot pass as another. */
 @Component
 public class JwtService {
+
+    private static final String TYPE = "typ";
+    private static final String SESSION = "sid";
+
     private final CustomUserDetailsService customUserDetailsService;
-
     private final JwtProperties properties;
-
-    private Key key;
+    private final Key key;
 
     public JwtService(CustomUserDetailsService customUserDetailsService, JwtProperties properties) {
         this.customUserDetailsService = customUserDetailsService;
         this.properties = properties;
-    }
-
-    @PostConstruct
-    public void init() {
         this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(Authentication authentication) {
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        return generateToken(userPrincipal.getId());
-    }
-    public String generateToken(Long userId) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + properties.expiration().toMillis());
-
+    public String issue(Long userId, String sessionId, TokenType type) {
+        Instant now = Instant.now();
+        Duration lifetime = type == TokenType.ACCESS ? properties.expiration() : properties.refreshExpiration();
         return Jwts.builder()
                 .setSubject(Long.toString(userId))
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
+                // Unique per token, so that two issued in the same second still differ.
+                .setId(UUID.randomUUID().toString())
+                .claim(TYPE, type.name())
+                .claim(SESSION, sessionId)
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(now.plus(lifetime)))
                 .signWith(key)
                 .compact();
     }
 
-    public String generateRefreshToken(Long userId) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + properties.refreshExpiration().toMillis());
-
-        return Jwts.builder()
-                .setSubject(Long.toString(userId))
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(key)
-                .compact();
-    }
-
-    public Long getUserIdFromJWT(String token) {
+    /**
+     * @throws JwtAuthenticationException unless the token is genuine, unexpired and of the expected type
+     */
+    public TokenClaims verify(String token, TokenType expected) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            return Long.parseLong(claims.getSubject());
-        } catch (JwtException | IllegalArgumentException e) {
-            throw new JwtAuthenticationException("Invalid JWT token", e);
+            Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+            String sessionId = claims.get(SESSION, String.class);
+            if (!expected.name().equals(claims.get(TYPE, String.class)) || sessionId == null) {
+                throw new JwtAuthenticationException("Wrong kind of token");
+            }
+            return new TokenClaims(Long.parseLong(claims.getSubject()), sessionId,
+                    claims.getExpiration().toInstant());
+        } catch (JwtException | IllegalArgumentException ex) {
+            throw new JwtAuthenticationException("Invalid or expired token", ex);
         }
     }
 
-    public boolean validateToken(String authToken) {
-        try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(authToken);
-            return true;
-        } catch (SignatureException ex) {
-            throw new JwtAuthenticationException("Invalid JWT signature");
-        } catch (MalformedJwtException ex) {
-            throw new JwtAuthenticationException("Invalid JWT token");
-        } catch (ExpiredJwtException ex) {
-            throw new JwtAuthenticationException("Expired JWT token");
-        } catch (UnsupportedJwtException ex) {
-            throw new JwtAuthenticationException("Unsupported JWT token");
-        } catch (IllegalArgumentException ex) {
-            throw new JwtAuthenticationException("JWT claims string is empty");
-        }
-    }
-
-    public boolean isTokenExpired(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            return claims.getExpiration().before(new Date());
-        } catch (ExpiredJwtException e) {
-            return true;
-        }
-    }
-
-   public Authentication getAuthentication(String token) {
-        Long userId = getUserIdFromJWT(token);
-        UserDetails userDetails = customUserDetailsService.loadUserById(userId);
-        return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
+    public Authentication authentication(TokenClaims claims) {
+        UserDetails user = customUserDetailsService.loadUserById(claims.userId());
+        return new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
     }
 }

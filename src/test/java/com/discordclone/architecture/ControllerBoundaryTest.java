@@ -28,6 +28,7 @@ class ControllerBoundaryTest {
     @ArchTest
     static final ArchRule controllersDoNotExposeEntities = methods()
             .that().areDeclaredInClassesThat().areAnnotatedWith(RestController.class)
+            .and().arePublic()
             .should(notUseEntitiesInSignature());
 
     private static ArchCondition<JavaMethod> notUseEntitiesInSignature() {

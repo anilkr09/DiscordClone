@@ -1,5 +1,8 @@
 package com.discordclone.config;
 
+import com.discordclone.security.CorsProperties;
+import com.discordclone.security.StompSessionRegistry;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 import com.discordclone.security.WebSocketAuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -22,8 +25,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
-    public WebSocketConfig(WebSocketAuthInterceptor webSocketAuthInterceptor) {
+    private final StompSessionRegistry stompSessionRegistry;
+    private final CorsProperties corsProperties;
+
+    public WebSocketConfig(WebSocketAuthInterceptor webSocketAuthInterceptor,
+                           StompSessionRegistry stompSessionRegistry, CorsProperties corsProperties) {
         this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+        this.stompSessionRegistry = stompSessionRegistry;
+        this.corsProperties = corsProperties;
     }
 
     @Override
@@ -36,7 +45,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*");
+                .setAllowedOriginPatterns(corsProperties.allowedOrigins().toArray(String[]::new));
+    }
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
+        registration.addDecoratorFactory(stompSessionRegistry::track);
     }
 
     @Override

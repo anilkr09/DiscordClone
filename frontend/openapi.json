@@ -159,9 +159,6 @@
           "email" : {
             "type" : "string"
           },
-          "refreshToken" : {
-            "type" : "string"
-          },
           "tokenType" : {
             "type" : "string"
           },
@@ -173,7 +170,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "accessToken", "email", "refreshToken", "tokenType", "userId", "username" ],
+        "required" : [ "accessToken", "email", "tokenType", "userId", "username" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -231,14 +228,6 @@
           }
         },
         "required" : [ "author", "channelId", "content", "edited", "id", "senderId", "timestamp" ],
-        "type" : "object"
-      },
-      "RefreshTokenRequest" : {
-        "properties" : {
-          "refreshToken" : {
-            "type" : "string"
-          }
-        },
         "type" : "object"
       },
       "RegistrationRequest" : {
@@ -430,18 +419,17 @@
       }
     },
     "/api/auth/refresh" : {
+      "delete" : {
+        "operationId" : "logout",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      },
       "post" : {
         "operationId" : "refreshToken",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/RefreshTokenRequest"
-              }
-            }
-          },
-          "required" : true
-        },
         "responses" : {
           "200" : {
             "content" : {

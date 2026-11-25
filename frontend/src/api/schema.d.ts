@@ -30,7 +30,7 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["refreshToken"];
-        delete?: never;
+        delete: operations["logout"];
         options?: never;
         head?: never;
         patch?: never;
@@ -597,7 +597,6 @@ export interface components {
         JwtAuthResponse: {
             accessToken: string;
             email: string;
-            refreshToken: string;
             tokenType: string;
             /** Format: int64 */
             userId: number;
@@ -622,9 +621,6 @@ export interface components {
             senderId: number;
             /** Format: date-time */
             timestamp: string;
-        };
-        RefreshTokenRequest: {
-            refreshToken?: string;
         };
         RegistrationRequest: {
             email: string;
@@ -713,11 +709,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RefreshTokenRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description OK */
             200: {
@@ -727,6 +719,24 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["JwtAuthResponse"];
                 };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

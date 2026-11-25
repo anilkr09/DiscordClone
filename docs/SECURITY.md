@@ -744,7 +744,7 @@ output.
 **Fix:** remove the lines, and strip `console.*` from production builds (for example with esbuild's
 `drop: ['console']` in `vite.config.ts`). Severity: **Medium**.
 
-### S4. WebSocket sessions outlive their token
+### S4. WebSocket sessions outlive their token — **Fixed**
 
 `read` · `J/security/WebSocketAuthInterceptor.java` (`CONNECT` branch)
 
@@ -772,7 +772,7 @@ packaged into the jar. The jar is committed and copied into the pushed image (§
 **Fix:** as for B07, plus untrack `build/` and keep secrets out of packaged resources.
 Severity: **High**, as part of B07.
 
-### S7. HSTS is probably not sent behind the TLS proxy
+### S7. HSTS is probably not sent behind the TLS proxy — **Fixed**
 
 `inferred` · `src/main/resources/application.properties`
 

@@ -7,7 +7,7 @@ import com.discordclone.payload.ChannelPayload;
 import com.discordclone.payload.MessageRequest;
 import com.discordclone.payload.ServerPayload;
 import com.discordclone.repository.ChannelRepository;
-import com.discordclone.security.JwtService;
+import com.discordclone.security.LoginSessions;
 import com.discordclone.service.ChannelService;
 import com.discordclone.service.MessageService;
 import com.discordclone.service.ServerService;
@@ -23,7 +23,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import java.util.UUID;
 
 /** Runs the whole application against real PostgreSQL and Redis containers. Needs Docker. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+// Tests register and sign in far faster than any person does; RateLimitTest switches limits back on.
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "app.rate-limit.enabled=false")
 public abstract class IntegrationTest {
 
     // Started once and shared by every integration test class; Testcontainers removes them afterwards.
@@ -56,7 +58,7 @@ public abstract class IntegrationTest {
     @Autowired
     protected MessageService messageService;
     @Autowired
-    protected JwtService jwtService;
+    protected LoginSessions loginSessions;
 
     protected static String unique() {
         return UUID.randomUUID().toString().substring(0, 8);
@@ -86,6 +88,6 @@ public abstract class IntegrationTest {
     }
 
     protected String bearer(User user) {
-        return "Bearer " + jwtService.generateToken(user.getId());
+        return "Bearer " + loginSessions.open(user.getId()).accessToken();
     }
 }

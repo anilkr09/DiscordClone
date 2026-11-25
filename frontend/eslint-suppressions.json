@@ -32,11 +32,6 @@
       "count": 6
     }
   },
-  "src/providers/AuthProvider.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
   "src/providers/WebSocketProvider.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 5

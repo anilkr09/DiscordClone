@@ -1,4 +1,4 @@
-import createClient, { type Middleware } from "openapi-fetch";
+import createClient from "openapi-fetch";
 import { API_BASE_URL } from "../config/api";
 import type { components, paths } from "./schema";
 import { session } from "./session";
@@ -17,25 +17,30 @@ export class ApiError extends Error {
   }
 }
 
-const authentication: Middleware = {
-  onRequest({ request, schemaPath }) {
-    const token = session.token();
-    if (token && !schemaPath.startsWith("/api/auth/")) {
-      request.headers.set("Authorization", `Bearer ${token}`);
-    }
-    return request;
-  },
-  onResponse({ response, schemaPath }) {
-    if (response.status === 401 && !schemaPath.startsWith("/api/auth/")) {
-      session.expire();
-    }
+/** Adds the access token, and on a 401 refreshes once and repeats the request. */
+const authorizedFetch = async (request: Request): Promise<Response> => {
+  // Sign-in and registration set the refresh cookie and need no token.
+  if (new URL(request.url).pathname.startsWith("/api/auth/")) {
+    return fetch(request);
+  }
+  const send = (token: string | null) => {
+    const attempt = request.clone();
+    if (token) attempt.headers.set("Authorization", `Bearer ${token}`);
+    return fetch(attempt);
+  };
+  const response = await send(await session.freshToken());
+  if (response.status !== 401 || !(await session.refresh())) {
     return response;
-  },
+  }
+  return send(session.token());
 };
 
 /** Typed against the backend's OpenAPI contract: a route or payload mismatch fails the build. */
-export const api = createClient<paths>({ baseUrl: API_BASE_URL });
-api.use(authentication);
+export const api = createClient<paths>({
+  baseUrl: API_BASE_URL,
+  credentials: "include",
+  fetch: authorizedFetch,
+});
 
 /** Resolves with the response body, or throws an ApiError. */
 export async function unwrap<T>(

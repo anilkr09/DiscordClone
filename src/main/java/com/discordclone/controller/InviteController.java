@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import com.discordclone.security.RateLimiter;
 import com.discordclone.dto.InviteResponse;
 import com.discordclone.model.Invite;
 import com.discordclone.model.Server;
@@ -21,6 +22,7 @@ import java.time.Duration;
 public class InviteController {
 
     private final InviteService inviteService;
+    private final RateLimiter rateLimiter;
 
     /** Origin of the web client, where invite links lead. */
     @Value("${app.frontend-url}")
@@ -56,6 +58,7 @@ public class InviteController {
             @PathVariable String code,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
+        rateLimiter.check(RateLimiter.Action.INVITE_JOIN, currentUser.getId());
         Server server = inviteService.joinViaInvite(code, currentUser.getId());
         return ResponseEntity.ok(ServerDTO.fromEntity(server));
     }

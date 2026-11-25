@@ -13,6 +13,7 @@ import { registerMessageSocket } from "../websocket/message.socket.ts";
 import { queryClient } from "../lib/reactQuery.ts";
 import { handleFriendEvent } from "../websocket/friends.events.ts";
 import { WS_BASE_URL } from "../config/api";
+import { session } from "../api/session";
 
 // WebSocket Context Type
 interface WebSocketContextType {
@@ -43,7 +44,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const [messageStore, setMessageStore] = useState<Record<string, any[]>>({});
 
   const { isLoggedIn } = useAuth();
-  const accessToken = localStorage.getItem("accessToken");
 
   // ✅ NEW: Prevent multiple WebSocket connections (fixes duplicate connections)
   const isConnecting = useRef(false);
@@ -51,7 +51,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   useEffect(() => {
     // ✅ FIX: Prevent duplicate connections (StrictMode / re-renders safe)
     if (isConnecting.current) return;
-    if (!accessToken) return;
+    if (!isLoggedIn) return;
 
     isConnecting.current = true;
 
@@ -60,8 +60,14 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     const stompClient = new Client({
       brokerURL: socketUrl,
-      connectHeaders: {
-        Authorization: `Bearer ${accessToken}`,
+      // Runs before every attempt, so a reconnect uses a current token.
+      beforeConnect: async () => {
+        const token = await session.freshToken();
+        stompClient.connectHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      },
+
+      onWebSocketClose: () => {
+        setConnected(false);
       },
 
       onConnect: () => {
@@ -113,7 +119,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       // ✅ RESET flag so reconnection is possible
       isConnecting.current = false;
     };
-  }, [isLoggedIn, accessToken]);
+  }, [isLoggedIn]);
 
   // ============================
   // ✅ FIXED SUBSCRIBE FUNCTION
