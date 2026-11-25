@@ -1,5 +1,7 @@
 package com.discordclone.exception;
 
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.support.MethodArgumentNotValidException;
@@ -13,23 +15,27 @@ public class WebSocketExceptionHandler {
 
     @MessageExceptionHandler(ApiException.class)
     @SendToUser(value = "/queue/errors", broadcast = false)
-    public ErrorMessage handleApi(ApiException ex) {
-        return new ErrorMessage(ex.getStatus().value(), ex.getMessage());
+    public WsEvent handleApi(ApiException ex) {
+        return error(ex.getStatus().value(), ex.getMessage());
     }
 
     @MessageExceptionHandler(MethodArgumentNotValidException.class)
     @SendToUser(value = "/queue/errors", broadcast = false)
-    public ErrorMessage handleInvalid(MethodArgumentNotValidException ex) {
+    public WsEvent handleInvalid(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult() == null ? "Invalid message"
                 : ex.getBindingResult().getFieldErrors().stream()
                         .findFirst().map(error -> error.getDefaultMessage()).orElse("Invalid message");
-        return new ErrorMessage(400, message);
+        return error(400, message);
     }
 
     @MessageExceptionHandler(Exception.class)
     @SendToUser(value = "/queue/errors", broadcast = false)
-    public ErrorMessage handleUnexpected(Exception ex) {
+    public WsEvent handleUnexpected(Exception ex) {
         log.error("Unhandled exception in a message handler", ex);
-        return new ErrorMessage(500, "Something went wrong");
+        return error(500, "Something went wrong");
+    }
+
+    private static WsEvent error(int status, String message) {
+        return new WsEvent(WsEventType.ERROR, new ErrorMessage(status, message));
     }
 }

@@ -24,4 +24,13 @@ public class MessageRequest {
 
     /** Set by the server from the channel; whatever a client sends is ignored. */
     private String receiver;
+
+    /** Echoed in the delivered event, so the sender can match it to the message it is showing. */
+    @Size(max = 64)
+    private String nonce;
+
+    public MessageRequest(String content, Long channelId) {
+        this.content = content;
+        this.channelId = channelId;
+    }
 }

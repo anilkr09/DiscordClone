@@ -50,9 +50,7 @@ public class ChannelService {
         Channel channel = Channel.builder().name(payload.getName()).server(server).description(payload.getDescription()).build();
         channel = channelRepository.save(channel);
         ChannelDTO channelDTO = ChannelDTO.fromEntity(channel);
-        webSocketPublisher.sendToTopic( WsDestinations.CHANNELS,new WsEvent(
-                WsEventType.CHANNEL_CREATED,channelDTO )
-        );
+        announce(serverId, WsEventType.CHANNEL_CREATED, channelDTO);
         return channelDTO;
     }
     /** The conversation between two users, created on first use. */
@@ -107,11 +105,20 @@ public class ChannelService {
         Channel channel = getChannel(serverId, channelId);
         channel.setName(request.name());
         channel.setDescription(request.description());
-        return channelRepository.save(channel);
+        Channel saved = channelRepository.save(channel);
+        announce(serverId, WsEventType.CHANNEL_UPDATED, ChannelDTO.fromEntity(saved));
+        return saved;
     }
 
     @Transactional
     public void deleteChannel(Long serverId, Long channelId) {
-        channelRepository.delete(getChannel(serverId, channelId));
+        Channel channel = getChannel(serverId, channelId);
+        ChannelDTO deleted = ChannelDTO.fromEntity(channel);
+        channelRepository.delete(channel);
+        announce(serverId, WsEventType.CHANNEL_DELETED, deleted);
+    }
+
+    private void announce(Long serverId, WsEventType type, ChannelDTO channel) {
+        webSocketPublisher.sendToTopic(WsDestinations.serverChannels(serverId), new WsEvent(type, channel));
     }
 }

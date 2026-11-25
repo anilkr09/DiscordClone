@@ -1,5 +1,6 @@
 package com.discordclone.security;
 
+import java.util.function.BiPredicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,29 +34,31 @@ public class StompSecurityConfig {
                 .simpTypeMatchers(SimpMessageType.HEARTBEAT, SimpMessageType.UNSUBSCRIBE,
                         SimpMessageType.DISCONNECT).permitAll()
                 .simpMessageDestMatchers("/app/**").authenticated()
-                .simpSubscribeDestMatchers("/topic/channels/{channelId}/messages",
-                        "/topic/channels/{channelId}/messages/delete").access(channelMember(permissions))
-                .simpSubscribeDestMatchers("/topic/channels", "/topic/status",
-                        "/user/queue/messages", "/user/queue/friends", "/user/queue/errors").authenticated()
+                .simpSubscribeDestMatchers("/topic/channels/{channelId}/messages")
+                        .access(member("channelId", permissions::isChannelMember))
+                .simpSubscribeDestMatchers("/topic/servers/{serverId}/channels")
+                        .access(member("serverId", permissions::isServerMember))
+                .simpSubscribeDestMatchers("/user/queue/messages", "/user/queue/friends",
+                        "/user/queue/presence", "/user/queue/errors").authenticated()
                 .anyMessage().denyAll();
         return messages.build();
     }
 
-    private AuthorizationManager<MessageAuthorizationContext<?>> channelMember(PermissionService permissions) {
+    private AuthorizationManager<MessageAuthorizationContext<?>> member(
+            String variable, BiPredicate<Long, Long> isMember) {
         return (Supplier<Authentication> authentication, MessageAuthorizationContext<?> context) -> {
             if (!(authentication.get().getPrincipal() instanceof UserPrincipal user)) {
                 return new AuthorizationDecision(false);
             }
             // The broker accepts patterns such as /topic/channels/*/messages; only a plain ID passes.
-            String channelId = context.getVariables().get("channelId");
-            if (channelId == null || !channelId.matches("\\d{1,18}")) {
+            String id = context.getVariables().get(variable);
+            if (id == null || !id.matches("\\d{1,18}")) {
                 return new AuthorizationDecision(false);
             }
             try {
-                return new AuthorizationDecision(
-                        permissions.isChannelMember(Long.valueOf(channelId), user.getId()));
+                return new AuthorizationDecision(isMember.test(Long.valueOf(id), user.getId()));
             } catch (RuntimeException ex) {
-                log.debug("Subscription to channel {} refused: {}", channelId, ex.getMessage());
+                log.debug("Subscription refused for {} {}: {}", variable, id, ex.getMessage());
                 return new AuthorizationDecision(false);
             }
         };

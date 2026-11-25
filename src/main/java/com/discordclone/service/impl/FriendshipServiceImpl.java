@@ -1,5 +1,7 @@
 package com.discordclone.service.impl;
 
+import com.discordclone.presence.FriendshipChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.exception.ConflictException;
 import com.discordclone.model.*;
@@ -29,12 +31,15 @@ public class FriendshipServiceImpl implements FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final WebSocketPublisher webSocketPublisher;
+    private final ApplicationEventPublisher events;
     @Autowired
     public FriendshipServiceImpl(
             FriendshipRepository friendshipRepository,
             UserRepository userRepository,
-            WebSocketPublisher webSocketPublisher
+            WebSocketPublisher webSocketPublisher,
+            ApplicationEventPublisher events
     ) {
+        this.events = events;
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
         this.webSocketPublisher = webSocketPublisher;
@@ -108,6 +113,10 @@ public class FriendshipServiceImpl implements FriendshipService {
 
         }
 
+        if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
+            events.publishEvent(new FriendshipChanged(senderId, receiver.getId()));
+        }
+
         FriendshipDTO response = new FriendshipDTO();
         response.setId(friendship.getId());
         response.setSenderId(friendship.getSender().getId());
@@ -141,6 +150,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         friendship.setUpdatedAt(Instant.now());
 
         friendshipRepository.save(friendship);
+        events.publishEvent(new FriendshipChanged(userId, friendship.getSender().getId()));
 
         // DTO for API response (receiver sees sender as friend)
         FriendDTO responseDto = FriendDTO.builder()
@@ -224,6 +234,7 @@ public class FriendshipServiceImpl implements FriendshipService {
             throw new ConflictException("You are not friends with this user");
         }
         friendshipRepository.delete(friendship);
+        events.publishEvent(new FriendshipChanged(userId, friendId));
 
         webSocketPublisher.sendToUser(friend.getUsername(), WsDestinations.FRIENDS,
       new WsEvent(
@@ -263,6 +274,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         friendship.setStatus(FriendshipStatus.BLOCKED);
         friendship.setUpdatedAt(Instant.now());
 
+        events.publishEvent(new FriendshipChanged(userId, targetId));
         return friendshipRepository.save(friendship);
     }
 

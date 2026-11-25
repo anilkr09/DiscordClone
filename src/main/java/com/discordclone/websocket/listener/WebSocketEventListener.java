@@ -1,10 +1,8 @@
 package com.discordclone.websocket.listener;
 
-import com.discordclone.service.LastSeenRecorder;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.UserStatusService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.security.core.Authentication;
@@ -12,52 +10,32 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-@Slf4j
+import java.security.Principal;
+import java.util.function.Consumer;
+
+/** Feeds socket opens and closes into presence. */
 @Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
     private final UserStatusService userStatusService;
-    private final LastSeenRecorder lastSeenRecorder;
 
-    // =========================
-    // CONNECT
-    // =========================
     @EventListener
     public void handleSessionConnected(SessionConnectedEvent event) {
-
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        Authentication authentication = (Authentication) accessor.getUser();
-
-        if (authentication == null) return;
-
-        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
-
-        log.info("User connected: {}", user.getUsername());
-
-        // 🔥 OPTIONAL: mark initial activity (fast ONLINE)
-        userStatusService.handleActivity(user.getId());
+        String sessionId = StompHeaderAccessor.wrap(event.getMessage()).getSessionId();
+        withUser(event.getUser(), userId -> userStatusService.connected(userId, sessionId));
     }
 
-    // =========================
-    // DISCONNECT
-    // =========================
+    /** May fire more than once for a socket, which presence tolerates. */
     @EventListener
     public void handleSessionDisconnect(SessionDisconnectEvent event) {
+        withUser(event.getUser(), userId -> userStatusService.disconnected(userId, event.getSessionId()));
+    }
 
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        Authentication authentication = (Authentication) accessor.getUser();
-
-        if (authentication == null) return;
-
-        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
-
-        log.info("User disconnected: {}", user.getUsername());
-
-        // 🔥 DO NOT force OFFLINE
-        // Let Redis TTL handle it
-
-        // OPTIONAL: persist last seen
-        lastSeenRecorder.record(user.getId());
+    private static void withUser(Principal principal, Consumer<Long> action) {
+        if (principal instanceof Authentication authentication
+                && authentication.getPrincipal() instanceof UserPrincipal user) {
+            action.accept(user.getId());
+        }
     }
 }

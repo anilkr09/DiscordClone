@@ -19,7 +19,7 @@ public class StatusWebSocketController {
     @MessageMapping("/heartbeat")
     public void heartbeat(SimpMessageHeaderAccessor headerAccessor) {
         Long userId = extractUserId(headerAccessor);
-        if (userId != null) userStatusService.handleHeartbeat(userId);
+        if (userId != null) userStatusService.handleHeartbeat(userId, headerAccessor.getSessionId());
     }
 
     @MessageMapping("/activity")

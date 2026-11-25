@@ -7,7 +7,6 @@ import com.discordclone.model.Server;
 import com.discordclone.payload.ChannelPayload;
 import com.discordclone.payload.UpdateChannelRequest;
 import com.discordclone.repository.ChannelRepository;
-import com.discordclone.websocket.destination.WsDestinations;
 import com.discordclone.websocket.event.WsEvent;
 import com.discordclone.websocket.publisher.WebSocketPublisher;
 import org.junit.jupiter.api.BeforeEach;
@@ -87,7 +86,7 @@ class ChannelServiceTest {
         assertEquals(testChannel.getDescription(), result.getDescription());
         assertEquals(testChannel.getType(), result.getType());
         verify(channelRepository).save(any(Channel.class));
-        verify(webSocketPublisher).sendToTopic(eq(WsDestinations.CHANNELS), any(WsEvent.class));
+        verify(webSocketPublisher).sendToTopic(eq("/topic/servers/1/channels"), any(WsEvent.class));
     }
 
     @Test

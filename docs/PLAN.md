@@ -413,53 +413,59 @@ exactly one subscription per destination, and failures are visible. **Effort:** 
 B15, B18, B25, B26, B27, B30, B31, B32, B33, B41, B43, B47, B49, B51. See [REDIS.md](REDIS.md) and
 [WEBSOCKETS.md](WEBSOCKETS.md).
 
+**Status:** done. Notes: the clean-disconnect grace period uses a second sorted set (`presence:leaving`)
+read by the same sweeper, so keyspace notifications are not needed at all; the sweeper runs every
+second to meet the 10 s bound. A friend list is cached in Redis for 10 minutes and invalidated on
+change. Presence and other pushes reach only sockets on the instance that raised them until M8
+replaces the in-memory broker.
+
 **Presence redesign (B14, B25, B41, B43)**
-- [ ] Replace the loose keys with a `presence:{userId}` hash (`hb`, `act`, `custom`, `status`) and
+- [x] Replace the loose keys with a `presence:{userId}` hash (`hb`, `act`, `custom`, `status`) and
   a `presence:alive` sorted set, scored by the last heartbeat.
-- [ ] Add a `@Scheduled` sweeper, running every about 5 s, that calls a Lua script doing
+- [x] Add a `@Scheduled` sweeper, running every about 5 s, that calls a Lua script doing
   `ZRANGEBYSCORE … (now-30000)` and then `ZREM`. Only the instance whose `ZREM` returns 1
   broadcasts OFFLINE, so each transition fires exactly once (B14, B41).
-- [ ] Remove `PresenceExpirationListener` and the dependency on keyspace notifications.
-- [ ] `resolveStatus` checks **liveness first**, then the custom override, then engagement (B25).
-- [ ] Delete `presence:last_seen:*`, the unreachable `seenDiff` branch, and `IdleProvider`'s
+- [x] Remove `PresenceExpirationListener` and the dependency on keyspace notifications.
+- [x] `resolveStatus` checks **liveness first**, then the custom override, then engagement (B25).
+- [x] Delete `presence:last_seen:*`, the unreachable `seenDiff` branch, and `IdleProvider`'s
   log-only `markIdle`. Rehydrate `custom` from Postgres on the first heartbeat after a Redis
   restart (B43).
-- [ ] Inject `java.time.Clock`. Unit-test `resolveStatus` at 29 s, 31 s, 299 s and 301 s.
-- [ ] Add the clean-disconnect grace period from
+- [x] Inject `java.time.Clock`. Unit-test `resolveStatus` at 29 s, 31 s, 299 s and 301 s.
+- [x] Add the clean-disconnect grace period from
   [REDIS.md §10.14](REDIS.md#1014-finding-14--mark-offline-on-a-clean-disconnect-with-a-grace-period),
   adapted to the sorted-set design (B51).
 
 **Scoping (B15, B31)**
-- [ ] Fan each presence change out to the user's friends on `/user/queue/presence`, respecting
+- [x] Fan each presence change out to the user's friends on `/user/queue/presence`, respecting
   blocks. Cache the friend-ID set in Redis, and invalidate it on friendship changes. Retire the
   global `/topic/status` (B15).
-- [ ] `GET /api/users/{id}/status` requires friendship or a shared server (B15).
-- [ ] Send channel events on a per-server topic, gated by the M1 `SUBSCRIBE` membership check
+- [x] `GET /api/users/{id}/status` requires friendship or a shared server (B15).
+- [x] Send channel events on a per-server topic, gated by the M1 `SUBSCRIBE` membership check
   (B31).
 
 **Transport (B33, B49)**
-- [ ] Give the simple broker a `TaskScheduler` and 10 s/10 s heart-beats. Size the inbound and
+- [x] Give the simple broker a `TaskScheduler` and 10 s/10 s heart-beats. Size the inbound and
   outbound channel pools explicitly (B33).
-- [ ] Set the STOMP transport limits (message size, send buffer, send time).
-- [ ] Use one versioned `WsEvent{type, version, payload}` envelope for messages, presence, friends
+- [x] Set the STOMP transport limits (message size, send buffer, send time).
+- [x] Use one versioned `WsEvent{type, version, payload}` envelope for messages, presence, friends
   and channels. Generate the TS union from the backend enum.
-- [ ] Emit `CHANNEL_UPDATED` and `CHANNEL_DELETED`, or remove them. Delete the unused constants
+- [x] Emit `CHANNEL_UPDATED` and `CHANNEL_DELETED`, or remove them. Delete the unused constants
   (B49).
 
 **Frontend (B18, B26, B27, B30, B32, B47)**
-- [ ] Add a ref-counted subscription manager with a `useStompSubscription(dest, handler)` hook.
+- [x] Add a ref-counted subscription manager with a `useStompSubscription(dest, handler)` hook.
   It opens the subscription on the first subscriber, closes it after the last, re-subscribes after
   a reconnect, and always cleans up in an effect.
-- [ ] Remove `registerGroupMessageSocket` from `ChatArea`'s render body, the unbounded
+- [x] Remove `registerGroupMessageSocket` from `ChatArea`'s render body, the unbounded
   `messageStore`, and every last-element read (B18, B27, B30, B47).
-- [ ] Reset `isConnecting` on errors (B47).
-- [ ] De-duplicate `CHANNEL_CREATED` by ID (B30).
-- [ ] Send `/app/activity` every 15–20 s while there is input, regardless of the current status
+- [x] Reset `isConnecting` on errors (B47).
+- [x] De-duplicate `CHANNEL_CREATED` by ID (B30).
+- [x] Send `/app/activity` every 15–20 s while there is input, regardless of the current status
   (B26).
-- [ ] Subscribe to `/user/queue/errors`. Show `react-hot-toast` toasts on failed sends and failed
+- [x] Subscribe to `/user/queue/errors`. Show `react-hot-toast` toasts on failed sends and failed
   requests. `sendMessage` returns success, and the input keeps unsent text (B32).
-- [ ] Add a React error boundary around each route.
-- [ ] Keep server state in React Query only:
+- [x] Add a React error boundary around each route.
+- [x] Keep server state in React Query only:
   - message history uses `useInfiniteQuery` with the M3 cursor;
   - WebSocket events update it with `setQueryData`;
   - optimistic sends use a `tempId`;

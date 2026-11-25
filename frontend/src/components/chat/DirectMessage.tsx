@@ -24,7 +24,8 @@ export default function DirectMessage() {
     staleTime: Infinity,
   });
 
-  if (friends.isLoading) return <Centered>Loading...</Centered>;
+  // The list starts out as an empty placeholder: wait for a real answer before judging the URL.
+  if (!friend && !friends.isFetchedAfterMount) return <Centered>Loading...</Centered>;
   if (friends.isError) return <Centered>Could not load your friends.</Centered>;
   // The URL names someone who is not a friend (or is no longer one).
   if (!friend) return <Navigate to="/channels/@me" replace />;

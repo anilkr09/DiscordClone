@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.discordclone.exception.ValidationException;
 import java.util.Locale;
 import com.discordclone.dto.SelfStatusResponse;
@@ -29,6 +30,7 @@ public class UserStatusController {
     // GET SINGLE USER STATUS
     // =========================
     @GetMapping("/{userId}/status")
+    @PreAuthorize("@perm.canSeePresence(#userId, principal.id)")
     public ResponseEntity<StatusResponse> getUserStatus(@PathVariable Long userId) {
 
         UserStatus status = userStatusService.getUserStatus(userId);

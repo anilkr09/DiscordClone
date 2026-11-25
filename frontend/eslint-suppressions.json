@@ -26,20 +26,5 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 2
     }
-  },
-  "src/hooks/useChannels.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 6
-    }
-  },
-  "src/providers/WebSocketProvider.tsx": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 5
-    }
-  },
-  "src/websocket/friends.events.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
   }
 }

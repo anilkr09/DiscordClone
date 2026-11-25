@@ -105,7 +105,7 @@ export default function AddFriend() {
       </Typography>
 
       <Typography sx={{ color: '#96989d', mb: 3, fontSize: '14px' }}>
-        You can add friends with their Discord username. It's cAsE sEnSiTiVe!
+        You can add friends by their username.
       </Typography>
 
       <form onSubmit={handleSubmit}>

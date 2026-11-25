@@ -1,13 +1,10 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import TagIcon from "@mui/icons-material/Tag";
 import ChatIcon from "@mui/icons-material/Chat";
-import { useWebSocket } from "../../providers/WebSocketProvider";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
-import { registerGroupMessageSocket } from "../../websocket/message.socket";
-import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { fetchMessages } from "../../store/messages/messages.thunks";
+import { useMessages } from "../../features/messages/useMessages";
 
 interface ChatAreaProps {
   id: string;
@@ -16,27 +13,14 @@ interface ChatAreaProps {
 }
 
 export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
-  const { connected, client } = useWebSocket();
-  if (!isDM && connected) registerGroupMessageSocket(client, id);
-
-  const dispatch = useAppDispatch();
+  const { messages, send, isLoading, hasOlder, loadingOlder, loadOlder } = useMessages(id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const newestId = messages.at(-1)?.id;
 
-  const channel = useAppSelector((s) => s.messages.byChannelId[id]);
-  const messages = channel?.messages || [];
-  const isLoading = !channel?.loaded;
-
+  // Follow new messages, but stay put when older ones are loaded above.
   useEffect(() => {
-    if (!channel?.loaded) dispatch(fetchMessages(id));
-  }, [id]);
-
-  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages.length]);
+  }, [newestId]);
 
   return (
     <Box sx={{
@@ -81,11 +65,15 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
         ref={messagesEndRef}
         messages={messages}
         isLoading={isLoading}
+        hasOlder={hasOlder}
+        loadingOlder={loadingOlder}
+        onLoadOlder={() => void loadOlder()}
       />
 
       {/* Input — pinned to bottom */}
       <MessageInput
-        channelId={id}
+        key={id}
+        onSend={send}
         channelName={name}
         isDM={isDM}
       />

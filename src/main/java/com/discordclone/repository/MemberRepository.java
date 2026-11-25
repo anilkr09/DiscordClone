@@ -33,6 +33,10 @@ public interface MemberRepository extends JpaRepository<Member, MemberId> {
     @Query("SELECT m FROM Member m WHERE m.server.id = :serverId AND m.role = :role")
     List<Member> findMembersByServerIdAndRole(Long serverId, Role role);
 
+    @Query("SELECT COUNT(a) > 0 FROM Member a, Member b WHERE a.id.serverId = b.id.serverId "
+            + "AND a.id.userId = :userId AND b.id.userId = :otherId")
+    boolean shareAServer(Long userId, Long otherId);
+
     // ✅ EXISTS (uses embedded id path)
     boolean existsByIdUserIdAndIdServerId(Long userId, Long serverId);
 }

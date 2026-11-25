@@ -1,5 +1,9 @@
 package com.discordclone.service;
 
+import com.discordclone.dto.DeletedMessage;
+import com.discordclone.websocket.destination.WsDestinations;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
 import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
 import com.discordclone.repository.ChannelMemberRepository;
@@ -83,6 +87,7 @@ public class MessageService {
                 .channelId(channel.getId())
                 .content(message.getContent())
                 .timestamp(message.getTimestamp())
+                .nonce(request.getNonce())
                 .build();
         // 🔥 Delegate everything to profile-based publisher
         eventPublisher.publish(message, messageResponse, request, user);
@@ -119,8 +124,8 @@ public class MessageService {
         message.setContent(content);
         message.setEdited(true);
         MessageResp response = MessageResp.fromEntity(messageRepository.save(message));
-        events.publishEvent(ChatBroadcast.toTopic(
-                "/topic/channels/" + response.getChannelId() + "/messages", response));
+        events.publishEvent(ChatBroadcast.toTopic(WsDestinations.channelMessages(response.getChannelId()),
+                new WsEvent(WsEventType.MESSAGE_UPDATED, response)));
         return response;
     }
 
@@ -128,9 +133,9 @@ public class MessageService {
     public void deleteMessage(String messageId) {
         Message message = findMessage(messageId);
         messageRepository.delete(message);
-        events.publishEvent(ChatBroadcast.toTopic(
-                "/topic/channels/" + message.getChannel().getId() + "/messages/delete",
-                message.getId()));
+        Long channelId = message.getChannel().getId();
+        events.publishEvent(ChatBroadcast.toTopic(WsDestinations.channelMessages(channelId),
+                new WsEvent(WsEventType.MESSAGE_DELETED, new DeletedMessage(messageId, channelId))));
     }
 
     private Message findMessage(String messageId) {

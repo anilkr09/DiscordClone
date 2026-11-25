@@ -1,45 +1,25 @@
 import { useState, useRef, useEffect } from 'react';
 import { Box, TextField, IconButton, Tooltip } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
-import { MessageRequest } from '../../types/message';
-import { useWebSocketTopic } from '../../providers/WebSocketProvider';
 
 interface MessageInputProps {
-  channelId: string;
+  /** Returns false if nothing was sent, in which case the text is kept. */
+  onSend: (content: string) => boolean;
   channelName: string;
   isDM: boolean;
 }
 
-export default function MessageInput({
-  channelId,
-  channelName,
-  isDM,
-}: MessageInputProps) {
+export default function MessageInput({ onSend, channelName, isDM }: MessageInputProps) {
   const [message, setMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const { sendMessage } = useWebSocketTopic('/app/chat.send');
 
-  // Focus input when channel changes
+  // Focus input when the channel changes (the component is keyed by channel)
   useEffect(() => {
     inputRef.current?.focus();
-  }, [channelId]);
+  }, []);
 
-  const send = async () => {
-    if (!message.trim() || isSending) return;
-    try {
-      setIsSending(true);
-      const messageRequest: MessageRequest = {
-        content: message,
-        channelId: Number(channelId),
-      };
-      sendMessage(messageRequest);
-      setMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsSending(false);
-    }
+  const send = () => {
+    if (message.trim() && onSend(message)) setMessage('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -84,7 +64,7 @@ export default function MessageInput({
           variant="standard"
           multiline
           maxRows={6}
-          disabled={isSending}
+          inputProps={{ maxLength: 4000, "aria-label": `Message ${channelName}` }}
           sx={{
             '& .MuiInputBase-root': {
               color: '#dbdee1',
@@ -102,7 +82,8 @@ export default function MessageInput({
           <span>
             <IconButton
               type="submit"
-              disabled={!message.trim() || isSending}
+              aria-label="Send message"
+              disabled={!message.trim()}
               size="small"
               sx={{
                 mb: 0.5,

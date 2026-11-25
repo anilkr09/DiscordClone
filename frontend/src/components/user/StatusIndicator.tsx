@@ -25,6 +25,8 @@ export default function StatusIndicator({
 
   const indicator = (
     <Box
+      role="img"
+      aria-label={statusText}
       sx={{
         width: size,
         height: size,

@@ -47,11 +47,11 @@ its severity, so numbers are not strictly in severity order.
 | [B11](#b11-dms-are-delivered-to-the-wrong-username) | DMs are delivered to the wrong username — **Fixed** | High | Messaging |
 | [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled — **Fixed** | High | Security |
 | [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 — **Fixed** | High | Messaging |
-| [B14](#b14-presence-never-reaches-offline) | Presence never reaches OFFLINE | High | Redis |
-| [B15](#b15-presence-is-visible-to-everyone) | Presence is visible to everyone | High | Privacy |
+| [B14](#b14-presence-never-reaches-offline) | Presence never reaches OFFLINE — **Fixed** | High | Redis |
+| [B15](#b15-presence-is-visible-to-everyone) | Presence is visible to everyone — **Fixed** | High | Privacy |
 | [B16](#b16-token-refresh-is-broken-end-to-end) | Token refresh is broken end to end — **Fixed** | High | Auth |
 | [B17](#b17-access-tokens-are-accepted-as-refresh-tokens) | Access tokens are accepted as refresh tokens — **Fixed** | High | Auth |
-| [B18](#b18-chatarea-leaks-a-subscription-on-every-render) | `ChatArea` leaks a subscription on every render | High | WebSocket |
+| [B18](#b18-chatarea-leaks-a-subscription-on-every-render) | `ChatArea` leaks a subscription on every render — **Fixed** | High | WebSocket |
 | [B19](#b19-a-kafka-outage-stalls-all-websocket-traffic) | A Kafka outage stalls all WebSocket traffic — **Fixed** | High | Kafka |
 | [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save — **Fixed** | High | Kafka consumer |
 | [B20](#b20-message-times-are-wrong-outside-utc) | Message times are wrong outside UTC — **Fixed** | Medium | Messaging |
@@ -59,15 +59,15 @@ its severity, so numbers are not strictly in severity order.
 | [B22](#b22-put-apiserversidrolesroleid-can-never-succeed) | `PUT /api/servers/{id}/roles/{roleId}` can never succeed — **Fixed** | Medium | API |
 | [B23](#b23-servers-cannot-be-deleted) | Servers cannot be deleted — **Fixed** | Medium | API |
 | [B24](#b24-dm-view-hangs-or-mislabels) | DM view hangs or mislabels — **Fixed** | Medium | Frontend |
-| [B25](#b25-offline-users-reappear-with-their-custom-status) | Offline users reappear with their custom status | Medium | Redis |
-| [B26](#b26-active-users-flicker-between-online-and-idle) | Active users flicker between ONLINE and IDLE | Medium | Redis |
-| [B27](#b27-batched-status-updates-are-dropped) | Batched status updates are dropped | Medium | Frontend |
+| [B25](#b25-offline-users-reappear-with-their-custom-status) | Offline users reappear with their custom status — **Fixed** | Medium | Redis |
+| [B26](#b26-active-users-flicker-between-online-and-idle) | Active users flicker between ONLINE and IDLE — **Fixed** | Medium | Redis |
+| [B27](#b27-batched-status-updates-are-dropped) | Batched status updates are dropped — **Fixed** | Medium | Frontend |
 | [B28](#b28-messages-are-broadcast-before-they-are-committed) | Messages are broadcast before they are committed — **Fixed** | Medium | Messaging |
 | [B29](#b29-errors-map-to-the-wrong-http-status) | Errors map to the wrong HTTP status — **Fixed** | Medium | API |
-| [B30](#b30-channels-appear-twice-after-revisiting-a-server) | Channels appear twice after revisiting a server | Medium | Frontend |
-| [B31](#b31-channel-creation-is-broadcast-to-every-user) | Channel creation is broadcast to every user | Medium | Privacy |
-| [B32](#b32-failed-sends-are-silent) | Failed sends are silent | Medium | Frontend |
-| [B33](#b33-websocket-reconnect-uses-the-original-token) | WebSocket reconnect uses the original token — **Reconnect uses a fresh token; heart-beats open** | Medium | WebSocket |
+| [B30](#b30-channels-appear-twice-after-revisiting-a-server) | Channels appear twice after revisiting a server — **Fixed** | Medium | Frontend |
+| [B31](#b31-channel-creation-is-broadcast-to-every-user) | Channel creation is broadcast to every user — **Fixed** | Medium | Privacy |
+| [B32](#b32-failed-sends-are-silent) | Failed sends are silent — **Fixed** | Medium | Frontend |
+| [B33](#b33-websocket-reconnect-uses-the-original-token) | WebSocket reconnect uses the original token — **Fixed** | Medium | WebSocket |
 | [B34](#b34-logout-leaves-the-previous-users-data-cached) | Logout leaves the previous user's data cached — **Fixed** | Medium | Frontend |
 | [B35](#b35-the-seeder-creates-an-unusable-account-and-server) | The seeder creates an unusable account and server — **Fixed** | Medium | Data |
 | [B36](#b36-single-channel-endpoints-return-a-lazy-entity) | Single-channel endpoints return a lazy entity — **Fixed** | Medium | API |
@@ -75,7 +75,7 @@ its severity, so numbers are not strictly in severity order.
 | [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed — **Workflows rewritten; not yet run** | Medium | CI |
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes — **Fixed** | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist — **Fixed** | Medium | Frontend |
-| [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
+| [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL — **Fixed** | Medium | Redis |
 | [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service | Medium | Kafka |
 | [B53](#b53-the-consumers-dead-letter-setup-would-fail-if-wired) | The consumer's dead-letter setup would fail if wired — **Fixed** | Medium | Kafka consumer |
 | [B54](#b54-latest-offset-reset-loses-messages) | `latest` offset reset loses messages — **Fixed** | Medium | Kafka consumer |
@@ -83,15 +83,15 @@ its severity, so numbers are not strictly in severity order.
 | [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored | Medium | Kafka |
 | [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start — **Fixed** | Medium | Kafka consumer |
 | [B60](#b60-unknown-urls-return-500-instead-of-404) | Unknown URLs return 500 instead of 404 — **Fixed** | Medium | API |
-| [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice | Low | Redis |
+| [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice — **Fixed** | Low | Redis |
 | [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation — **Fixed** | Low | Redis |
-| [B43](#b43-dead-presence-logic) | Dead presence logic | Low | Redis |
+| [B43](#b43-dead-presence-logic) | Dead presence logic — **Fixed** | Low | Redis |
 | [B44](#b44-stomp-handler-errors-are-swallowed) | STOMP handler errors are swallowed — **Fixed** | Low | WebSocket |
 | [B45](#b45-missing-input-validation) | Missing input validation — **Fixed** | Low | API |
 | [B46](#b46-no-op-and-stale-endpoints) | No-op and stale endpoints — **Fixed** | Low | API |
-| [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects — **Principal null dereference removed; rest open** | Low | WebSocket |
+| [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects — **Fixed** | Low | WebSocket |
 | [B48](#b48-two-userservice-beans) | Two `UserService` beans — **Fixed** | Low | Backend |
-| [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
+| [B49](#b49-event-types-out-of-sync) | Event types out of sync — **Fixed** | Low | WebSocket |
 | [B50](#b50-infrastructure-drift) | Infrastructure drift — **Fixed** | Low | Ops |
 | [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
 | [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call — **Fixed** | Low | Backend |

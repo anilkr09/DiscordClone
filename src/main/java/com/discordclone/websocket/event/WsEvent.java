@@ -1,13 +1,14 @@
 package com.discordclone.websocket.event;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
+/**
+ * The shape of every frame the server pushes. Increase {@link #VERSION} for a change an older
+ * client could not read.
+ */
+public record WsEvent(WsEventType type, int version, Object payload) {
 
-@Data
-@Builder
-@AllArgsConstructor
-public class WsEvent {
-    private WsEventType type;
-    private Object payload;
+    public static final int VERSION = 1;
+
+    public WsEvent(WsEventType type, Object payload) {
+        this(type, VERSION, payload);
+    }
 }

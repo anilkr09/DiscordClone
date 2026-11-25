@@ -109,7 +109,7 @@ export default function MainLayout() {
                 error?.response?.data?.fieldErrors?.name ||
                 error?.response?.data?.message ||
                 'Failed to create server';
-              toast.error(message);
+              toast.error(message, { id: message });
               setError(message);
             },
           });

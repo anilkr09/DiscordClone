@@ -1,12 +1,10 @@
 import { api, unwrap } from "../api/client";
-import type { Message } from "../types/message";
+import type { MessagePage } from "../features/messages/cache";
 
-/** The latest messages of a channel, oldest first. */
-export const getChannelMessages = async (channelId: number): Promise<Message[]> => {
-  const page = await unwrap(
-    api.GET("/api/messages/channels/{channelId}", { params: { path: { channelId } } }),
+/** A page of a channel's messages, newest first, older than {@code before} if given. */
+export const getChannelMessages = (channelId: number, before?: string): Promise<MessagePage> =>
+  unwrap(
+    api.GET("/api/messages/channels/{channelId}", {
+      params: { path: { channelId }, query: { before } },
+    }),
   );
-  return [...page.content].reverse();
-};
-
-export default { getChannelMessages };

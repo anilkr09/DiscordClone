@@ -41,6 +41,8 @@ npm install
 npm run dev
 npm run build      # generates the API types, type-checks, then builds
 npm run lint   # existing errors are baselined in eslint-suppressions.json; new ones fail
+npm test       # unit tests (Vitest)
+npm run test:e2e   # two-browser test; needs the backend on :8080 (PW_CHANNEL=chrome for local Chrome)
 ```
 
 `VITE_API_BASE_URL` comes from the committed `frontend/.env.development` (`http://localhost:8080`)
@@ -99,35 +101,23 @@ separate `message-consumer-service` repository is superseded.
 The producer is configured entirely by `spring.kafka.producer.*` in `application-kafka.properties`.
 Sends run on the single-threaded `kafkaSendExecutor`, never on a STOMP inbound thread.
 
-### Presence (Redis, TTL-driven)
+### Presence (Redis)
 
-Status is derived, not stored. `UserStatusServiceImpl.resolveStatus` reads TTL'd keys namespaced by
-`constants/PresenceKeys`:
-
-- `presence:heartbeat:{id}` (30s TTL) — liveness; client sends `/app/heartbeat` every 10s
-- `presence:last_activity:{id}` (10min) — engagement; client sends `/app/activity` on DOM input
-- `presence:status:{id}` (60s) — last broadcast value, used to suppress no-change broadcasts
-- `presence:custom:{id}` (24h) — manual override. It is checked **before** liveness, so an offline
-  user with a custom status reappears as DND/IDLE once the cached status expires. This is a bug, not
-  a design choice.
-
-`/topic/status` is a single global topic, so every user receives every other user's presence.
-Scoping presence to friends requires a per-recipient fan-out, not a filter on the client.
-
-Liveness and engagement are deliberately separate so IDLE is expressible. `WebSocketEventListener`
-does **not** force OFFLINE on disconnect — expiry of the heartbeat key does, via
-`PresenceExpirationListener` listening on `__keyevent@*__:expired`.
-
-> **OFFLINE never fires.** Redis `notify-keyspace-events` is unset in `docker-compose.yml`, so no
-> expiry events are published. Fix: `--notify-keyspace-events Ex`. Note `resolveStatus` still returns
-> OFFLINE correctly on a *pull*, so only the push is broken — easy to misdiagnose as a frontend bug.
+Status is derived, never stored as truth: `presence/PresenceState.resolve` checks liveness first,
+then the user's chosen status, then recent activity. `presence/PresenceStore` documents the keys.
+Departures are found by `PresenceSweeper` (every second) with one atomic script: silence for 30 s, or
+8 s after the last socket closes. No Redis keyspace notifications are used. Changes go to the user's
+friends on `/user/queue/presence` (`PresenceNotifier`, friend names cached by `FriendDirectory`).
+Timings are `app.presence.*`; time comes from an injected `Clock`.
 
 ### WebSocket layer
 
 STOMP endpoint `/ws`, **in-memory simple broker** (`/topic`, `/queue`), app prefix `/app`, user
 prefix `/user`. The in-memory broker means **the app cannot run more than one instance** —
-subscriptions are process-local heap state. Adding Kafka does not fix this; it distributes events
-between instances, not frames to browsers.
+subscriptions are process-local heap state.
+
+Every pushed frame is a `WsEvent{type, version, payload}`; destinations are listed in
+`WsDestinations`, and the client's type names are generated from `WsEventType`.
 
 The access token is checked on STOMP `CONNECT` in `WebSocketAuthInterceptor`, which binds the
 principal and refuses frames after the token expires. The token travels as a STOMP header because
@@ -138,9 +128,9 @@ Clients may send only to `/app/**`; subscribing to `/topic/channels/{id}/**` req
 membership; anything not listed there is denied, so **a new destination must be added to that file**.
 A refused frame ends the STOMP session.
 
-`ChatArea.tsx` calls `registerGroupMessageSocket` in the **render body**, so every render adds a
-STOMP subscription that is never removed. The Redux reducer's de-duplication hides the duplicate
-frames. When you touch subscriptions, put them in an effect with an unsubscribe cleanup.
+On the client, `src/realtime/` owns the one connection. Subscribe with `useStompSubscription`, which
+is reference-counted and cleans up; apply events in `realtime/events.ts`. Server state lives only in
+React Query (there is no Redux); message history is `features/messages/`.
 
 ### DMs
 
@@ -170,7 +160,7 @@ limits (`app.rate-limit.*`).
 
 Authorization lives in `security/PermissionService` (bean `perm`). Endpoints call it from
 `@PreAuthorize("@perm...")`; **a new endpoint is open to any signed-in user until you annotate it**.
-Add it to `AuthorizationMatrixTest` too. Presence reads are still unrestricted (B15).
+Add it to `AuthorizationMatrixTest` too.
 
 **Never return or bind JPA entities in controllers.** `ControllerBoundaryTest` (ArchUnit) enforces
 this.
@@ -198,13 +188,8 @@ On the client, `src/api/session.ts` owns the tokens and `src/api/client.ts` refr
   preferring literal segments over templates; adding a `GET /{id}/{x}` route to either will break it.
 - **`dto/` and `payload/` both exist** and both contain a `UserDTO`. `MessageService` uses the
   `payload` one.
-- `presence:last_seen:{id}` is written but never read and has no TTL. The variable named `lastSeen`
-  in `resolveStatus` actually reads the *heartbeat* key.
 - `DataInitializer` runs only with `app.seed.enabled=true` and `SEED_PASSWORD`. To test locally you
   can also register through `/api/auth/register`.
-- **`/user/queue/errors` has no frontend subscriber.** Server-side error pushes (Kafka send failure,
-  STOMP JWT errors) are invisible to users.
-
 ## Branches
 
 `main` and `origin/feature/redis` are **tree-identical** — `main` is the merge commit of PR #6.

@@ -1,5 +1,7 @@
 package com.discordclone.security;
 
+import com.discordclone.repository.FriendshipRepository;
+import com.discordclone.repository.MemberRepository;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.Channel;
 import com.discordclone.model.ChannelMember;
@@ -29,6 +31,8 @@ public class PermissionService {
     private final ChannelRepository channelRepository;
     private final MessageRepository messageRepository;
     private final ChannelMemberRepository channelMemberRepository;
+    private final FriendshipRepository friendshipRepository;
+    private final MemberRepository memberRepository;
 
     public boolean isServerMember(Long serverId, Long userId) {
         return serverService.isUserMember(serverId, userId);
@@ -66,6 +70,14 @@ public class PermissionService {
             return channelMemberRepository.existsById(new ChannelMember.Key(channel.getId(), userId));
         }
         return channel.getServer() != null && isServerMember(channel.getServer().getId(), userId);
+    }
+
+    /** Presence is for oneself, friends and people who share a server. */
+    public boolean canSeePresence(Long targetId, Long userId) {
+        if (targetId.equals(userId)) {
+            return true;
+        }
+        return friendshipRepository.areFriends(userId, targetId) || memberRepository.shareAServer(userId, targetId);
     }
 
     /** The author may change a message only while they can still access its channel. */

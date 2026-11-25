@@ -114,10 +114,10 @@ export default function FriendsList() {
                 <Typography sx={{ flexGrow: 1, fontSize: 14, color: '#f2f3f5' }}>
                   {req.senderUsername}
                 </Typography>
-                <IconButton size="small" onClick={() => acceptFriend.mutate(req.id)} sx={{ color: '#23a55a' }}>
+                <IconButton size="small" aria-label="Accept friend request" onClick={() => acceptFriend.mutate(req.id)} sx={{ color: '#23a55a' }}>
                   <CheckIcon fontSize="small" />
                 </IconButton>
-                <IconButton size="small" onClick={() => rejectFriend.mutate(req.id)} sx={{ color: '#f23f43' }}>
+                <IconButton size="small" aria-label="Decline friend request" onClick={() => rejectFriend.mutate(req.id)} sx={{ color: '#f23f43' }}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>
@@ -251,10 +251,10 @@ const FriendItem = ({
       )}
     </Box>
 
-    <IconButton size="small" onClick={onChat} sx={{ color: '#b5bac1', '&:hover': { color: '#f2f3f5' } }}>
+    <IconButton size="small" aria-label={`Message ${friend.username}`} onClick={onChat} sx={{ color: '#b5bac1', '&:hover': { color: '#f2f3f5' } }}>
       <ChatIcon fontSize="small" />
     </IconButton>
-    <IconButton size="small" onClick={onRemove} sx={{ color: '#b5bac1', '&:hover': { color: '#f2f3f5' } }}>
+    <IconButton size="small" aria-label={`Remove ${friend.username}`} onClick={onRemove} sx={{ color: '#b5bac1', '&:hover': { color: '#f2f3f5' } }}>
       <MoreHorizIcon fontSize="small" />
     </IconButton>
   </Box>

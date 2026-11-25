@@ -2,8 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, Re
 import AuthService from "../services/auth.service";
 import { session, SessionUser } from "../api/session";
 import { queryClient } from "../lib/reactQuery";
-import { store } from "../store/store";
-import { resetMessages } from "../store/messages/messages.slice";
+import { forgetUnconfirmed } from "../features/messages/cache";
 
 interface AuthContextType {
   isLoggedIn: boolean;
@@ -21,7 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 /** Drops everything cached for whoever was signed in. */
 const forgetUserData = () => {
   queryClient.clear();
-  store.dispatch(resetMessages());
+  forgetUnconfirmed();
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {

@@ -1,5 +1,8 @@
 package com.discordclone.service;
 
+import com.discordclone.websocket.destination.WsDestinations;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
 import com.discordclone.model.Message;
 import com.discordclone.model.User;
 import com.discordclone.payload.MessageRequest;
@@ -22,14 +25,15 @@ public class LocalMessageEventPublisher implements MessageEventPublisher {
         persistenceService.save(message);
 
         // Delivered by ChatBroadcaster after the surrounding transaction commits.
+        WsEvent event = new WsEvent(WsEventType.MESSAGE_CREATED, response);
         if (request.isDm()) {
-            events.publishEvent(ChatBroadcast.toUser(user.getUsername(), "/queue/messages", response));
+            events.publishEvent(ChatBroadcast.toUser(user.getUsername(), WsDestinations.MESSAGES, event));
             if (!user.getUsername().equals(request.getReceiver())) {
-                events.publishEvent(ChatBroadcast.toUser(request.getReceiver(), "/queue/messages", response));
+                events.publishEvent(ChatBroadcast.toUser(request.getReceiver(), WsDestinations.MESSAGES, event));
             }
         } else {
             events.publishEvent(ChatBroadcast.toTopic(
-                    "/topic/channels/" + response.getChannelId() + "/messages", response));
+                    WsDestinations.channelMessages(response.getChannelId()), event));
         }
     }
 }

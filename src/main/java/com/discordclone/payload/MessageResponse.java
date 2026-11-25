@@ -18,5 +18,6 @@ import java.time.Instant;
         private UserDTO author;
         private Long channelId;
         private Instant timestamp; // or Instant, depending on your use
+        private String nonce;
     }
 

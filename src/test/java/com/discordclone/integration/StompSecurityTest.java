@@ -114,7 +114,7 @@ class StompSecurityTest extends IntegrationTest {
     @Test
     void strangerCannotSubscribeToAChannel() throws Exception {
         for (String destination : new String[]{"/topic/channels/" + channelId + "/messages",
-                "/topic/channels/*/messages", "/topic/**", "/queue/**", "/user/queue/**"}) {
+                "/topic/channels/*/messages", "/topic/status", "/topic/**", "/queue/**", "/user/queue/**"}) {
             StompSession intruder = connect(bearer(stranger));
             BlockingQueue<String> overheard = subscribe(intruder, destination);
             StompSession sender = connect(bearer(owner));

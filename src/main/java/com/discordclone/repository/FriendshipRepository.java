@@ -48,6 +48,10 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
            "f.status = 'ACCEPTED'")
     boolean existsFriendship(@Param("user1") User user1, @Param("user2") User user2);
     
+    @Query("SELECT COUNT(f) > 0 FROM Friendship f WHERE f.status = 'ACCEPTED' AND "
+            + "((f.sender.id = :first AND f.receiver.id = :second) OR (f.sender.id = :second AND f.receiver.id = :first))")
+    boolean areFriends(@Param("first") Long first, @Param("second") Long second);
+
     /**
      * Find all users who are friends with the given user
      */

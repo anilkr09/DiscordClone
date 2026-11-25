@@ -1,5 +1,8 @@
 package com.discordclone.service;
 
+import com.discordclone.websocket.destination.WsDestinations;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
 import com.discordclone.exception.ErrorMessage;
 import com.discordclone.contract.MessageCreatedV1;
 import com.discordclone.model.Message;
@@ -64,17 +67,17 @@ public class KafkaMessageEventPublisher implements MessageEventPublisher {
 
     private void reportFailure(String sender, Throwable cause) {
         log.error("Could not publish a message to Kafka", cause);
-        messagingTemplate.convertAndSendToUser(sender, "/queue/errors",
-                new ErrorMessage(503, "Your message could not be sent"));
+        messagingTemplate.convertAndSendToUser(sender, WsDestinations.ERRORS,
+                new WsEvent(WsEventType.ERROR, new ErrorMessage(503, "Your message could not be sent")));
     }
 
     private void sendToWebSocket(MessageRequest request, String sender, MessageResponse response) {
+        WsEvent event = new WsEvent(WsEventType.MESSAGE_CREATED, response);
         if (request.isDm()) {
-            messagingTemplate.convertAndSendToUser(sender, "/queue/messages", response);
-            messagingTemplate.convertAndSendToUser(request.getReceiver(), "/queue/messages", response);
+            messagingTemplate.convertAndSendToUser(sender, WsDestinations.MESSAGES, event);
+            messagingTemplate.convertAndSendToUser(request.getReceiver(), WsDestinations.MESSAGES, event);
         } else {
-            messagingTemplate.convertAndSend(
-                    "/topic/channels/" + response.getChannelId() + "/messages", response);
+            messagingTemplate.convertAndSend(WsDestinations.channelMessages(response.getChannelId()), event);
         }
     }
 }

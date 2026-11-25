@@ -5,6 +5,7 @@ import NightsStayIcon from '@mui/icons-material/NightsStay';
 import DoNotDisturbOnIcon from '@mui/icons-material/DoNotDisturbOn';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
+import toast from 'react-hot-toast';
 import { useStatus } from '../../hooks/useStatus';
 import { UserStatus, STATUS_COLORS } from '../../types/status';
 
@@ -22,23 +23,12 @@ export default function UserStatusSelector({
   const { updateCustomStatus, clearCustomStatus } = useStatus();
 
  const handleStatusChange = (status: UserStatus) => {
-  console.log("status click", status);
-
-  try {
-    // Close menu first
-    onClose();
-
-    // Then update after focus cleanup
-    requestAnimationFrame(() => {
-      if(status==UserStatus.ONLINE)
-        clearCustomStatus();
-      else
-        updateCustomStatus(status);
-    });
-
-  } catch (error) {
-    console.error('Failed to update status:', error);
-  }
+  // Close menu first, then update after focus cleanup.
+  onClose();
+  requestAnimationFrame(() => {
+      const change = status === UserStatus.ONLINE ? clearCustomStatus() : updateCustomStatus(status);
+      change.catch(() => toast.error("Could not change your status"));
+  });
 };
 
   return (

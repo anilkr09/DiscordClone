@@ -8,10 +8,9 @@ export interface Message {
   channelId: number | string;
   author: Schemas["Author"] & { avatarUrl?: string };
   edited?: boolean;
-}
-
-/** Sent over STOMP to /app/chat.send, so it is not part of the REST contract. */
-export interface MessageRequest {
-  content: string;
-  channelId: number;
+  /** Set by the sender's client, and echoed by the server. */
+  nonce?: string;
+  /** Shown while waiting for the server to deliver it. */
+  pending?: boolean;
+  failed?: boolean;
 }

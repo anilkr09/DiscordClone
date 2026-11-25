@@ -1,15 +1,18 @@
 import { forwardRef } from 'react';
-import { Box, Typography, Avatar, Skeleton } from '@mui/material';
+import { Box, Button, Typography, Avatar, Skeleton } from '@mui/material';
 import { Message } from '../../types/message';
 import { useAuth } from '../../providers/AuthProvider';
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
+  hasOlder: boolean;
+  loadingOlder: boolean;
+  onLoadOlder: () => void;
 }
 
 const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
-  ({ messages, isLoading }, ref) => {
+  ({ messages, isLoading, hasOlder, loadingOlder, onLoadOlder }, ref) => {
     const { username } = useAuth();
 
     return (
@@ -31,6 +34,12 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
           borderRadius: 4,
         },
       }}>
+
+        {hasOlder && (
+          <Button size="small" onClick={onLoadOlder} disabled={loadingOlder} sx={{ alignSelf: "center", flexShrink: 0 }}>
+            {loadingOlder ? "Loading..." : "Load older messages"}
+          </Button>
+        )}
 
         {isLoading ? (
           // Skeleton loading state
@@ -118,7 +127,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
                   {/* Message text */}
                   <Typography sx={{
                     fontSize: { xs: 13, sm: 14 },
-                    color: "#dbdee1",
+                    color: message.failed ? "#ed4245" : message.pending ? "#80848e" : "#dbdee1",
                     lineHeight: 1.5,
                     wordBreak: "break-word",   // wraps long URLs / words
                     whiteSpace: "pre-wrap",    // preserves newlines
@@ -126,6 +135,11 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(
                   }}>
                     {message.content}
                   </Typography>
+                  {message.failed && (
+                    <Typography role="alert" sx={{ fontSize: 11, color: "#ed4245" }}>
+                      Not delivered
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             );

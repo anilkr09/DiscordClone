@@ -35,7 +35,7 @@ class KafkaOutageTest extends IntegrationTest {
         // Several sends in a row: none may wait for the broker on the calling thread.
         assertTimeout(Duration.ofSeconds(1), () -> {
             for (int i = 0; i < 3; i++) {
-                messageService.sendMessage(new MessageRequest(false, "hi", channelId, null), owner.getId());
+                messageService.sendMessage(new MessageRequest("hi", channelId), owner.getId());
             }
         });
 

@@ -1,5 +1,8 @@
 package com.discordclone.service;
 
+import com.discordclone.dto.DeletedMessage;
+import com.discordclone.websocket.event.WsEvent;
+import com.discordclone.websocket.event.WsEventType;
 import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
 import com.discordclone.repository.ChannelMemberRepository;
@@ -217,7 +220,8 @@ class MessageServiceTest {
         assertTrue(result.isEdited());
         assertSame(testUser, testMessage.getSender());
         assertSame(testChannel, testMessage.getChannel());
-        verify(events).publishEvent(ChatBroadcast.toTopic("/topic/channels/1/messages", result));
+        verify(events).publishEvent(ChatBroadcast.toTopic("/topic/channels/1/messages",
+                new WsEvent(WsEventType.MESSAGE_UPDATED, result)));
     }
 
     @Test
@@ -227,6 +231,7 @@ class MessageServiceTest {
         messageService.deleteMessage("message-1");
 
         verify(messageRepository).delete(testMessage);
-        verify(events).publishEvent(ChatBroadcast.toTopic("/topic/channels/1/messages/delete", "message-1"));
+        verify(events).publishEvent(ChatBroadcast.toTopic("/topic/channels/1/messages",
+                new WsEvent(WsEventType.MESSAGE_DELETED, new DeletedMessage("message-1", 1L))));
     }
 }

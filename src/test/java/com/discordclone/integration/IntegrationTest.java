@@ -83,7 +83,7 @@ public abstract class IntegrationTest {
     }
 
     protected String newMessage(Long channelId, User sender) {
-        return messageService.sendMessage(new MessageRequest(false, "hello", channelId, null), sender.getId())
+        return messageService.sendMessage(new MessageRequest("hello", channelId), sender.getId())
                 .getId();
     }
 
