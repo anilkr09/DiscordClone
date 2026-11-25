@@ -1,6 +1,13 @@
 package com.discordclone.service;
 
+import com.discordclone.dto.MessageResp;
+import com.discordclone.exception.ChannelAccessDeniedException;
 import com.discordclone.exception.ResourceNotFoundException;
+import com.discordclone.model.ChannelType;
+import com.discordclone.model.Friendship;
+import com.discordclone.model.FriendshipStatus;
+import com.discordclone.repository.FriendshipRepository;
+import com.discordclone.security.PermissionService;
 import com.discordclone.model.Channel;
 import com.discordclone.model.Message;
 import com.discordclone.model.User;
@@ -53,6 +60,12 @@ class MessageServiceTest {
     @Mock
     private MessageEventPublisher eventPublisher;
 
+    @Mock
+    private FriendshipRepository friendshipRepository;
+
+    @Mock
+    private PermissionService permissions;
+
     @InjectMocks
     private MessageService messageService;
 
@@ -93,6 +106,9 @@ class MessageServiceTest {
     void sendMessage_Success() {
         when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
+        when(permissions.hasAccess(testChannel, testUser.getId())).thenReturn(true);
+        testMessageRequest.setDm(true);
+        testMessageRequest.setReceiver("someone-else");
 
         Message result = messageService.sendMessage(testMessageRequest, testUser.getId());
 
@@ -104,6 +120,9 @@ class MessageServiceTest {
         assertEquals(result.getId(), messageResponseCaptor.getValue().getId());
         assertEquals(testChannel.getId(), messageResponseCaptor.getValue().getChannelId());
         assertEquals(testUser.getId(), messageResponseCaptor.getValue().getAuthor().getId());
+        // The client cannot turn a server channel message into a direct delivery.
+        assertFalse(testMessageRequest.isDm());
+        assertNull(testMessageRequest.getReceiver());
     }
 
     @Test
@@ -126,42 +145,87 @@ class MessageServiceTest {
     }
 
     @Test
+    void sendMessage_WithoutChannelAccess_IsRefused() {
+        when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
+        when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
+
+        assertThrows(ChannelAccessDeniedException.class,
+                () -> messageService.sendMessage(testMessageRequest, testUser.getId()));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    void sendMessage_InDm_DerivesTheRecipientFromTheChannel() {
+        User friend = User.builder().id(2L).username("MixedCase").build();
+        Channel dm = Channel.builder().id(5L).type(ChannelType.DM).dmKey("dm-1-2").build();
+        testMessageRequest.setChannelId(5L);
+        testMessageRequest.setReceiver("an-attacker-chosen-name");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
+        when(channelRepository.findById(5L)).thenReturn(Optional.of(dm));
+        when(permissions.hasAccess(dm, 1L)).thenReturn(true);
+
+        messageService.sendMessage(testMessageRequest, 1L);
+
+        assertTrue(testMessageRequest.isDm());
+        assertEquals("MixedCase", testMessageRequest.getReceiver());
+    }
+
+    @Test
+    void sendMessage_InDm_WhenBlocked_IsRefused() {
+        User friend = User.builder().id(2L).username("friend").build();
+        Channel dm = Channel.builder().id(5L).type(ChannelType.DM).dmKey("dm-1-2").build();
+        Friendship block = new Friendship();
+        block.setStatus(FriendshipStatus.BLOCKED);
+        testMessageRequest.setChannelId(5L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(friend));
+        when(channelRepository.findById(5L)).thenReturn(Optional.of(dm));
+        when(permissions.hasAccess(dm, 1L)).thenReturn(true);
+        when(friendshipRepository.findBySenderAndReceiver(testUser, friend)).thenReturn(Optional.empty());
+        when(friendshipRepository.findBySenderAndReceiver(friend, testUser)).thenReturn(Optional.of(block));
+
+        assertThrows(ChannelAccessDeniedException.class,
+                () -> messageService.sendMessage(testMessageRequest, 1L));
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
     void getChannelMessages_Success() {
         Page<Message> messagePage = new PageImpl<>(Arrays.asList(testMessage));
+        when(channelRepository.findById(1L)).thenReturn(Optional.of(testChannel));
         when(messageRepository.findByChannelOrderByTimestampDesc(any(Channel.class), any(Pageable.class)))
                 .thenReturn(messagePage);
 
-        Page<Message> result = messageService.getChannelMessages(testChannel, Pageable.unpaged());
+        Page<MessageResp> result = messageService.getChannelMessages(1L, Pageable.unpaged());
 
-        assertNotNull(result);
         assertEquals(1, result.getContent().size());
         assertEquals(testMessage.getContent(), result.getContent().get(0).getContent());
     }
 
     @Test
-    void editMessage_Success() {
-        when(messageRepository.save(any(Message.class))).thenReturn(testMessage);
+    void editMessage_ChangesOnlyTheContent() {
+        when(messageRepository.findById("message-1")).thenReturn(Optional.of(testMessage));
+        when(messageRepository.save(testMessage)).thenReturn(testMessage);
 
-        Message result = messageService.editMessage(testMessage);
+        MessageResp result = messageService.editMessage("message-1", "edited");
 
-        assertNotNull(result);
-        assertEquals(testMessage.getContent(), result.getContent());
+        assertEquals("edited", result.getContent());
+        assertTrue(result.isEdited());
+        assertSame(testUser, testMessage.getSender());
+        assertSame(testChannel, testMessage.getChannel());
         verify(messagingTemplate).convertAndSend(
-                eq("/topic/channels/" + testMessage.getChannel().getId() + "/messages"),
-                eq(testMessage)
-        );
+                eq("/topic/channels/1/messages"), any(MessageResp.class));
     }
 
     @Test
     void deleteMessage_Success() {
-        doNothing().when(messageRepository).delete(any(Message.class));
+        when(messageRepository.findById("message-1")).thenReturn(Optional.of(testMessage));
 
-        messageService.deleteMessage(testMessage);
+        messageService.deleteMessage("message-1");
 
         verify(messageRepository).delete(testMessage);
         verify(messagingTemplate).convertAndSend(
-                eq("/topic/channels/" + testMessage.getChannel().getId() + "/messages/delete"),
-                eq(testMessage.getId())
-        );
+                eq("/topic/channels/1/messages/delete"), eq((Object) "message-1"));
     }
 }

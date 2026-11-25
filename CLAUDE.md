@@ -59,9 +59,9 @@ Kafka UI 8085.
 
 ## Build state
 
-The backend builds and its unit tests pass. `.github/workflows/ci.yml` runs the backend build, the
-frontend lint and build, and `gitleaks` on pull requests. No test loads a Spring context, so a green
-build does not prove the application starts.
+The backend builds and its tests pass. Integration tests (`com.discordclone.integration`) start
+PostgreSQL and Redis with Testcontainers, so `./gradlew build` needs Docker. `.github/workflows/ci.yml` runs the backend build, the
+frontend lint and build, and `gitleaks` on pull requests.
 
 ## Architecture
 
@@ -143,21 +143,21 @@ JWT is validated **only on STOMP `CONNECT`**, in `WebSocketAuthInterceptor`, whe
 STOMP header, not an HTTP header, because browsers cannot set headers on a WebSocket handshake —
 this is why `/ws/**` is `permitAll()` in `SecurityConfig`.
 
-`SUBSCRIBE` validates only the destination *prefix*. **There is no per-channel authorization** — the
-membership check is commented out at `WebSocketAuthInterceptor.java:119-128`, so any authenticated
-user can subscribe to any channel ID. `ChannelService.checkUserIsMember` still exists, but it is
-wrong for DMs (see below).
+Destination rules are in `security/StompSecurityConfig` (Spring Security message authorization).
+Clients may send only to `/app/**`; subscribing to `/topic/channels/{id}/**` requires channel
+membership; anything not listed there is denied, so **a new destination must be added to that file**.
+A refused frame ends the STOMP session.
 
-`ChatArea.tsx:20` calls `registerGroupMessageSocket` in the **render body**, so every render adds a
+`ChatArea.tsx` calls `registerGroupMessageSocket` in the **render body**, so every render adds a
 STOMP subscription that is never removed. The Redux reducer's de-duplication hides the duplicate
 frames. When you touch subscriptions, put them in an effect with an unsubscribe cleanup.
 
 ### DMs
 
-DMs are ordinary `Channel` rows with `type = DM` and `dmKey = "dm-{minId}-{maxId}"`, attached to the
-**hard-coded server ID 1** (`ChannelService.getOrCreateDmChannel`). Server-membership checks are
-therefore meaningless for DMs. `DmChannel`/`DmChannelRepository` exist but are unused. The DM
-recipient on send is the client-supplied `MessageRequest.receiver` username, which is not validated.
+DMs are `Channel` rows with `type = DM` and `dmKey = "dm-{minId}-{maxId}"` (see `service/DmKey`),
+still attached to the hard-coded server ID 1. Access is decided by participation, never by server
+membership, and `MessageService` derives the recipient from the key. The client's `dm` and
+`receiver` fields are ignored.
 
 ### Auth and authorization
 
@@ -170,15 +170,12 @@ unreachable, both in the filter and in the STOMP interceptor.
 `Principal.getName()` is the **username** (not the ID), which is why `/user/**` destinations and
 `MessageRequest.receiver` key on username strings.
 
-Resource authorization is ad hoc, per service method (`ServerService.isUserMember`/`isUserAdmin`).
-There is no `@PreAuthorize` anywhere. Several paths have **no** check: message send/read/edit, server
-member add/remove, channel subscribe, and presence reads. Do not assume a new endpoint inherits a
-check; add it explicitly.
+Authorization lives in `security/PermissionService` (bean `perm`). Endpoints call it from
+`@PreAuthorize("@perm...")`; **a new endpoint is open to any signed-in user until you annotate it**.
+Add it to `AuthorizationMatrixTest` too. Presence reads are still unrestricted (B15).
 
-**Never return JPA entities from controllers.** `User.password` has no `@JsonIgnore`, and
-`Server.owner` is EAGER, so any `User` or `Server` in a response leaks a BCrypt hash. Several
-existing endpoints already do this (`UserController`, `ServerController`, `InviteController`).
-`LoginRequest` is `@Data`, and `AuthController` logs it, which writes plaintext passwords to the log.
+**Never return or bind JPA entities in controllers.** `ControllerBoundaryTest` (ArchUnit) enforces
+this.
 
 Frontend token refresh is broken. `services/api.ts` posts to `/api/refresh-token` with no body,
 while the backend route is `/api/auth/refresh` with `{refreshToken}`.

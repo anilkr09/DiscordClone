@@ -2,6 +2,7 @@ package com.discordclone.service;
 
 import com.discordclone.model.*;
 import com.discordclone.payload.ServerPayload;
+import com.discordclone.payload.UpdateServerRequest;
 import com.discordclone.repository.MemberRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
@@ -182,12 +183,13 @@ class ServerServiceTest {
         Server updatedServer = new Server();
         updatedServer.setName("Updated Server");
         updatedServer.setDescription("Updated Description");
+        UpdateServerRequest request = new UpdateServerRequest("Updated Server", "Updated Description");
 
         when(serverRepository.findById(testServer.getId())).thenReturn(Optional.of(testServer));
         when(userService.getUserById(testUser.getId())).thenReturn(testUser);
         when(serverRepository.save(any(Server.class))).thenReturn(updatedServer);
 
-        Server result = serverService.updateServer(testServer.getId(), updatedServer, testUser.getId());
+        Server result = serverService.updateServer(testServer.getId(), request, testUser.getId());
 
         assertNotNull(result);
         assertEquals(updatedServer.getName(), result.getName());
@@ -204,7 +206,7 @@ class ServerServiceTest {
         when(userService.getUserById(nonOwner.getId())).thenReturn(nonOwner);
 
         assertThrows(RuntimeException.class,
-                () -> serverService.updateServer(testServer.getId(), testServer, nonOwner.getId()));
+                () -> serverService.updateServer(testServer.getId(), new UpdateServerRequest("x", null), nonOwner.getId()));
         verify(serverRepository, never()).save(any(Server.class));
     }
 

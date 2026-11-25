@@ -31,7 +31,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?>  registerUser( @Valid @RequestBody RegistrationRequest request) {
-        log.info("➡️ POST /register | request={}", request);
+        log.info("➡️ POST /register | username={}", request.getUsername());
 
         User user = new User();
         user.setUsername(request.getUsername());
@@ -69,7 +69,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        log.info("➡️ POST /login | request={}", loginRequest);
+        log.info("➡️ POST /login | username={}", loginRequest.getUsername());
 
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(

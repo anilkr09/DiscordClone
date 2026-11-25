@@ -1,6 +1,7 @@
 package com.discordclone.controller;
 
-import com.discordclone.model.Channel;
+import com.discordclone.payload.UpdateChannelRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.discordclone.model.ChannelDTO;
 import com.discordclone.payload.ChannelPayload;
 import com.discordclone.security.UserPrincipal;
@@ -24,6 +25,7 @@ public class ChannelController {
     private final ChannelService channelService;
 
     @PostMapping("")
+    @PreAuthorize("@perm.isServerAdmin(#serverId, principal.id)")
     public ResponseEntity<ChannelDTO> createChannel(
             @PathVariable Long serverId,
             @Valid @RequestBody ChannelPayload channel,
@@ -31,52 +33,16 @@ public class ChannelController {
         return ResponseEntity.ok(channelService.createChannel(channel, serverId, userPrincipal.getId()));
     }
 
+    /** Any user may open a DM with another; the caller is always one of the two participants. */
     @PostMapping("/dm/{userId}")
     public ResponseEntity<Long> getOrCreateDmChannel(
-        @PathVariable Long userId,
-        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @PathVariable Long userId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(channelService.getOrCreateDmChannel(userPrincipal.getId(), userId).getId());
     }
-//    @Transactional
-//    public Channel getOrCreateDmChannel(Long userId1, Long userId2) {
-//
-//        Long min = Math.min(userId1, userId2);
-//        Long max = Math.max(userId1, userId2);
-//
-//        String channelName = "dm-" + min + "-" + max;
-//
-//        // 1️⃣ Fast path: already exists
-//        return channelRepository.findByName(channelName)
-//                .orElseGet(() -> createDmSafely(channelName));
-//    }
-//
-//    private Channel createDmSafely(String channelName) {
-//
-//        Channel channel = Channel.builder()
-//                .name(channelName)
-//                .type(ChannelType.DM)
-//                .server(serverService.getServerById(1L)) // DM server
-//                .build();
-//
-//        try {
-//            // 2️⃣ Try to insert
-//            return channelRepository.saveAndFlush(channel);
-//
-//        } catch (DataIntegrityViolationException ex) {
-//            // 3️⃣ Lost the race → fetch existing channel
-//            return channelRepository.findByName(channelName)
-//                    .orElseThrow(() ->
-//                            new IllegalStateException(
-//                                    "Channel exists but could not be retrieved", ex
-//                            )
-//                    );
-//        }
-//    }
 
-
-
-
-@GetMapping("")
+    @GetMapping("")
+    @PreAuthorize("@perm.isServerMember(#serverId, principal.id)")
     public ResponseEntity<List<ChannelDTO>> getServerChannels(
             @PathVariable Long serverId,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
@@ -87,25 +53,30 @@ public class ChannelController {
     }
 
     @GetMapping("/{channelId}")
-    public ResponseEntity<Channel> getChannel(
-            @PathVariable Long channelId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(channelService.getChannelById(channelId, userPrincipal.getId()));
+    @PreAuthorize("@perm.isChannelMember(#channelId, principal.id)")
+    public ResponseEntity<ChannelDTO> getChannel(
+            @PathVariable Long serverId,
+            @PathVariable Long channelId) {
+        return ResponseEntity.ok(ChannelDTO.fromEntityWithoutMessages(
+                channelService.getChannel(serverId, channelId)));
     }
 
     @PutMapping("/{channelId}")
-    public ResponseEntity<Channel> updateChannel(
+    @PreAuthorize("@perm.isServerAdmin(#serverId, principal.id)")
+    public ResponseEntity<ChannelDTO> updateChannel(
+            @PathVariable Long serverId,
             @PathVariable Long channelId,
-            @RequestBody Channel channelDetails,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(channelService.updateChannel(channelId, channelDetails, userPrincipal.getId()));
+            @Valid @RequestBody UpdateChannelRequest request) {
+        return ResponseEntity.ok(ChannelDTO.fromEntityWithoutMessages(
+                channelService.updateChannel(serverId, channelId, request)));
     }
 
     @DeleteMapping("/{channelId}")
+    @PreAuthorize("@perm.isServerAdmin(#serverId, principal.id)")
     public ResponseEntity<Void> deleteChannel(
-            @PathVariable Long channelId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        channelService.deleteChannel(channelId, userPrincipal.getId());
+            @PathVariable Long serverId,
+            @PathVariable Long channelId) {
+        channelService.deleteChannel(serverId, channelId);
         return ResponseEntity.ok().build();
     }
 }

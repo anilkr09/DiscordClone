@@ -17,7 +17,6 @@ class AuthService {
     async login(credentials: LoginRequest): Promise<AuthResponse> {
         console.log("inside login service");
         const response = await this.authApi.post<AuthResponse>('/auth/login', credentials);
-        console.log(response.data);
         this.setTokens(response.data);
         // setUsername(response.data.username);
         console.log("username", response.data.username);

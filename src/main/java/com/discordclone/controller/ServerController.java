@@ -1,7 +1,9 @@
 package com.discordclone.controller;
 
+import com.discordclone.payload.UpdateServerRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
+import jakarta.validation.Valid;
 import com.discordclone.payload.ServerPayload;
-import com.discordclone.model.Server;
 import com.discordclone.model.ServerDTO;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.ServerService;
@@ -20,62 +22,70 @@ public class ServerController {
     private final ServerService serverService;
 
     @PostMapping
-    public ResponseEntity<Server> createServer(
+    public ResponseEntity<ServerDTO> createServer(
             @RequestBody ServerPayload server,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
-        return ResponseEntity.ok(serverService.createServer(server, currentUser.getId()));
+        return ResponseEntity.ok(ServerDTO.fromEntity(serverService.createServer(server, currentUser.getId())));
     }
 
     @GetMapping
-    public ResponseEntity<List<Server>> getUserServers(
+    public ResponseEntity<List<ServerDTO>> getUserServers(
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        return ResponseEntity.ok(serverService.getUserServers(currentUser.getId()));
+        return ResponseEntity.ok(serverService.getUserServers(currentUser.getId()).stream()
+                .map(ServerDTO::fromEntity)
+                .toList());
     }
 
     @GetMapping("/{serverId}")
+    @PreAuthorize("@perm.isServerMember(#serverId, principal.id)")
     public ResponseEntity<ServerDTO> getServer(@PathVariable Long serverId) {
         return ResponseEntity.ok(ServerDTO.fromEntity(serverService.getServerById(serverId)));
     }
 
     @PostMapping("/{serverId}/members/{userId}")
-    public ResponseEntity<Server> addMember(
+    @PreAuthorize("@perm.canAddMember(#serverId, principal.id)")
+    public ResponseEntity<ServerDTO> addMember(
             @PathVariable Long serverId,
             @PathVariable Long userId) {
-        return ResponseEntity.ok(serverService.addMember(serverId, userId));
+        return ResponseEntity.ok(ServerDTO.fromEntity(serverService.addMember(serverId, userId)));
     }
 
     @DeleteMapping("/{serverId}/members/{userId}")
-    public ResponseEntity<Server> removeMember(
+    @PreAuthorize("@perm.canRemoveMember(#serverId, #userId, principal.id)")
+    public ResponseEntity<ServerDTO> removeMember(
             @PathVariable Long serverId,
             @PathVariable Long userId) {
-        return ResponseEntity.ok(serverService.removeMember(serverId, userId));
+        return ResponseEntity.ok(ServerDTO.fromEntity(serverService.removeMember(serverId, userId)));
     }
+
     @DeleteMapping("/{serverId}")
+    @PreAuthorize("@perm.isServerOwner(#serverId, principal.id)")
     public ResponseEntity<Void> deleteServer(
             @PathVariable Long serverId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         serverService.deleteServer(serverId, currentUser.getId());
         return ResponseEntity.noContent().build();
     }
+
     @PutMapping("/{serverId}")
-    public ResponseEntity<Server> updateServer(
+    @PreAuthorize("@perm.isServerOwner(#serverId, principal.id)")
+    public ResponseEntity<ServerDTO> updateServer(
             @PathVariable Long serverId,
-            @RequestBody Server server,
+            @Valid @RequestBody UpdateServerRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        return ResponseEntity.ok(serverService.updateServer(serverId, server, currentUser.getId()));
+        return ResponseEntity.ok(ServerDTO.fromEntity(
+                serverService.updateServer(serverId, request, currentUser.getId())));
     }
 
-
     @PutMapping("/{serverId}/roles/{roleId}")
-    public ResponseEntity<Server> updateRole(
-            @PathVariable Long serverId,            
+    @PreAuthorize("@perm.isServerOwner(#serverId, principal.id)")
+    public ResponseEntity<ServerDTO> updateRole(
+            @PathVariable Long serverId,
             @PathVariable Long userId,
             @PathVariable Long roleId,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-        return ResponseEntity.ok(serverService.updateRole(serverId,userId,roleId, currentUser.getId()));
+        return ResponseEntity.ok(ServerDTO.fromEntity(
+                serverService.updateRole(serverId, userId, roleId, currentUser.getId())));
     }
-    
-
-    
-} 
+}

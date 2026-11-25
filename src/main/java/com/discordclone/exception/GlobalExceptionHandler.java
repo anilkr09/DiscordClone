@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.messaging.MessageDeliveryException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -178,25 +179,12 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-        @ExceptionHandler(UnauthorizedException.class)
-        public ResponseEntity<?> handleUnauthorized(UnauthorizedException ex,HttpServletRequest request) {
-
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ErrorResponse(
-                            HttpStatus.UNAUTHORIZED.value(),
-                            "UNAUTHORIZED",
-                            ex.getMessage(),
-                            request.getRequestURI(),
-                            null
-                    ));
-        }
-    
-    @ExceptionHandler(ChannelAccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleChannelAccessDenied(
-            ChannelAccessDeniedException ex,
+    @ExceptionHandler({ChannelAccessDeniedException.class, AccessDeniedException.class})
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            RuntimeException ex,
             HttpServletRequest request
     ) {
-        log.warn("❌ Channel access denied: {}", ex.getMessage());
+        log.warn("❌ Access denied: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ErrorResponse(
                         HttpStatus.FORBIDDEN.value(),

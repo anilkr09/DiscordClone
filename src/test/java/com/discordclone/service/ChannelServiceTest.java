@@ -1,10 +1,11 @@
 package com.discordclone.service;
 
-import com.discordclone.exception.UnauthorizedException;
+import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.Channel;
 import com.discordclone.model.ChannelType;
 import com.discordclone.model.Server;
 import com.discordclone.payload.ChannelPayload;
+import com.discordclone.payload.UpdateChannelRequest;
 import com.discordclone.repository.ChannelRepository;
 import com.discordclone.websocket.destination.WsDestinations;
 import com.discordclone.websocket.event.WsEvent;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -93,30 +95,34 @@ class ChannelServiceTest {
         when(serverService.getServerById(serverId)).thenReturn(testServer);
         when(serverService.isUserAdmin(serverId, userId)).thenReturn(false);
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(AccessDeniedException.class,
                 () -> channelService.createChannel(payload(), serverId, userId));
         verify(channelRepository, never()).save(any(Channel.class));
     }
 
     @Test
-    void getChannelById_Success() {
+    void getChannel_Success() {
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
-        when(serverService.isUserMember(serverId, userId)).thenReturn(true);
 
-        Channel result = channelService.getChannelById(testChannel.getId(), userId);
-
-        assertNotNull(result);
-        assertEquals(testChannel.getId(), result.getId());
-        assertEquals(testChannel.getName(), result.getName());
+        assertSame(testChannel, channelService.getChannel(serverId, testChannel.getId()));
     }
 
     @Test
-    void getChannelById_NotMember_ThrowsException() {
+    void getChannel_OfAnotherServer_IsNotFound() {
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
-        when(serverService.isUserMember(serverId, userId)).thenReturn(false);
 
-        assertThrows(RuntimeException.class,
-                () -> channelService.getChannelById(testChannel.getId(), userId));
+        assertThrows(ResourceNotFoundException.class,
+                () -> channelService.getChannel(999L, testChannel.getId()));
+    }
+
+    @Test
+    void getServerChannels_HidesDirectMessageChannels() {
+        Channel dm = Channel.builder().id(2L).type(ChannelType.DM).server(testServer).dmKey("dm-1-2").build();
+        when(serverService.isUserMember(serverId, userId)).thenReturn(true);
+        when(serverService.getServerById(serverId)).thenReturn(testServer);
+        when(channelRepository.findByServerOrderByName(testServer)).thenReturn(List.of(dm, testChannel));
+
+        assertEquals(List.of(testChannel), channelService.getServerChannels(serverId, userId));
     }
 
     @Test
@@ -134,43 +140,24 @@ class ChannelServiceTest {
     }
 
     @Test
-    void updateChannel_Success() {
-        Channel updatedChannel = new Channel();
-        updatedChannel.setName("updated-channel");
-        updatedChannel.setDescription("Updated Description");
-        updatedChannel.setType(ChannelType.ANNOUNCEMENT);
-
+    void updateChannel_ChangesNameAndDescriptionButNotType() {
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
-        when(serverService.isUserAdmin(serverId, userId)).thenReturn(true);
-        when(channelRepository.save(any(Channel.class))).thenReturn(updatedChannel);
+        when(channelRepository.save(testChannel)).thenReturn(testChannel);
 
-        Channel result = channelService.updateChannel(testChannel.getId(), updatedChannel, userId);
+        Channel result = channelService.updateChannel(serverId, testChannel.getId(),
+                new UpdateChannelRequest("updated-channel", "Updated Description"));
 
-        assertNotNull(result);
-        assertEquals(updatedChannel.getName(), result.getName());
-        assertEquals(updatedChannel.getDescription(), result.getDescription());
-        assertEquals(updatedChannel.getType(), result.getType());
-        verify(channelRepository).save(any(Channel.class));
+        assertEquals("updated-channel", result.getName());
+        assertEquals("Updated Description", result.getDescription());
+        assertEquals(ChannelType.TEXT, result.getType());
     }
 
     @Test
     void deleteChannel_Success() {
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
-        when(serverService.isUserAdmin(serverId, userId)).thenReturn(true);
-        doNothing().when(channelRepository).delete(any(Channel.class));
 
-        channelService.deleteChannel(testChannel.getId(), userId);
+        channelService.deleteChannel(serverId, testChannel.getId());
 
         verify(channelRepository).delete(testChannel);
-    }
-
-    @Test
-    void deleteChannel_NotAdmin_ThrowsException() {
-        when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
-        when(serverService.isUserAdmin(serverId, userId)).thenReturn(false);
-
-        assertThrows(RuntimeException.class,
-                () -> channelService.deleteChannel(testChannel.getId(), userId));
-        verify(channelRepository, never()).delete(any(Channel.class));
     }
 }

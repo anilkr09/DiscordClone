@@ -1,6 +1,5 @@
 package com.discordclone.controller;
 
-import com.discordclone.model.Friendship;
 import com.discordclone.payload.FriendRequestPayload;
 import com.discordclone.payload.FriendDTO;
 import com.discordclone.payload.FriendshipDTO;
@@ -74,8 +73,8 @@ public class FriendController {
     @PostMapping("/block/{targetId}")
     public ResponseEntity<?> blockUser(@PathVariable Long targetId) {
         UserPrincipal currentUser = getCurrentUser();
-        Friendship friendship = friendshipService.blockUser(currentUser.getId(), targetId);
-        return ResponseEntity.ok().body(friendship);
+        friendshipService.blockUser(currentUser.getId(), targetId);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/block/{targetId}")

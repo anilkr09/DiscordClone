@@ -27,7 +27,7 @@ public class MessageResp {
                 message.getContent(),
                 message.getChannel().getId(),
                 message.getSender().getId(),
-                new Author(message.getSender().getId(),message.getSender().getUsername(),message.getSender().getEmail()),
+                new Author(message.getSender().getId(),message.getSender().getUsername()),
                 message.getTimestamp(),
                 message.isEdited()
         );
@@ -42,5 +42,4 @@ public class MessageResp {
 class Author{
     private Long id;
     private String username;
-    private String email;
 }

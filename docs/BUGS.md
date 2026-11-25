@@ -35,17 +35,17 @@ its severity, so numbers are not strictly in severity order.
 
 | ID | Title | Severity | Area |
 |---|---|---|---|
-| [B01](#b01-password-hashes-are-returned-by-the-api) | Password hashes are returned by the API | Critical | Security |
-| [B02](#b02-any-account-can-be-overwritten-via-post-apiusers) | Any account can be overwritten via `POST /api/users` | Critical | Security |
-| [B03](#b03-server-membership-endpoints-have-no-authorization) | Server membership endpoints have no authorization | Critical | Security |
-| [B04](#b04-channels-have-no-read-or-write-authorization) | Channels have no read or write authorization | Critical | Security |
-| [B05](#b05-any-message-can-be-rewritten) | Any message can be rewritten | Critical | Security |
-| [B06](#b06-plaintext-passwords-are-written-to-the-log) | Plaintext passwords are written to the log | Critical | Security |
+| [B01](#b01-password-hashes-are-returned-by-the-api) | Password hashes are returned by the API — **Fixed** | Critical | Security |
+| [B02](#b02-any-account-can-be-overwritten-via-post-apiusers) | Any account can be overwritten via `POST /api/users` — **Fixed** | Critical | Security |
+| [B03](#b03-server-membership-endpoints-have-no-authorization) | Server membership endpoints have no authorization — **Fixed** | Critical | Security |
+| [B04](#b04-channels-have-no-read-or-write-authorization) | Channels have no read or write authorization — **Fixed** | Critical | Security |
+| [B05](#b05-any-message-can-be-rewritten) | Any message can be rewritten — **Fixed** | Critical | Security |
+| [B06](#b06-plaintext-passwords-are-written-to-the-log) | Plaintext passwords are written to the log — **Fixed** | Critical | Security |
 | [B07](#b07-signing-secret-and-sonarcloud-token-are-committed) | Signing secret and SonarCloud token are committed — **Removed from files; rotation pending** | Critical | Security |
 | [B08](#b08-the-backend-does-not-compile) | The backend does not compile — **Fixed** | Critical | Build |
 | [B09](#b09-two-test-classes-do-not-compile) | Two test classes do not compile — **Fixed** | Critical | Build |
-| [B11](#b11-dms-are-delivered-to-the-wrong-username) | DMs are delivered to the wrong username | High | Messaging |
-| [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled | High | Security |
+| [B11](#b11-dms-are-delivered-to-the-wrong-username) | DMs are delivered to the wrong username — **Fixed** | High | Messaging |
+| [B12](#b12-dm-recipient-and-channel-are-client-controlled) | DM recipient and channel are client-controlled — **Fixed in M1 by parsing dmKey; participant table follows in M3** | High | Security |
 | [B13](#b13-dms-are-pinned-to-server-1) | DMs are pinned to server 1 | High | Messaging |
 | [B14](#b14-presence-never-reaches-offline) | Presence never reaches OFFLINE | High | Redis |
 | [B15](#b15-presence-is-visible-to-everyone) | Presence is visible to everyone | High | Privacy |
@@ -63,17 +63,17 @@ its severity, so numbers are not strictly in severity order.
 | [B26](#b26-active-users-flicker-between-online-and-idle) | Active users flicker between ONLINE and IDLE | Medium | Redis |
 | [B27](#b27-batched-status-updates-are-dropped) | Batched status updates are dropped | Medium | Frontend |
 | [B28](#b28-messages-are-broadcast-before-they-are-committed) | Messages are broadcast before they are committed | Medium | Messaging |
-| [B29](#b29-errors-map-to-the-wrong-http-status) | Errors map to the wrong HTTP status | Medium | API |
+| [B29](#b29-errors-map-to-the-wrong-http-status) | Errors map to the wrong HTTP status — **Authorization failures are 403; rest open** | Medium | API |
 | [B30](#b30-channels-appear-twice-after-revisiting-a-server) | Channels appear twice after revisiting a server | Medium | Frontend |
 | [B31](#b31-channel-creation-is-broadcast-to-every-user) | Channel creation is broadcast to every user | Medium | Privacy |
 | [B32](#b32-failed-sends-are-silent) | Failed sends are silent | Medium | Frontend |
 | [B33](#b33-websocket-reconnect-uses-the-original-token) | WebSocket reconnect uses the original token | Medium | WebSocket |
 | [B34](#b34-logout-leaves-the-previous-users-data-cached) | Logout leaves the previous user's data cached | Medium | Frontend |
 | [B35](#b35-the-seeder-creates-an-unusable-account-and-server) | The seeder creates an unusable account and server | Medium | Data |
-| [B36](#b36-single-channel-endpoints-return-a-lazy-entity) | Single-channel endpoints return a lazy entity | Medium | API |
+| [B36](#b36-single-channel-endpoints-return-a-lazy-entity) | Single-channel endpoints return a lazy entity — **Fixed** | Medium | API |
 | [B37](#b37-invites-are-racy-unshareable-and-over-created) | Invites are racy, unshareable, and over-created | Medium | API |
 | [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed — **Workflows rewritten; not yet run** | Medium | CI |
-| [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes | Medium | API |
+| [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes — **Fixed** | Medium | API |
 | [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |
 | [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
 | [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service | Medium | Kafka |
@@ -88,8 +88,8 @@ its severity, so numbers are not strictly in severity order.
 | [B43](#b43-dead-presence-logic) | Dead presence logic | Low | Redis |
 | [B44](#b44-stomp-handler-errors-are-swallowed) | STOMP handler errors are swallowed | Low | WebSocket |
 | [B45](#b45-missing-input-validation) | Missing input validation | Low | API |
-| [B46](#b46-no-op-and-stale-endpoints) | No-op and stale endpoints | Low | API |
-| [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects | Low | WebSocket |
+| [B46](#b46-no-op-and-stale-endpoints) | No-op and stale endpoints — **PUT /{id}/status removed; rest open** | Low | API |
+| [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects — **Principal null dereference removed; rest open** | Low | WebSocket |
 | [B48](#b48-two-userservice-beans) | Two `UserService` beans | Low | Backend |
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
 | [B50](#b50-infrastructure-drift) | Infrastructure drift — **Partly fixed; Kafka properties remain** | Low | Ops |

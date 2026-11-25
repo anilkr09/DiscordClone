@@ -2,7 +2,6 @@ package com.discordclone.service;
 
 import com.discordclone.exception.DuplicateResourceException;
 import com.discordclone.model.User;
-import com.discordclone.model.UserStatus;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,13 +36,6 @@ public class UserService {
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-    }
-
-    @Transactional
-    public User updateUserStatus(Long userId, UserStatus status) {
-        User user = getUserById(userId);
-//        user.setStatus(status);
-        return userRepository.save(user);
     }
 
     @Transactional(readOnly = true)

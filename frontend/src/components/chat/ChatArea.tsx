@@ -13,9 +13,11 @@ interface ChatAreaProps {
   id: string;
   name: string;
   isDM?: boolean;
+  /** The other participant's username, exactly as registered. Only for DMs. */
+  receiver?: string;
 }
 
-export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
+export default function ChatArea({ id, name, isDM = false, receiver }: ChatAreaProps) {
   const { connected, client } = useWebSocket();
   if (!isDM && connected) registerGroupMessageSocket(client, id);
 
@@ -88,7 +90,7 @@ export default function ChatArea({ id, name, isDM = false }: ChatAreaProps) {
         channelId={id}
         channelName={name}
         isDM={isDM}
-        receiver={name.toLowerCase().trim()}
+        receiver={receiver}
       />
     </Box>
   );

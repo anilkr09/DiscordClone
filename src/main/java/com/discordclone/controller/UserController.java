@@ -1,7 +1,6 @@
 package com.discordclone.controller;
 
-import com.discordclone.model.User;
-import com.discordclone.model.UserStatus;
+import com.discordclone.payload.UserDTO;
 import com.discordclone.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,47 +19,31 @@ public class UserController {
      * Get user by ID
      */
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(userService.getUserById(id));
+    public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(UserDTO.fromEntity(userService.getUserById(id)));
     }
 
     /**
      * Get user by username
      */
     @GetMapping("/username/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        return ResponseEntity.ok(userService.getUserByUsername(username));
+    public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
+        return ResponseEntity.ok(UserDTO.fromEntity(userService.getUserByUsername(username)));
     }
 
     /**
      * Get all users
      */
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<List<UserDTO>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers().stream().map(UserDTO::fromEntity).toList());
     }
 
     /**
      * Get users by prefix
      */
     @GetMapping("/search")
-    public ResponseEntity<List<User>> getUsersByPrefix(@RequestParam String prefix) {
-        return ResponseEntity.ok(userService.getUsersByPrefix(prefix));
-    }
-
-    /**
-     * Create a new user
-     */
-    @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        return ResponseEntity.ok(userService.createUser(user));
-    }
-
-    /**
-     * Update user status
-     */
-    @PutMapping("/{id}/status")
-    public ResponseEntity<User> updateUserStatus(@PathVariable Long id, @RequestParam UserStatus status) {
-        return ResponseEntity.ok(userService.updateUserStatus(id, status));
+    public ResponseEntity<List<UserDTO>> getUsersByPrefix(@RequestParam String prefix) {
+        return ResponseEntity.ok(userService.getUsersByPrefix(prefix).stream().map(UserDTO::fromEntity).toList());
     }
 }

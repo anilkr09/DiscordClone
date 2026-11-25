@@ -1,7 +1,6 @@
 package com.discordclone.service;
 
 import com.discordclone.model.User;
-import com.discordclone.model.UserStatus;
 import com.discordclone.repository.UserRepository;
 import com.discordclone.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
@@ -92,21 +91,6 @@ class UserServiceTest {
 
         assertNotNull(result);
         assertEquals(testUser.getUsername(), result.getUsername());
-    }
-
-    @Test
-    void updateUserStatus_Success() {
-        User updatedUser = new User();
-        updatedUser.setId(testUser.getId());
-        updatedUser.setUsername(testUser.getUsername());
-
-        when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
-        when(userRepository.save(any(User.class))).thenReturn(updatedUser);
-
-        User result = userService.updateUserStatus(testUser.getId(), UserStatus.ONLINE);
-
-        assertNotNull(result);
-        verify(userRepository).save(any(User.class));
     }
 
     @Test

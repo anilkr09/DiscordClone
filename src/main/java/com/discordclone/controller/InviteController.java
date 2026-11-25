@@ -3,6 +3,8 @@ package com.discordclone.controller;
 import com.discordclone.dto.InviteResponse;
 import com.discordclone.model.Invite;
 import com.discordclone.model.Server;
+import com.discordclone.model.ServerDTO;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.InviteService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ public class InviteController {
     private final InviteService inviteService;
 
     @PostMapping("/create")
+    @PreAuthorize("@perm.isServerMember(#serverId, principal.id)")
     public ResponseEntity<InviteResponse> createInvite(
             @RequestParam Long serverId,
             @RequestParam(defaultValue = "10") int maxUses,
@@ -45,11 +48,11 @@ public class InviteController {
     }
 
     @PostMapping("/join/{code}")
-    public ResponseEntity<Server> joinServerViaInvite(
+    public ResponseEntity<ServerDTO> joinServerViaInvite(
             @PathVariable String code,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         Server server = inviteService.joinViaInvite(code, currentUser.getId());
-        return ResponseEntity.ok(server);
+        return ResponseEntity.ok(ServerDTO.fromEntity(server));
     }
 }

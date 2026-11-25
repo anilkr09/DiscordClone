@@ -65,6 +65,7 @@ export default function DirectMessage() {
       id={channelId}
       name={friend?.username ? capitalizeFirst(friend.username) : "Unknown User"}
       isDM={true}
+      receiver={friend?.username}
     />
     </Box>
   );

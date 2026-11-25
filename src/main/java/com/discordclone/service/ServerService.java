@@ -5,10 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.discordclone.model.*;
 import com.discordclone.payload.ServerPayload;
+import com.discordclone.payload.UpdateServerRequest;
 import com.discordclone.repository.MemberRepository;
 import com.discordclone.repository.ServerRepository;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -117,7 +119,7 @@ public class ServerService {
         User user = userService.getUserById(userId);
 
         if (server.getOwner().equals(user)) {
-            throw new RuntimeException("Server owner cannot be removed");
+            throw new AccessDeniedException("Server owner cannot be removed");
         }
 
         MemberId memberId = new MemberId(userId, serverId);
@@ -133,22 +135,22 @@ public class ServerService {
         Server server = getServerById(serverId);
         User user = userService.getUserById(userId);
         if (!server.getOwner().equals(user)) {
-            throw new RuntimeException("Only the server owner can delete the server");
+            throw new AccessDeniedException("Only the server owner can delete the server");
         }
         serverRepository.delete(server);
     }
 
     @Transactional
-    public Server updateServer(Long serverId, Server updatedServer, Long userId) {
+    public Server updateServer(Long serverId, UpdateServerRequest request, Long userId) {
         Server server = getServerById(serverId);
         User user = userService.getUserById(userId);
 
         if (!server.getOwner().equals(user)) {
-            throw new RuntimeException("Only the server owner can update the server");
+            throw new AccessDeniedException("Only the server owner can update the server");
         }
 
-        server.setName(updatedServer.getName());
-        server.setDescription(updatedServer.getDescription());
+        server.setName(request.name());
+        server.setDescription(request.description());
         return serverRepository.save(server);
     }
 
@@ -158,7 +160,7 @@ public class ServerService {
         User currentUser = userService.getUserById(currentUserId);
 
         if (!server.getOwner().equals(currentUser)) {
-            throw new RuntimeException("Only the server owner can update member roles");
+            throw new AccessDeniedException("Only the server owner can update member roles");
         }
 
         MemberId memberId = new MemberId(userId, serverId);

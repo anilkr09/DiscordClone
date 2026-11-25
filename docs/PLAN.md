@@ -126,59 +126,64 @@ rewriting history is optional (see IMPROVEMENTS.md).
 they belong to. No credential or hash leaves the server. **Effort:** M. **Owns:** B01, B02, B03, B04,
 B05, B06, B11, B36, B39, S1, S2, S3, S5. **Also starts:** B12, with an interim rule; M3 finishes it.
 
+**Status:** done. Deviations from the tasks below: only admins and the owner may add a member (self-joining
+needs an invite, because allowing it would let anyone join any server); the authorization matrix
+runs against the full application with Testcontainers rather than `@WebMvcTest`; it skips the role
+route, which cannot work until B22 is fixed in M4.
+
 **DTO boundary (B01, B02, B05, B36)**
-- [ ] Add request and response records for every endpoint in `UserController`,
+- [x] Add request and response records for every endpoint in `UserController`,
   `ServerController`, `InviteController`, `ChannelController` and `MessageController`. Map them
   explicitly. No controller method accepts or returns an `@Entity`.
-- [ ] Add `@JsonIgnore` to `User.password` as a backstop.
-- [ ] Delete `POST /api/users`; registration stays at `/api/auth/register` (B02).
-- [ ] On message edit, accept an `UpdateMessageRequest(content)`, load the entity, check that the
+- [x] Add `@JsonIgnore` to `User.password` as a backstop.
+- [x] Delete `POST /api/users`; registration stays at `/api/auth/register` (B02).
+- [x] On message edit, accept an `UpdateMessageRequest(content)`, load the entity, check that the
   caller is the author, and set only `content` (B05).
-- [ ] Have `ChannelController` return `ChannelDTO` from the single-channel endpoints (B36).
-- [ ] Add the `com.tngtech.archunit` test dependency, plus a rule that classes annotated
+- [x] Have `ChannelController` return `ChannelDTO` from the single-channel endpoints (B36).
+- [x] Add the `com.tngtech.archunit` test dependency, plus a rule that classes annotated
   `@RestController` have no method with an `@Entity` parameter or return type.
 
 **Central authorization: HTTP (B03, B04, B39, S2)**
-- [ ] Merge `ChannelAuthorizationService` into a single `PermissionService` bean named `perm`.
+- [x] Merge `ChannelAuthorizationService` into a single `PermissionService` bean named `perm`.
   It needs `isServerMember`, `isServerAdmin`, `isChannelMember`, `isMessageAuthor` and
   `canManageMembers`. Reuse `ServerService.isUserMember` and `isUserAdmin` rather than
   duplicating their queries.
-- [ ] Put `@PreAuthorize("@perm…")` on every channel, message, server-member, role and invite
+- [x] Put `@PreAuthorize("@perm…")` on every channel, message, server-member, role and invite
   endpoint. `@EnableMethodSecurity` is already enabled.
-- [ ] Server membership: adding requires a valid invite, or the caller themselves; removing
+- [x] Server membership: adding requires a valid invite, or the caller themselves; removing
   requires the caller themselves, an admin, or the owner (B03).
-- [ ] Channel routes: verify that `channel.server.id == {serverId}`, and drop `type` from the
+- [x] Channel routes: verify that `channel.server.id == {serverId}`, and drop `type` from the
   update DTO (B39).
-- [ ] Throw a 403-mapped exception for authorization failures. The full error model follows in M4.
+- [x] Throw a 403-mapped exception for authorization failures. The full error model follows in M4.
 
 **Central authorization: STOMP (B04, S1, S2)**
-- [ ] Use `@EnableWebSocketSecurity` with an `AuthorizationManager<Message<?>>`:
+- [x] Use `@EnableWebSocketSecurity` with an `AuthorizationManager<Message<?>>`:
   - `CONNECT` must be authenticated, and keeps the JWT handling already in
     `WebSocketAuthInterceptor`;
   - `SEND` is allowed only to `/app/**` (S1);
   - `SUBSCRIBE` to `/topic/channels/{id}/**` requires `perm.isChannelMember`;
   - `/user/**` is allowed for the session's own user;
   - everything else is denied.
-- [ ] Provide a no-op `csrfChannelInterceptor` bean, deliberately. The SPA uses bearer tokens, not
+- [x] Provide a no-op `csrfChannelInterceptor` bean, deliberately. The SPA uses bearer tokens, not
   cookies, on `CONNECT`.
-- [ ] Delete the commented-out membership check and the hand-rolled `SUBSCRIBE` prefix checks.
+- [x] Delete the commented-out membership check and the hand-rolled `SUBSCRIBE` prefix checks.
   Make the interceptor null-safe on the principal.
 
 **DMs, interim rule (B11, B12, S2)**
-- [ ] Authorize DM channels by participation **before** any server check, parsing the real key
+- [x] Authorize DM channels by participation **before** any server check, parsing the real key
   format `dm-{minId}-{maxId}`. M3 replaces this with a participant table.
-- [ ] Derive the DM recipient on the server from the channel's other participant. Ignore
+- [x] Derive the DM recipient on the server from the channel's other participant. Ignore
   `MessageRequest.receiver`, and reject sends that are blocked either way (B12).
-- [ ] Frontend: pass `friend.username` (not the capitalized display name) to `MessageInput`
+- [x] Frontend: pass `friend.username` (not the capitalized display name) to `MessageInput`
   (B11). This becomes unnecessary once the server derives the recipient, but it fixes live
   delivery right away.
 
 **Logging and exposure (B06, S3, S5)**
-- [ ] Remove the `LoginRequest` log in `AuthController`. Replace `@Data` on `LoginRequest` with a
+- [x] Remove the `LoginRequest` log in `AuthController`. Replace `@Data` on `LoginRequest` with a
   record or `@Getter`, so that no `toString` includes the password (B06).
-- [ ] Remove the signup `console.log` calls in `AuthProvider.tsx`. Add `esbuild: { drop:
+- [x] Remove the signup `console.log` calls in `AuthProvider.tsx`. Add `esbuild: { drop:
   ['console', 'debugger'] }` to the production config in `vite.config.ts` (S3).
-- [ ] Bind every published port in `docker-compose.yml` to `127.0.0.1` (S5).
+- [x] Bind every published port in `docker-compose.yml` to `127.0.0.1` (S5).
 
 **Exit criteria**
 - A `@WebMvcTest` authorization matrix with `spring-security-test` passes. It covers every

@@ -691,7 +691,7 @@ These should be kept when the problems above are fixed:
 
 These are not yet in [BUGS.md](BUGS.md).
 
-### S1. Clients can publish directly to broker destinations
+### S1. Clients can publish directly to broker destinations — **Fixed**
 
 `inferred` · `J/security/WebSocketAuthInterceptor.java` (`SEND` branch), `J/config/WebSocketConfig.java`
 
@@ -705,7 +705,7 @@ the forgeries vanish on reload, which also makes them hard to report.
 **Fix:** reject `SEND` unless the destination starts with `/app/`, either in the interceptor or with
 Spring Security message authorization (§5.3). Severity: **High**.
 
-### S2. The `docs1` channel authorization does not compile and mis-authorizes DMs
+### S2. The `docs1` channel authorization does not compile and mis-authorizes DMs — **Fixed**
 
 `read` · `J/security/ChannelAuthorizationService.java`, `J/controller/MessageController.java:91-128`
 
@@ -731,7 +731,7 @@ members of server 1, and it would leave the main read path, live subscriptions, 
 
 Severity: **High**, since it is the intended fix for a Critical bug.
 
-### S3. The frontend logs the sign-up password and tokens
+### S3. The frontend logs the sign-up password and tokens — **Fixed**
 
 `read` · `F/providers/AuthProvider.tsx:160-162`
 
@@ -754,7 +754,7 @@ session's life (§5.1).
 **Fix:** store `exp` in the session attributes, and reject frames once it has passed; close
 sessions on logout. Severity: **Medium**.
 
-### S5. Development services are exposed on every network interface
+### S5. Development services are exposed on every network interface — **Fixed**
 
 `read` · `docker-compose.yml`
 
