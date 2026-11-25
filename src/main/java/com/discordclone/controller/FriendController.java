@@ -57,28 +57,28 @@ public class FriendController {
     }
 
     @PutMapping("/reject/{requestId}")
-    public ResponseEntity<FriendshipDTO> rejectFriendRequest(@PathVariable Long requestId) {
+    public ResponseEntity<Void> rejectFriendRequest(@PathVariable Long requestId) {
         UserPrincipal currentUser = getCurrentUser();
         friendshipService.rejectFriendRequest(requestId, currentUser.getId());
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{friendId}")
-    public ResponseEntity<?> removeFriend(@PathVariable Long friendId) {
+    public ResponseEntity<Void> removeFriend(@PathVariable Long friendId) {
         UserPrincipal currentUser = getCurrentUser();
         friendshipService.removeFriend(currentUser.getId(), friendId);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/block/{targetId}")
-    public ResponseEntity<?> blockUser(@PathVariable Long targetId) {
+    public ResponseEntity<Void> blockUser(@PathVariable Long targetId) {
         UserPrincipal currentUser = getCurrentUser();
         friendshipService.blockUser(currentUser.getId(), targetId);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/block/{targetId}")
-    public ResponseEntity<?> unblockUser(@PathVariable Long targetId) {
+    public ResponseEntity<Void> unblockUser(@PathVariable Long targetId) {
         UserPrincipal currentUser = getCurrentUser();
         friendshipService.unblockUser(currentUser.getId(), targetId);
         return ResponseEntity.ok().build();

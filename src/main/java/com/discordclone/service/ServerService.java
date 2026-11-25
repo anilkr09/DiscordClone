@@ -1,5 +1,7 @@
 package com.discordclone.service;
-import com.discordclone.exception.DuplicateResourceException;
+import com.discordclone.exception.ConflictException;
+import com.discordclone.exception.NotFoundException;
+import com.discordclone.exception.ValidationException;
 import com.discordclone.exception.ResourceNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,7 +39,7 @@ public class ServerService {
 
         // 🔹 2. Duplicate check (because name is unique)
         if (serverRepository.existsByName(payload.getName())) {
-            throw new DuplicateResourceException("Server", "name", payload.getName());
+            throw new ConflictException("Server name already exists");
         }
 
         // 🔹 3. Create Server
@@ -45,7 +47,6 @@ public class ServerService {
                 .name(payload.getName())
                 .description(payload.getDescription())
                 .owner(owner)
-                // .type(payload.getType()) // keep if needed
                 .build();
 
         Server savedServer;
@@ -53,7 +54,7 @@ public class ServerService {
             savedServer = serverRepository.save(server);
         } catch (DataIntegrityViolationException ex) {
             // handles race condition
-            throw new DuplicateResourceException("Server", "name", payload.getName());
+            throw new ConflictException("Server name already exists");
         }
 
         log.info("Created Server: {}", savedServer);
@@ -78,7 +79,6 @@ public class ServerService {
 
     @Transactional(readOnly = true)
     public Server getServerById(Long id) {
-        System.out.println("called findfullserver");
         Server server = serverRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Server","ServerId",id));
         return server;
@@ -99,7 +99,7 @@ public class ServerService {
 
         MemberId memberId = new MemberId(userId, serverId);
         if (memberRepository.existsById(memberId)) {
-            throw new RuntimeException("User is already a member of this server");
+            throw new ConflictException("User is already a member of this server");
         }
         Member member = Member.builder()
                 .id(memberId)
@@ -124,7 +124,7 @@ public class ServerService {
 
         MemberId memberId = new MemberId(userId, serverId);
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("User is not a member of this server"));
+                .orElseThrow(() -> new NotFoundException("User is not a member of this server"));
 
         memberRepository.delete(member);
         return server;
@@ -155,25 +155,19 @@ public class ServerService {
     }
 
     @Transactional
-    public Server updateRole(Long serverId, Long userId, Long roleId, Long currentUserId) {
+    public Server updateRole(Long serverId, Long userId, Role newRole, Long currentUserId) {
         Server server = getServerById(serverId);
         User currentUser = userService.getUserById(currentUserId);
 
         if (!server.getOwner().equals(currentUser)) {
             throw new AccessDeniedException("Only the server owner can update member roles");
         }
-
-        MemberId memberId = new MemberId(userId, serverId);
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("User is not a member of this server"));
-
-        // Assume Role is an enum and roleId maps to Role.ordinal()
-        Role[] roles = Role.values();
-        if (roleId < 0 || roleId >= roles.length) {
-            throw new RuntimeException("Invalid role id");
+        if (newRole == Role.OWNER || server.getOwner().getId().equals(userId)) {
+            throw new ValidationException("Ownership cannot be changed through member roles");
         }
-        Role newRole = roles[roleId.intValue()];
 
+        Member member = memberRepository.findById(new MemberId(userId, serverId))
+                .orElseThrow(() -> new NotFoundException("User is not a member of this server"));
         member.setRole(newRole);
         memberRepository.save(member);
 

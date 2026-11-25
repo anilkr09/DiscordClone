@@ -24,9 +24,6 @@ public interface UserStatusService {
     // admin/reset
     void resetPresence(Long userId);
 
-    // persistence
-    void persistLastSeen(Long userId);
-
     // ws
     void broadcastStatusChange(Long userId, UserStatus status);
 

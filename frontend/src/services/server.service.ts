@@ -1,46 +1,33 @@
-import api from './api';
-import { Server } from '../types/server';
-import { ServerPayload } from '../types/server';
+import { api, unwrap } from "../api/client";
+import type { Server, ServerPayload } from "../types/server";
 
 class ServerService {
-    async createServer(server: ServerPayload): Promise<Server> {
-        const response = await api.post<Server>('/servers', server);
-        return response.data;
-    }
+  createServer(server: ServerPayload): Promise<Server> {
+    return unwrap(api.POST("/api/servers", { body: server }));
+  }
 
-    async getUserServers(): Promise<Server[]> {
-        const response = await api.get<Server[]>('/servers');
-        const result = response.data;
-        console.log("server list response"+result);
-        return result;
-    }
+  getUserServers(): Promise<Server[]> {
+    return unwrap(api.GET("/api/servers"));
+  }
 
-    async getServer(serverId: number): Promise<Server> {
-        const response = await api.get<Server>(`/servers/${serverId}`);
-        return response.data;
-    }
+  getServer(serverId: number): Promise<Server> {
+    return unwrap(api.GET("/api/servers/{serverId}", { params: { path: { serverId } } }));
+  }
 
-    async joinPublicServer(serverId: number): Promise<Server> {
-        const response = await api.post<Server>(`/servers/${serverId}/join`);
-        return response.data;
-    }
+  /** Removes a member; with the caller's own ID, leaves the server. */
+  removeMember(serverId: number, userId: number): Promise<Server> {
+    return unwrap(
+      api.DELETE("/api/servers/{serverId}/members/{userId}", { params: { path: { serverId, userId } } }),
+    );
+  }
 
-    async removeMember(serverId: number, userId: number): Promise<Server> {
-        const response = await api.delete<Server>(`/servers/${serverId}/members/${userId}`);
-        return response.data;
-    }
+  async deleteServer(serverId: number): Promise<void> {
+    await unwrap(api.DELETE("/api/servers/{serverId}", { params: { path: { serverId } } }));
+  }
 
-    async leaveServer(serverId: number): Promise<void> {
-        return api.post(`/servers/${serverId}/leave`);
-    }   
-    async deleteServer(serverId: number): Promise<void> {
-        return api.delete(`/servers/${serverId}`);
-    }
-
-    async joinServer(inviteCode: string): Promise<Server> {
-        const response = await api.post(`/invites/join/${inviteCode}`);
-        return response.data;
-    }   
+  joinServer(code: string): Promise<Server> {
+    return unwrap(api.POST("/api/invites/join/{code}", { params: { path: { code } } }));
+  }
 }
 
 export default new ServerService();

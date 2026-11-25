@@ -21,13 +21,6 @@ public class Server {
 
     private String description;
 
-
-//    @Enumerated(EnumType.STRING)
-//    @Builder.Default
-//    private ServerType type= ServerType.PUBLIC;
-    @Enumerated(EnumType.STRING)
-    private ServerType type;
-
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;

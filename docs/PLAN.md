@@ -304,42 +304,47 @@ itself is part of M9.
 validated, and every error carries the right status without leaking internals. **Effort:** M.
 **Owns:** B22, B28, B29, B40, B42, B44, B45, B46, B48, B59, B60.
 
+**Status:** done, except that only `app.jwt.*` is bound to typed properties here; presence settings are
+bound by the M6 redesign and rate limits by M5. The role route is now
+`PUT /api/servers/{serverId}/members/{userId}/role`. The generated client is checked by
+`OpenApiContractTest` against `frontend/openapi.json`.
+
 **Errors (B29, B44, B60)**
-- [ ] Add `NotFoundException`, `ForbiddenException`, `ConflictException` and
+- [x] Add `NotFoundException`, `ForbiddenException`, `ConflictException` and
   `ValidationException`, mapped to 404, 403, 409 and 400 as `ProblemDetail` in one
   `@RestControllerAdvice`. Replace every bare `RuntimeException` in the services.
-- [ ] The catch-all handler returns a generic 500 and never echoes `ex.getMessage()`.
-- [ ] Return 404 for unknown URLs: either handle `NoResourceFoundException`, or set
+- [x] The catch-all handler returns a generic 500 and never echoes `ex.getMessage()`.
+- [x] Return 404 for unknown URLs: either handle `NoResourceFoundException`, or set
   `spring.web.resources.add-mappings=false` (B60).
-- [ ] Add a catch-all `@MessageExceptionHandler` that sends a typed error to `/user/queue/errors`.
+- [x] Add a catch-all `@MessageExceptionHandler` that sends a typed error to `/user/queue/errors`.
   Fix the wrong ID in `MessageService`'s not-found message (B44).
 
 **Validation (B45)**
-- [ ] Add Bean Validation to every request DTO. For example, on `MessageRequest`:
+- [x] Add Bean Validation to every request DTO. For example, on `MessageRequest`:
   `@NotBlank @Size(max = 4000)` on `content`, and `@NotNull` on `channelId`.
-- [ ] Put `@Validated` on the STOMP controllers. Parse the custom-status enum safely, so that a bad
+- [x] Put `@Validated` on the STOMP controllers. Parse the custom-status enum safely, so that a bad
   value is a 400.
-- [ ] Normalize usernames at registration: trim them, and compare case-insensitively.
+- [x] Normalize usernames at registration: trim them, and compare case-insensitively.
 
 **Correctness**
-- [ ] Broadcast after commit: publish a `MessageCreatedEvent`, and broadcast from
+- [x] Broadcast after commit: publish a `MessageCreatedEvent`, and broadcast from
   `@TransactionalEventListener(phase = AFTER_COMMIT)` in the local publisher (B28).
-- [ ] Fix `PUT /api/servers/{id}/roles/{roleId}`, which declares a `userId` path variable that is
+- [x] Fix `PUT /api/servers/{id}/roles/{roleId}`, which declares a `userId` path variable that is
   not in the route (B22).
-- [ ] Remove the no-op `PUT /api/users/{id}/status`, the stale `GET /api` listing, and the unused
+- [x] Remove the no-op `PUT /api/users/{id}/status`, the stale `GET /api` listing, and the unused
   `Server.type` (B46).
-- [ ] Keep one `UserService` bean: delete `UserServiceImpl`, keeping its 404 behavior in
+- [x] Keep one `UserService` bean: delete `UserServiceImpl`, keeping its 404 behavior in
   `UserService` (B48).
-- [ ] Make `AsyncConfig` implement `AsyncConfigurer`, with a bounded `ThreadPoolTaskExecutor` and
+- [x] Make `AsyncConfig` implement `AsyncConfigurer`, with a bounded `ThreadPoolTaskExecutor` and
   an uncaught-exception handler (B59). Move `persistLastSeen` behind a separate bean, so that
   `@Async` is applied (B42).
 
 **Contract (B40)**
-- [ ] Add `springdoc-openapi`, and publish `/v3/api-docs`.
-- [ ] Generate frontend types and a client with `openapi-typescript` and `openapi-fetch` in the
+- [x] Add `springdoc-openapi`, and publish `/v3/api-docs`.
+- [x] Generate frontend types and a client with `openapi-typescript` and `openapi-fetch` in the
   build. Replace the hand-written `services/*.service.ts` calls, which fixes the `/leave`, `/join`,
   channel and message routes that do not exist.
-- [ ] Remove `|| true` from the frontend build script, so that type errors fail the build.
+- [x] Remove `|| true` from the frontend build script, so that type errors fail the build.
 - [ ] Bind `app.jwt.*`, the presence TTLs and thresholds, and the rate limits with validated
   `@ConfigurationProperties` records.
 

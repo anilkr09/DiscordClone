@@ -80,9 +80,10 @@ public class SecurityConfig {
 
                         // Public endpoints
                         .requestMatchers(
-                                "/","/ws/**",
+                                "/ws/**",
                                 "/error",
                                 "/health",
+                                "/v3/api-docs/**",
                                 "/api/auth/**"
                         ).permitAll()
 

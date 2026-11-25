@@ -1,150 +1,55 @@
-import api from './api';
-import { Friend, FriendRequest, AddFriendRequest, AddFriendResponse, FriendshipStatus } from '../types/friend';
+import { api, unwrap } from "../api/client";
+import type { AddFriendResponse, Friend, FriendRequest } from "../types/friend";
 
 class FriendService {
-  /**
-   * Get all friends for the current user
-   */
-  async getFriends(): Promise<Friend[]> {
-    try {
-      const response = await api.get('/friends');
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching friends:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch friends');
-    }
+  getFriends(): Promise<Friend[]> {
+    return unwrap(api.GET("/api/friends"));
   }
 
-  /**
-   * Get friends filtered by status
-   */
-  async getFriendsByStatus(status: FriendshipStatus): Promise<Friend[]> {
-    try {
-      const response = await api.get(`/friends?status=${status}`);
-      return response.data;
-    } catch (error: any) {
-      console.error(`Error fetching friends with status ${status}:`, error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch friends by status');
-    }
-  }
-
-  /**
-   * Send a friend request to a user by username
-   */
+  /** Reports failure in the result rather than throwing, so the form can show the reason. */
   async addFriend(username: string): Promise<AddFriendResponse> {
     try {
-      const request: AddFriendRequest = { username };
-      const response = await api.post('/friends/request', request);
-      return {
-        success: true,
-        message: 'Friend request sent successfully',
-        friendRequest: response.data
-      };
-    } catch (error: any) {
-      console.error('Error sending friend request:', error);
+      const friendRequest = await unwrap(api.POST("/api/friends/request", { body: { username } }));
+      return { success: true, message: "Friend request sent successfully", friendRequest };
+    } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to send friend request'
+        message: error instanceof Error ? error.message : "Failed to send friend request",
       };
     }
   }
 
-  /**
-   * Get all pending friend requests
-   */
-  async getFriendRequests(): Promise<FriendRequest[]> {
-    try {
-      const response = await api.get('/friends/requests');
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching friend requests:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch friend requests');
-    }
+  getFriendRequests(): Promise<FriendRequest[]> {
+    return unwrap(api.GET("/api/friends/requests"));
   }
 
-
-  async getOutgoingFriendRequests(): Promise<FriendRequest[]> {
-    try {
-      const response = await api.get('/friends/requests/outgoing');
-      return response.data;
-    } catch (error: any) {
-      console.error('Error fetching friend requests:', error);
-      throw new Error(error.response?.data?.message || 'Failed to fetch friend requests');
-    }
-  }
-  /**
-   * Accept a friend request
-   */
-  async acceptFriendRequest(requestId: number): Promise<Friend> {
-    try {
-      const response = await api.put(`/friends/accept/${requestId}`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error accepting friend request:', error);
-      throw new Error(error.response?.data?.message || 'Failed to accept friend request');
-    }
+  getOutgoingFriendRequests(): Promise<FriendRequest[]> {
+    return unwrap(api.GET("/api/friends/requests/outgoing"));
   }
 
-  /**
-   * Reject a friend request
-   */
+  acceptFriendRequest(requestId: number): Promise<Friend> {
+    return unwrap(api.PUT("/api/friends/accept/{requestId}", { params: { path: { requestId } } }));
+  }
+
   async rejectFriendRequest(requestId: number): Promise<void> {
-    try {
-      await api.put(`/friends/reject/${requestId}`);
-    } catch (error: any) {
-      console.error('Error rejecting friend request:', error);
-      throw new Error(error.response?.data?.message || 'Failed to reject friend request');
-    }
+    await unwrap(api.PUT("/api/friends/reject/{requestId}", { params: { path: { requestId } } }));
   }
 
-  /**
-   * Remove a friend
-   */
   async removeFriend(friendId: number): Promise<void> {
-    try {
-      await api.delete(`/friends/${friendId}`);
-    } catch (error: any) {
-      console.error('Error removing friend:', error);
-      throw new Error(error.response?.data?.message || 'Failed to remove friend');
-    }
+    await unwrap(api.DELETE("/api/friends/{friendId}", { params: { path: { friendId } } }));
   }
 
-  /**
-   * Block a user
-   */
-  async blockUser(userId: number): Promise<void> {
-    try {
-      await api.post(`/friends/block/${userId}`);
-    } catch (error: any) {
-      console.error('Error blocking user:', error);
-      throw new Error(error.response?.data?.message || 'Failed to block user');
-    }
+  async blockUser(targetId: number): Promise<void> {
+    await unwrap(api.POST("/api/friends/block/{targetId}", { params: { path: { targetId } } }));
   }
 
-  /**
-   * Unblock a user
-   */
-  async unblockUser(userId: number): Promise<void> {
-    try {
-      await api.delete(`/friends/block/${userId}`);
-    } catch (error: any) {
-      console.error('Error unblocking user:', error);
-      throw new Error(error.response?.data?.message || 'Failed to unblock user');
-    }
+  async unblockUser(targetId: number): Promise<void> {
+    await unwrap(api.DELETE("/api/friends/block/{targetId}", { params: { path: { targetId } } }));
   }
 
-  /**
-   * Check if users are friends
-   */
-  async checkFriendship(friendId: number): Promise<boolean> {
-    try {
-      const response = await api.get(`/friends/check/${friendId}`);
-      return response.data;
-    } catch (error: any) {
-      console.error('Error checking friendship:', error);
-      throw new Error(error.response?.data?.message || 'Failed to check friendship status');
-    }
+  checkFriendship(friendId: number): Promise<boolean> {
+    return unwrap(api.GET("/api/friends/check/{friendId}", { params: { path: { friendId } } }));
   }
 }
 
-export default new FriendService(); 
+export default new FriendService();

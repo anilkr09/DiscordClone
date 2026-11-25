@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,14 +11,14 @@ import {
   IconButton
 } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
-import { ServerType } from "../../types/server";
+import { ServerPayload } from "../../types/server";
 
 type Step = "entry" | "customize" | "join";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (data: { name: string ;description:string;type:ServerType;icon?: File}) => void;
+  onCreate: (data: ServerPayload) => void;
   onJoin: (inviteLink: string) => void;
 }
 
@@ -30,9 +30,8 @@ export default function CreateServerModal({
 }: Props) {
   const [step, setStep] = useState<Step>("entry");
   const [name, setName] = useState("");
-  const [type,setType] = useState<ServerType>(ServerType.PUBLIC);
   const [description,setDescription] = useState("");
-  const [icon, setIcon] = useState<File | undefined>();
+  const [, setIcon] = useState<File | undefined>();
   const [invite, setInvite] = useState("");
 
   // 🔑 Reset state whenever modal opens
@@ -151,15 +150,6 @@ export default function CreateServerModal({
               fullWidth
               autoFocus
             />
-            <TextField
-              label="Type"
-              placeholder="My Awesome Server"
-              value={type}
-              onChange={(e) => setType(ServerType.PUBLIC)}
-              fullWidth
-              autoFocus
-            />
-
 
             <Box display="flex" justifyContent="space-between">
               <Button onClick={() => setStep("entry")}>Back</Button>
@@ -168,7 +158,7 @@ export default function CreateServerModal({
                 variant="contained"
                 disabled={!name.trim()}
                 onClick={() => {
-                  onCreate({ name,description,type});
+                  onCreate({ name, description });
                   onClose();
                 }}
               >

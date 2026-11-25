@@ -2,7 +2,7 @@ import { useParams, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Box } from "@mui/material";
 import ChatArea from "./ChatArea";
-import api from "../../services/api";
+import { api, unwrap } from "../../api/client";
 import { useFriends } from "../../hooks/useFriends";
 
 const Centered = ({ children }: { children: React.ReactNode }) => (
@@ -18,7 +18,8 @@ export default function DirectMessage() {
 
   const channel = useQuery({
     queryKey: ["dm-channel", friendId],
-    queryFn: async () => String((await api.post<number>(`/dms/${friendId}`)).data),
+    queryFn: async () =>
+      String(await unwrap(api.POST("/api/dms/{userId}", { params: { path: { userId: Number(friendId) } } }))),
     enabled: !!friend,
     staleTime: Infinity,
   });
@@ -34,7 +35,7 @@ export default function DirectMessage() {
 
   return (
     <Box component="main" sx={{ flex: 3 }}>
-      <ChatArea id={channel.data} name={title} isDM={true} receiver={friend.username} />
+      <ChatArea id={channel.data} name={title} isDM={true} />
     </Box>
   );
 }

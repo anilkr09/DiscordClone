@@ -1,44 +1,12 @@
-import { Description } from '@mui/icons-material';
-import { User } from './auth';
-import { Message } from './message';
+import type { Schemas } from "../api/client";
 
-export interface Server {
-    id: number;
-    name: string;
-    description?: string;
-    owner: User;
-    createdAt?: string;
-}
-export interface ServerPayload {
-    name:string;
-    description:string;
-    type:ServerType;
-    icon?: File;
-}
-export interface ChannelPayload {
-    name: string;
-    type: ChannelType;
-    description:string;
+export type Server = Schemas["ServerDTO"];
+export type ServerPayload = Schemas["ServerPayload"];
+export type Channel = Schemas["ChannelDTO"];
+export type ChannelPayload = Schemas["ChannelPayload"];
 
-    
-}
-
-export interface Channel {
-    id?: number;
-    name: string;
-    type: ChannelType;
-    serverId: number;
-    messages?: Message[];
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-export enum ChannelType {
-    TEXT = 'TEXT',
-    VOICE = 'VOICE',
-    DM = 'DM'
-}
-export enum ServerType{
-    PUBLIC='PUBLIC',
-    PRIVATE='PRIVATE'
-}
+export const ChannelType = {
+  TEXT: "TEXT",
+  ANNOUNCEMENT: "ANNOUNCEMENT",
+  DM: "DM",
+} as const satisfies Record<string, Channel["type"]>;

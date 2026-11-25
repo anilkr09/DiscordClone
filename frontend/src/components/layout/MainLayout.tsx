@@ -12,7 +12,6 @@ import { useServers } from '../../hooks/useServers';
 import toast from 'react-hot-toast';
 import UserProfile from '../user/UserProfile';
 import { User } from '../../types/auth';
-import { UserStatus } from '../../types/status';
 const defaultServers = [
   { id: 0, name: 'Home', owner: { id: 0, username: 'Admin', email: 'admin@example.com' } }
 ];
@@ -23,19 +22,15 @@ export default function MainLayout() {
 
   // Breakpoints
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));   // < 600px  → rail hidden, hamburger shown
-  const isSm = useMediaQuery(theme.breakpoints.down('md'));   // < 900px  → rail visible, sidebar in Drawer
   const {status} = useStatus();
   const [open, setOpen] = useState(false);
   const [railOpen, setRailOpen] = useState(false); // mobile Drawer for server rail
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const { servers, createServer,joinServer } = useServers();
     const [currentUser, setCurrentUser] = useState<User | null>(null);
    useEffect(() => {
       setCurrentUser(authService.getCurrentUser());
     }, []);
-  const { friendStatuses } = useStatus();
-  const getUserStatus = (id: number) =>
-    friendStatuses[id] || UserStatus.OFFLINE;
   const handleServerClick = (serverId: number) => {
     if (serverId === 0) navigate('/channels/@me');
     else navigate(`/channels/${serverId}`);

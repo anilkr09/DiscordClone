@@ -1,5 +1,9 @@
 package com.discordclone.service;
 
+import com.discordclone.exception.ConflictException;
+import com.discordclone.exception.ForbiddenException;
+import com.discordclone.exception.NotFoundException;
+import com.discordclone.exception.ValidationException;
 import com.discordclone.model.*;
 import com.discordclone.repository.InviteRepository;
 import com.discordclone.repository.MemberRepository;
@@ -24,7 +28,7 @@ public class InviteService {
     public Invite createInvite(Long serverId, int maxUses, Duration validFor, Long userId, boolean fresh) {
         // Authorization: Only members can create invites
         if (!serverService.isUserMember(serverId, userId)) {
-            throw new RuntimeException("Unauthorized: Only server members can create invites");
+            throw new ForbiddenException("Only server members can create invites");
         }
         Server server = serverService.getServerById(serverId);
 
@@ -51,14 +55,14 @@ public class InviteService {
     @Transactional
     public Server joinViaInvite(String code, Long userId) {
         Invite invite = inviteRepository.findById(code)
-                .orElseThrow(() -> new RuntimeException("Invalid invite code"));
+                .orElseThrow(() -> new NotFoundException("Invalid invite code"));
 
         if (invite.getExpiry().isBefore(Instant.now())) {
-            throw new RuntimeException("Invite expired");
+            throw new ValidationException("Invite expired");
         }
 
         if (invite.getUses() >= invite.getMaxUses()) {
-            throw new RuntimeException("Invite has been used too many times");
+            throw new ValidationException("Invite has been used too many times");
         }
 
         Server server = invite.getServer();
@@ -66,7 +70,7 @@ public class InviteService {
 
         boolean alreadyJoined = memberRepository.existsByIdUserIdAndIdServerId(userId, server.getId());
         if (alreadyJoined) {
-            throw new RuntimeException("User is already a member");
+            throw new ConflictException("User is already a member");
         }
         MemberId memberId = new MemberId(userId, server.getId());
 
@@ -79,7 +83,7 @@ public class InviteService {
                 .build();
 
         if (inviteRepository.claimUse(code, Instant.now()) == 0) {
-            throw new RuntimeException("Invite has been used too many times");
+            throw new ValidationException("Invite has been used too many times");
         }
         memberRepository.save(member);
 

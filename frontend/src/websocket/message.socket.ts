@@ -9,7 +9,7 @@ export const registerMessageSocket = (socket) => {
 
     store.dispatch(
       addMessage({
-        channelId: message.channelId,
+        channelId: String(message.channelId),
         message,
       })
     );
@@ -24,7 +24,7 @@ export const registerGroupMessageSocket = (socket,channelId) => {
 
     store.dispatch(
       addMessage({
-        channelId: message.channelId,
+        channelId: String(message.channelId),
         message,
       })
     );

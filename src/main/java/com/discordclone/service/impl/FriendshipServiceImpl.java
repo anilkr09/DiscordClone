@@ -13,7 +13,6 @@ import com.discordclone.websocket.event.WsEvent;
 import com.discordclone.websocket.event.WsEventType;
 import com.discordclone.websocket.publisher.WebSocketPublisher;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,18 +28,15 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
-    private final SimpMessagingTemplate messagingTemplate;
     private final WebSocketPublisher webSocketPublisher;
     @Autowired
     public FriendshipServiceImpl(
             FriendshipRepository friendshipRepository,
-            SimpMessagingTemplate messagingTemplate,
             UserRepository userRepository,
             WebSocketPublisher webSocketPublisher
     ) {
         this.friendshipRepository = friendshipRepository;
         this.userRepository = userRepository;
-        this.messagingTemplate = messagingTemplate;
         this.webSocketPublisher = webSocketPublisher;
     }
 
@@ -51,7 +47,7 @@ public class FriendshipServiceImpl implements FriendshipService {
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", senderId));
 
-        User receiver = userRepository.findByUsername(request.getUsername())
+        User receiver = userRepository.findByName(request.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", request.getUsername()));
 
         if (sender.getId().equals(receiver.getId())) {

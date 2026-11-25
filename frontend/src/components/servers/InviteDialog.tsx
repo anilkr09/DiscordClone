@@ -14,7 +14,7 @@ import {
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useEffect, useState } from "react";
-import api from "../../services/api";
+import { api, unwrap } from "../../api/client";
 
 type Props = {
   open: boolean;
@@ -36,12 +36,11 @@ const [codeCopied, setCodeCopied] = useState(false);
 
       // 👉 Replace with your API
      
-    const response = await api.post<any>(`/invites/create?serverId=${serverId}`);
-      
+    const data = await unwrap(
+        api.POST("/api/invites/create", { params: { query: { serverId: Number(serverId) } } }),
+      );
 
-      const data =  response.data;
-
-      setInviteUrl(`${data.inviteUrl}`);
+      setInviteUrl(data.inviteUrl);
       setInviteCode(data.code);
     } catch (err) {
       console.error("Failed to fetch invite", err);
@@ -82,12 +81,11 @@ const [codeCopied, setCodeCopied] = useState(false);
       setLoading(true);
 
       // 👉 Replace with your API
-      const response = await api.post<any>(`/invites/create?serverId=${serverId}&fresh=true`);
-      
+      const data = await unwrap(
+        api.POST("/api/invites/create", { params: { query: { serverId: Number(serverId), fresh: true } } }),
+      );
 
-      const data =  response.data;
-
-      setInviteUrl(`${data.inviteUrl}`);
+      setInviteUrl(data.inviteUrl);
         setInviteCode(data.code);
 
       setCopied(false);

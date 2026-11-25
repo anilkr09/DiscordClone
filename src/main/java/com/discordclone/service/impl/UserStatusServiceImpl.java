@@ -9,12 +9,12 @@ import com.discordclone.payload.StatusResponse;
 import com.discordclone.repository.UserRepository;
 import com.discordclone.repository.UserStatusRepository;
 import com.discordclone.service.FriendshipService;
+import com.discordclone.service.LastSeenRecorder;
 import com.discordclone.service.UserStatusService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +33,7 @@ public class UserStatusServiceImpl implements UserStatusService {
     private final FriendshipService friendService;
     private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
+    private final LastSeenRecorder lastSeenRecorder;
 
     // =========================
     // HEARTBEAT (connection alive)
@@ -263,23 +264,7 @@ public class UserStatusServiceImpl implements UserStatusService {
 
         broadcastStatusChange(userId, UserStatus.OFFLINE);
 
-        persistLastSeen(userId);
-    }
-
-    // =========================
-    // DB persistence
-    // =========================
-    @Override
-    @Async
-    public void persistLastSeen(Long userId) {
-
-        UserStatusEntity entity = userStatusRepository.findByUserId(userId)
-                .orElse(new UserStatusEntity());
-
-        entity.setUserId(userId);
-        entity.setLastActivity(Instant.now());
-
-        userStatusRepository.save(entity);
+        lastSeenRecorder.record(userId);
     }
 
     @Override

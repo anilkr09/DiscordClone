@@ -7,7 +7,7 @@ import React, {
   useMemo,
 } from "react";
 
-import api from "../services/api";
+import { api, unwrap } from "../api/client";
 
 import { useAuth } from "./AuthProvider";
 
@@ -69,17 +69,14 @@ export const PresenceProvider: React.FC<{
           "###status - fetching self status"
         );
 
-        const { data } =
-          await api.get(
-            "/users/me/status"
-          );
+        const data = await unwrap(api.GET("/api/users/me/status"));
 
         console.log(
           "###status - fetched self status",
           data
         );
 
-        setStatus(data.status);
+        setStatus(data.status as UserStatus);
 
       } catch (err) {
 
@@ -252,15 +249,12 @@ export const PresenceProvider: React.FC<{
             status
           );
 
-          const response =
-            await api.post(
-              `/users/status/custom?status=${status}`
-            );
+          await unwrap(
+            api.POST("/api/users/status/custom", { params: { query: { status } } }),
+          );
 
           console.log(
-            "###status - custom status updated",
-            response.data
-          );
+            "###status - custom status updated");
 
         } catch (error) {
 
@@ -282,15 +276,10 @@ export const PresenceProvider: React.FC<{
           "###status - clearing custom status"
         );
 
-        const response =
-          await api.delete(
-            "/users/status/custom"
-          );
+        await unwrap(api.DELETE("/api/users/status/custom"));
 
         console.log(
-          "###status - custom status cleared",
-          response.data
-        );
+          "###status - custom status cleared");
 
       } catch (error) {
 

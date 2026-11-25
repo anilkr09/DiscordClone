@@ -56,14 +56,14 @@ its severity, so numbers are not strictly in severity order.
 | [B52](#b52-the-consumer-drops-messages-it-fails-to-save) | The consumer drops messages it fails to save — **Fixed** | High | Kafka consumer |
 | [B20](#b20-message-times-are-wrong-outside-utc) | Message times are wrong outside UTC — **Fixed** | Medium | Messaging |
 | [B21](#b21-delete-apimessagesid-can-never-succeed) | `DELETE /api/messages/{id}` can never succeed — **Fixed** | Medium | API |
-| [B22](#b22-put-apiserversidrolesroleid-can-never-succeed) | `PUT /api/servers/{id}/roles/{roleId}` can never succeed | Medium | API |
+| [B22](#b22-put-apiserversidrolesroleid-can-never-succeed) | `PUT /api/servers/{id}/roles/{roleId}` can never succeed — **Fixed** | Medium | API |
 | [B23](#b23-servers-cannot-be-deleted) | Servers cannot be deleted — **Fixed** | Medium | API |
 | [B24](#b24-dm-view-hangs-or-mislabels) | DM view hangs or mislabels — **Fixed** | Medium | Frontend |
 | [B25](#b25-offline-users-reappear-with-their-custom-status) | Offline users reappear with their custom status | Medium | Redis |
 | [B26](#b26-active-users-flicker-between-online-and-idle) | Active users flicker between ONLINE and IDLE | Medium | Redis |
 | [B27](#b27-batched-status-updates-are-dropped) | Batched status updates are dropped | Medium | Frontend |
-| [B28](#b28-messages-are-broadcast-before-they-are-committed) | Messages are broadcast before they are committed | Medium | Messaging |
-| [B29](#b29-errors-map-to-the-wrong-http-status) | Errors map to the wrong HTTP status — **Authorization failures are 403; rest open** | Medium | API |
+| [B28](#b28-messages-are-broadcast-before-they-are-committed) | Messages are broadcast before they are committed — **Fixed** | Medium | Messaging |
+| [B29](#b29-errors-map-to-the-wrong-http-status) | Errors map to the wrong HTTP status — **Fixed** | Medium | API |
 | [B30](#b30-channels-appear-twice-after-revisiting-a-server) | Channels appear twice after revisiting a server | Medium | Frontend |
 | [B31](#b31-channel-creation-is-broadcast-to-every-user) | Channel creation is broadcast to every user | Medium | Privacy |
 | [B32](#b32-failed-sends-are-silent) | Failed sends are silent | Medium | Frontend |
@@ -74,7 +74,7 @@ its severity, so numbers are not strictly in severity order.
 | [B37](#b37-invites-are-racy-unshareable-and-over-created) | Invites are racy, unshareable, and over-created — **Fixed** | Medium | API |
 | [B38](#b38-the-ci-workflow-cannot-succeed) | The CI workflow cannot succeed — **Workflows rewritten; not yet run** | Medium | CI |
 | [B39](#b39-channel-routes-ignore-serverid-and-allow-type-changes) | Channel routes ignore `{serverId}` and allow type changes — **Fixed** | Medium | API |
-| [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist | Medium | Frontend |
+| [B40](#b40-frontend-calls-routes-that-do-not-exist) | Frontend calls routes that do not exist — **Fixed** | Medium | Frontend |
 | [B51](#b51-clean-disconnects-wait-for-the-heartbeat-ttl) | Clean disconnects wait for the heartbeat TTL | Medium | Redis |
 | [B10](#b10-kafka-profile-persistence-depends-on-an-unmanaged-external-service) | Kafka-profile persistence depends on an unmanaged external service | Medium | Kafka |
 | [B53](#b53-the-consumers-dead-letter-setup-would-fail-if-wired) | The consumer's dead-letter setup would fail if wired — **Fixed** | Medium | Kafka consumer |
@@ -82,19 +82,19 @@ its severity, so numbers are not strictly in severity order.
 | [B55](#b55-two-services-manage-one-schema) | Two services manage one schema — **Fixed** | Medium | Data |
 | [B56](#b56-messages-are-visible-before-they-are-stored) | Messages are visible before they are stored | Medium | Kafka |
 | [B57](#b57-the-consumers-packaged-jar-likely-fails-to-start) | The consumer's packaged jar likely fails to start — **Fixed** | Medium | Kafka consumer |
-| [B60](#b60-unknown-urls-return-500-instead-of-404) | Unknown URLs return 500 instead of 404 | Medium | API |
+| [B60](#b60-unknown-urls-return-500-instead-of-404) | Unknown URLs return 500 instead of 404 — **Fixed** | Medium | API |
 | [B41](#b41-offline-is-broadcast-twice) | OFFLINE is broadcast twice | Low | Redis |
-| [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation | Low | Redis |
+| [B42](#b42-async-is-bypassed-by-self-invocation) | `@Async` is bypassed by self-invocation — **Fixed** | Low | Redis |
 | [B43](#b43-dead-presence-logic) | Dead presence logic | Low | Redis |
-| [B44](#b44-stomp-handler-errors-are-swallowed) | STOMP handler errors are swallowed | Low | WebSocket |
-| [B45](#b45-missing-input-validation) | Missing input validation | Low | API |
-| [B46](#b46-no-op-and-stale-endpoints) | No-op and stale endpoints — **PUT /{id}/status removed; rest open** | Low | API |
+| [B44](#b44-stomp-handler-errors-are-swallowed) | STOMP handler errors are swallowed — **Fixed** | Low | WebSocket |
+| [B45](#b45-missing-input-validation) | Missing input validation — **Fixed** | Low | API |
+| [B46](#b46-no-op-and-stale-endpoints) | No-op and stale endpoints — **Fixed** | Low | API |
 | [B47](#b47-latent-websocket-client-and-interceptor-defects) | Latent WebSocket client and interceptor defects — **Principal null dereference removed; rest open** | Low | WebSocket |
-| [B48](#b48-two-userservice-beans) | Two `UserService` beans | Low | Backend |
+| [B48](#b48-two-userservice-beans) | Two `UserService` beans — **Fixed** | Low | Backend |
 | [B49](#b49-event-types-out-of-sync) | Event types out of sync | Low | WebSocket |
 | [B50](#b50-infrastructure-drift) | Infrastructure drift — **Fixed** | Low | Ops |
 | [B58](#b58-consumer-operational-gaps) | Consumer operational gaps | Low | Kafka consumer |
-| [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call | Low | Backend |
+| [B59](#b59-async-starts-a-new-thread-for-every-call) | `@Async` starts a new thread for every call — **Fixed** | Low | Backend |
 
 ---
 

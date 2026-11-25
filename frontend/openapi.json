@@ -1,0 +1,1557 @@
+{
+  "components" : {
+    "schemas" : {
+      "Author" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "username" ],
+        "type" : "object"
+      },
+      "ChannelDTO" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "serverId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "type" : {
+            "enum" : [ "TEXT", "ANNOUNCEMENT", "DM" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "description", "id", "name", "serverId", "type" ],
+        "type" : "object"
+      },
+      "ChannelPayload" : {
+        "properties" : {
+          "description" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 50,
+            "minLength" : 2,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : "object"
+      },
+      "FriendDTO" : {
+        "properties" : {
+          "avatarUrl" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "avatarUrl", "email", "id", "username" ],
+        "type" : "object"
+      },
+      "FriendRequestPayload" : {
+        "properties" : {
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "username" ],
+        "type" : "object"
+      },
+      "FriendshipDTO" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "friendshipId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "lastInteraction" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "receiverAvatarUrl" : {
+            "type" : "string"
+          },
+          "receiverId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "receiverUsername" : {
+            "type" : "string"
+          },
+          "senderAvatarUrl" : {
+            "type" : "string"
+          },
+          "senderId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "senderUsername" : {
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "ACCEPTED", "REJECTED", "BLOCKED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "friendshipId", "id", "lastInteraction", "receiverAvatarUrl", "receiverId", "receiverUsername", "senderAvatarUrl", "senderId", "senderUsername", "status" ],
+        "type" : "object"
+      },
+      "InviteResponse" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string"
+          },
+          "inviteUrl" : {
+            "type" : "string"
+          },
+          "maxUses" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "serverId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "code", "expiresAt", "inviteUrl", "maxUses", "serverId" ],
+        "type" : "object"
+      },
+      "JwtAuthResponse" : {
+        "properties" : {
+          "accessToken" : {
+            "type" : "string"
+          },
+          "email" : {
+            "type" : "string"
+          },
+          "refreshToken" : {
+            "type" : "string"
+          },
+          "tokenType" : {
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessToken", "email", "refreshToken", "tokenType", "userId", "username" ],
+        "type" : "object"
+      },
+      "LoginRequest" : {
+        "properties" : {
+          "password" : {
+            "type" : "string"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "password", "username" ],
+        "type" : "object"
+      },
+      "MessagePage" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MessageResp"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "content", "hasMore" ],
+        "type" : "object"
+      },
+      "MessageResp" : {
+        "properties" : {
+          "author" : {
+            "$ref" : "#/components/schemas/Author"
+          },
+          "channelId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "content" : {
+            "type" : "string"
+          },
+          "edited" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "senderId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "timestamp" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "author", "channelId", "content", "edited", "id", "senderId", "timestamp" ],
+        "type" : "object"
+      },
+      "RefreshTokenRequest" : {
+        "properties" : {
+          "refreshToken" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RegistrationRequest" : {
+        "properties" : {
+          "email" : {
+            "type" : "string"
+          },
+          "password" : {
+            "maxLength" : 2147483647,
+            "minLength" : 6,
+            "type" : "string"
+          },
+          "username" : {
+            "maxLength" : 20,
+            "minLength" : 3,
+            "pattern" : "\\S+",
+            "type" : "string"
+          }
+        },
+        "required" : [ "email", "password", "username" ],
+        "type" : "object"
+      },
+      "SelfStatusResponse" : {
+        "properties" : {
+          "customStatus" : {
+            "type" : "string"
+          },
+          "expiresAt" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "customStatus", "expiresAt", "status" ],
+        "type" : "object"
+      },
+      "ServerDTO" : {
+        "properties" : {
+          "description" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "owner" : {
+            "$ref" : "#/components/schemas/UserDTO"
+          }
+        },
+        "required" : [ "description", "id", "name", "owner" ],
+        "type" : "object"
+      },
+      "ServerPayload" : {
+        "properties" : {
+          "description" : {
+            "maxLength" : 255,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : "object"
+      },
+      "StatusResponse" : {
+        "properties" : {
+          "status" : {
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "status", "userId" ],
+        "type" : "object"
+      },
+      "UpdateChannelRequest" : {
+        "properties" : {
+          "description" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 50,
+            "minLength" : 2,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : "object"
+      },
+      "UpdateMessageRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 4000,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "content" ],
+        "type" : "object"
+      },
+      "UpdateRoleRequest" : {
+        "properties" : {
+          "role" : {
+            "enum" : [ "ADMIN", "MEMBER", "OWNER" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "role" ],
+        "type" : "object"
+      },
+      "UpdateServerRequest" : {
+        "properties" : {
+          "description" : {
+            "maxLength" : 255,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name" ],
+        "type" : "object"
+      },
+      "UserDTO" : {
+        "properties" : {
+          "avatarUrl" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "username" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "avatarUrl", "id", "username" ],
+        "type" : "object"
+      }
+    }
+  },
+  "info" : {
+    "title" : "OpenAPI definition",
+    "version" : "v0"
+  },
+  "openapi" : "3.0.1",
+  "paths" : {
+    "/api/auth/login" : {
+      "post" : {
+        "operationId" : "authenticateUser",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JwtAuthResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/auth/refresh" : {
+      "post" : {
+        "operationId" : "refreshToken",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JwtAuthResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/auth/register" : {
+      "post" : {
+        "operationId" : "registerUser",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RegistrationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/JwtAuthResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "auth-controller" ]
+      }
+    },
+    "/api/channels/{serverId}" : {
+      "get" : {
+        "operationId" : "getServerChannels",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ChannelDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "channel-controller" ]
+      },
+      "post" : {
+        "operationId" : "createChannel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChannelPayload"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChannelDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "channel-controller" ]
+      }
+    },
+    "/api/channels/{serverId}/{channelId}" : {
+      "delete" : {
+        "operationId" : "deleteChannel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "channelId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "channel-controller" ]
+      },
+      "get" : {
+        "operationId" : "getChannel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "channelId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChannelDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "channel-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateChannel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "channelId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateChannelRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ChannelDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "channel-controller" ]
+      }
+    },
+    "/api/dms/{userId}" : {
+      "post" : {
+        "operationId" : "getOrCreateDmChannel",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "format" : "int64",
+                  "type" : "integer"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "dm-controller" ]
+      }
+    },
+    "/api/friends" : {
+      "get" : {
+        "operationId" : "getFriends",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/FriendDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/accept/{requestId}" : {
+      "put" : {
+        "operationId" : "acceptFriendRequest",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "requestId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FriendDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/block/{targetId}" : {
+      "delete" : {
+        "operationId" : "unblockUser",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "targetId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      },
+      "post" : {
+        "operationId" : "blockUser",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "targetId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/check/{friendId}" : {
+      "get" : {
+        "operationId" : "checkFriendship",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "friendId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "boolean"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/reject/{requestId}" : {
+      "put" : {
+        "operationId" : "rejectFriendRequest",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "requestId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/request" : {
+      "post" : {
+        "operationId" : "sendFriendRequest",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/FriendRequestPayload"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FriendshipDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/requests" : {
+      "get" : {
+        "operationId" : "getPendingRequests",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/FriendshipDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/requests/outgoing" : {
+      "get" : {
+        "operationId" : "getOutgoingRequests",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/FriendshipDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/friends/{friendId}" : {
+      "delete" : {
+        "operationId" : "removeFriend",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "friendId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "friend-controller" ]
+      }
+    },
+    "/api/invites/create" : {
+      "post" : {
+        "operationId" : "createInvite",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "maxUses",
+          "required" : false,
+          "schema" : {
+            "default" : 10,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "validMinutes",
+          "required" : false,
+          "schema" : {
+            "default" : 1440,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "fresh",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InviteResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invite-controller" ]
+      }
+    },
+    "/api/invites/join/{code}" : {
+      "post" : {
+        "operationId" : "joinServerViaInvite",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "code",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "invite-controller" ]
+      }
+    },
+    "/api/messages/channels/{channelId}" : {
+      "get" : {
+        "operationId" : "getChannelMessages",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "channelId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessagePage"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "message-controller" ]
+      }
+    },
+    "/api/messages/{messageId}" : {
+      "delete" : {
+        "operationId" : "deleteMessage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "messageId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "message-controller" ]
+      },
+      "put" : {
+        "operationId" : "editMessage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "messageId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateMessageRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MessageResp"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "message-controller" ]
+      }
+    },
+    "/api/servers" : {
+      "get" : {
+        "operationId" : "getUserServers",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ServerDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      },
+      "post" : {
+        "operationId" : "createServer",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ServerPayload"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      }
+    },
+    "/api/servers/{serverId}" : {
+      "delete" : {
+        "operationId" : "deleteServer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      },
+      "get" : {
+        "operationId" : "getServer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateServer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateServerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      }
+    },
+    "/api/servers/{serverId}/members/{userId}" : {
+      "delete" : {
+        "operationId" : "removeMember",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      },
+      "post" : {
+        "operationId" : "addMember",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      }
+    },
+    "/api/servers/{serverId}/members/{userId}/role" : {
+      "put" : {
+        "operationId" : "updateRole",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "serverId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateRoleRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ServerDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "server-controller" ]
+      }
+    },
+    "/api/users" : {
+      "get" : {
+        "operationId" : "getAllUsers",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/friends/status" : {
+      "get" : {
+        "operationId" : "getFriendsStatus",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/StatusResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-status-controller" ]
+      }
+    },
+    "/api/users/me/status" : {
+      "get" : {
+        "operationId" : "getCurrentUserStatus",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SelfStatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-status-controller" ]
+      }
+    },
+    "/api/users/search" : {
+      "get" : {
+        "operationId" : "getUsersByPrefix",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "prefix",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/UserDTO"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/status/custom" : {
+      "delete" : {
+        "operationId" : "clearCustomStatus",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-status-controller" ]
+      },
+      "post" : {
+        "operationId" : "setCustomStatus",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-status-controller" ]
+      }
+    },
+    "/api/users/status/reset" : {
+      "delete" : {
+        "operationId" : "resetPresence",
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-status-controller" ]
+      }
+    },
+    "/api/users/username/{username}" : {
+      "get" : {
+        "operationId" : "getUserByUsername",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "username",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/{id}" : {
+      "get" : {
+        "operationId" : "getUserById",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UserDTO"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-controller" ]
+      }
+    },
+    "/api/users/{userId}/status" : {
+      "get" : {
+        "operationId" : "getUserStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "userId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/StatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "user-status-controller" ]
+      }
+    },
+    "/health" : {
+      "get" : {
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "additionalProperties" : {
+                    "type" : "string"
+                  },
+                  "type" : "object"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "home-controller" ]
+      }
+    }
+  },
+  "servers" : [ {
+    "description" : "Generated server url",
+    "url" : "http://localhost"
+  } ]
+}

@@ -8,7 +8,6 @@ import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import AddIcon from '@mui/icons-material/Add';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import ShareIcon from '@mui/icons-material/Share';
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Server, Channel, ChannelType } from '../../types/server';
 import ChatArea from '../chat/ChatArea';
@@ -18,7 +17,6 @@ import { useStatus } from '../../hooks/useStatus';
 import { UserStatus } from '../../types/status';
 import StatusIndicator from '../user/StatusIndicator';
 import { useServers } from '../../hooks/useServers';
-import { Share } from '@mui/icons-material';
 import InviteDialog from './InviteDialog';
 
 export default function ServerView() {

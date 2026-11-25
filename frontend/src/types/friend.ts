@@ -1,35 +1,11 @@
-export enum FriendshipStatus {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED',
-  BLOCKED = 'BLOCKED'
-}
+import type { Schemas } from "../api/client";
 
-export interface Friend {
-  id: number;
-  username: string;
-  email?: string;
-  avatarUrl?: string;
-}
-
-export interface FriendRequest {
-  id: number;
-  senderId: number;
-  senderUsername: string;
-  senderAvatarUrl?: string;
-  receiverId: number;
-  receiverUsername: string;
-  receiverAvatarUrl?: string;
-  status: FriendshipStatus;
-  createdAt: string;
-}
-
-export interface AddFriendRequest {
-  username: string;
-}
+export type Friend = Schemas["FriendDTO"];
+export type FriendRequest = Schemas["FriendshipDTO"];
+export type FriendshipStatus = FriendRequest["status"];
 
 export interface AddFriendResponse {
   success: boolean;
   message: string;
   friendRequest?: FriendRequest;
-} 
+}

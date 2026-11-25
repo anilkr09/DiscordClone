@@ -1,5 +1,6 @@
 package com.discordclone.service;
 
+import com.discordclone.exception.ErrorMessage;
 import com.discordclone.contract.MessageCreatedV1;
 import com.discordclone.model.Message;
 import com.discordclone.model.User;
@@ -63,7 +64,8 @@ public class KafkaMessageEventPublisher implements MessageEventPublisher {
 
     private void reportFailure(String sender, Throwable cause) {
         log.error("Could not publish a message to Kafka", cause);
-        messagingTemplate.convertAndSendToUser(sender, "/queue/errors", "Message failed");
+        messagingTemplate.convertAndSendToUser(sender, "/queue/errors",
+                new ErrorMessage(503, "Your message could not be sent"));
     }
 
     private void sendToWebSocket(MessageRequest request, String sender, MessageResponse response) {

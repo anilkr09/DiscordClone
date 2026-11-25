@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { Box, Typography, Avatar, IconButton, Skeleton } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { useNavigate, useParams } from 'react-router-dom';
 import StatusIndicator from '../user/StatusIndicator';
-import { Friend } from '../../types/friend';
 import { UserStatus } from '../../types/status';
 import { useStatus } from '../../hooks/useStatus';
 import { useFriends } from '../../hooks/useFriends';

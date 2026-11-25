@@ -1,67 +1,38 @@
-import api from './api';
-import axios from "axios";
-import { API_BASE_URL } from "../config/api";
-import { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest, User } from '../types/auth';
+import { api, unwrap } from "../api/client";
+import type { AuthResponse, LoginRequest, RefreshTokenRequest, RegisterRequest, User } from "../types/auth";
 
 class AuthService {
+  async login(credentials: LoginRequest): Promise<AuthResponse> {
+    return this.remember(await unwrap(api.POST("/api/auth/login", { body: credentials })));
+  }
 
+  async register(userData: RegisterRequest): Promise<AuthResponse> {
+    return this.remember(await unwrap(api.POST("/api/auth/register", { body: userData })));
+  }
 
-     authApi = axios.create({
-    baseURL: API_BASE_URL + '/api',
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
+  async refreshToken(request: RefreshTokenRequest): Promise<AuthResponse> {
+    return this.remember(await unwrap(api.POST("/api/auth/refresh", { body: request })));
+  }
 
-    
-    async login(credentials: LoginRequest): Promise<AuthResponse> {
-        console.log("inside login service");
-        const response = await this.authApi.post<AuthResponse>('/auth/login', credentials);
-        this.setTokens(response.data);
-        // setUsername(response.data.username);
-        console.log("username", response.data.username);
-        localStorage.setItem("username", response.data.username);
-        localStorage.setItem("id", response.data.userId.toString());
-        localStorage.setItem("accessToken", response.data.accessToken);
-        return response.data;
-    }
+  private remember(response: AuthResponse): AuthResponse {
+    localStorage.setItem("accessToken", response.accessToken);
+    localStorage.setItem("refreshToken", response.refreshToken);
+    localStorage.setItem("username", response.username);
+    localStorage.setItem("id", String(response.userId));
+    const user: User = { id: response.userId, username: response.username, avatarUrl: "" };
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    return response;
+  }
 
-    async register(userData: RegisterRequest): Promise<AuthResponse> {
-        const response = await this.authApi.post<AuthResponse>('/auth/register', userData);
-        this.setTokens(response.data);
-        return response.data;
-    }
+  logout() {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("currentUser");
+  }
 
-    async refreshToken(request: RefreshTokenRequest): Promise<AuthResponse> {
-        const response = await api.post<AuthResponse>('/auth/refresh', request);
-        this.setTokens(response.data);
-        return response.data;
-    }
-
-    private setTokens(authResponse: AuthResponse) {
-        localStorage.setItem("accessToken", authResponse.accessToken);
-        localStorage.setItem("refreshToken", authResponse.refreshToken);
-
-        // Save the current user details
-        const user = {
-            id: authResponse.userId, // Ensure the response contains this
-            username: authResponse.username,
-            email: "",
-            avatarUrl: ""
-        };
-        localStorage.setItem("currentUser", JSON.stringify(user));
-    }
-
-    logout() {
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        localStorage.removeItem("currentUser");
-    }
-
-    getCurrentUser(): User {
-        return JSON.parse(localStorage.getItem("currentUser") || "{}");
-    }
+  getCurrentUser(): User {
+    return JSON.parse(localStorage.getItem("currentUser") || "{}");
+  }
 }
-
 
 export default new AuthService();

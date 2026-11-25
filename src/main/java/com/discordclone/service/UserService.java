@@ -1,6 +1,7 @@
 package com.discordclone.service;
 
-import com.discordclone.exception.DuplicateResourceException;
+import com.discordclone.exception.ConflictException;
+import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.User;
 import com.discordclone.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +21,14 @@ public class UserService {
 
     @Transactional
     public User createUser(User user) {
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new DuplicateResourceException("Username already taken");
+        user.setUsername(user.getUsername().strip());
+        user.setEmail(user.getEmail().strip());
+        if (userRepository.existsByUsernameIgnoreCase(user.getUsername())) {
+            throw new ConflictException("Username already taken");
         }
 
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new DuplicateResourceException("Email already registered");
+        if (userRepository.existsByEmailIgnoreCase(user.getEmail())) {
+            throw new ConflictException("Email already registered");
         }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 //        user.setStatus(UserStatus.OFFLINE);
@@ -35,13 +38,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public User getUserById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
     }
 
     @Transactional(readOnly = true)
     public User getUserByUsername(String username) {
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        return userRepository.findByName(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
     }
 
     /**
@@ -82,7 +85,7 @@ public class UserService {
     }
     @Transactional(readOnly = true)
     public List<User> getUsersByPrefix(String prefix) {
-        return userRepository.findByUsernameStartingWith(prefix);
+        return userRepository.findByUsernameStartingWithIgnoreCase(prefix.strip());
     }
 
 }

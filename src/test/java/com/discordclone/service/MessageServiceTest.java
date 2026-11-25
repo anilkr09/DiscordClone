@@ -3,7 +3,7 @@ package com.discordclone.service;
 import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
 import com.discordclone.repository.ChannelMemberRepository;
-import com.discordclone.exception.ChannelAccessDeniedException;
+import com.discordclone.exception.ForbiddenException;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.ChannelType;
 import com.discordclone.model.Friendship;
@@ -27,7 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Limit;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.time.Duration;
@@ -53,7 +53,7 @@ class MessageServiceTest {
     private ChannelRepository channelRepository;
 
     @Mock
-    private SimpMessagingTemplate messagingTemplate;
+    private ApplicationEventPublisher events;
 
     @Mock
     private MessagePersistenceService persistenceService;
@@ -153,7 +153,7 @@ class MessageServiceTest {
         when(userRepository.findById(testUser.getId())).thenReturn(Optional.of(testUser));
         when(channelRepository.findById(testChannel.getId())).thenReturn(Optional.of(testChannel));
 
-        assertThrows(ChannelAccessDeniedException.class,
+        assertThrows(ForbiddenException.class,
                 () -> messageService.sendMessage(testMessageRequest, testUser.getId()));
         verifyNoInteractions(eventPublisher);
     }
@@ -191,7 +191,7 @@ class MessageServiceTest {
         when(friendshipRepository.findBySenderAndReceiver(testUser, friend)).thenReturn(Optional.empty());
         when(friendshipRepository.findBySenderAndReceiver(friend, testUser)).thenReturn(Optional.of(block));
 
-        assertThrows(ChannelAccessDeniedException.class,
+        assertThrows(ForbiddenException.class,
                 () -> messageService.sendMessage(testMessageRequest, 1L));
         verifyNoInteractions(eventPublisher);
     }
@@ -217,8 +217,7 @@ class MessageServiceTest {
         assertTrue(result.isEdited());
         assertSame(testUser, testMessage.getSender());
         assertSame(testChannel, testMessage.getChannel());
-        verify(messagingTemplate).convertAndSend(
-                eq("/topic/channels/1/messages"), any(MessageResp.class));
+        verify(events).publishEvent(ChatBroadcast.toTopic("/topic/channels/1/messages", result));
     }
 
     @Test
@@ -228,7 +227,6 @@ class MessageServiceTest {
         messageService.deleteMessage("message-1");
 
         verify(messageRepository).delete(testMessage);
-        verify(messagingTemplate).convertAndSend(
-                eq("/topic/channels/1/messages/delete"), eq((Object) "message-1"));
+        verify(events).publishEvent(ChatBroadcast.toTopic("/topic/channels/1/messages/delete", "message-1"));
     }
 }

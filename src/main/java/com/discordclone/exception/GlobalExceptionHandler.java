@@ -1,359 +1,102 @@
 package com.discordclone.exception;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
-import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.messaging.MessageDeliveryException;
+import org.springframework.http.*;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.security.SignatureException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Turns every failure into an RFC 7807 problem response. Spring MVC's own exceptions (bad input,
+ * unknown URL, wrong method) are handled by the superclass with their proper 4xx status.
+ * <p>
+ * Besides {@code detail}, each body carries {@code message} with the same text and, for invalid
+ * input, {@code fieldErrors}.
+ */
 @Slf4j
-@ControllerAdvice
-public class GlobalExceptionHandler {
+@RestControllerAdvice
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-    /* =========================
-       409 – Conflict
-    ========================= */
+    @ExceptionHandler(ApiException.class)
+    ProblemDetail handleApi(ApiException ex) {
+        log.info("{}: {}", ex.getStatus(), ex.getMessage());
+        return problem(ex.getStatus(), ex.getMessage());
+    }
 
-    @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(
-            ConflictException ex,
-            HttpServletRequest request
-    ) {
-        log.error(ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse(
-                        HttpStatus.CONFLICT.value(),
-                        "CONFLICT",
-                        ex.getMessage(),
-                        request.getRequestURI(),
-                        null
-                ));
+    @ExceptionHandler(AccessDeniedException.class)
+    ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        log.info("Access denied: {}", ex.getMessage());
+        return problem(HttpStatus.FORBIDDEN, "You don't have permission to do this");
     }
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentials(
-            BadCredentialsException ex,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse(
-                        HttpStatus.UNAUTHORIZED.value(),
-                        "UNAUTHORIZED",
-                        "Invalid username or password",
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateResource(
-            DuplicateResourceException ex,
-            HttpServletRequest request
-    ) {
-        log.error(ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse(
-                        HttpStatus.CONFLICT.value(),
-                        "CONFLICT",
-                        ex.getMessage(),
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleMalformedJson(
-            HttpMessageNotReadableException ex,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(
-                        HttpStatus.BAD_REQUEST.value(),
-                        "MALFORMED_JSON",
-                        "Request body is invalid or malformed",
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException ex,
-            HttpServletRequest request
-    ) {
-        String message = String.format(
-                "Invalid value '%s' for parameter '%s'",
-                ex.getValue(),
-                ex.getName()
-        );
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(
-                        HttpStatus.BAD_REQUEST.value(),
-                        "INVALID_PARAMETER",
-                        message,
-                        request.getRequestURI(),
-                        null
-                ));
+    @ExceptionHandler(AuthenticationException.class)
+    ProblemDetail handleAuthentication(AuthenticationException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "Invalid username or password");
     }
+
+    @ExceptionHandler(JwtAuthenticationException.class)
+    ProblemDetail handleJwt(JwtAuthenticationException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponse> handleDataIntegrity(
-            DataIntegrityViolationException ex,
-            HttpServletRequest request
-    ) {
-        log.error(ex.getMessage(), ex);
-        String message = "Database constraint violation";
-        Map<String, String> fieldErrors = null;
-
-        Throwable root = ex.getRootCause();
-
-        if (root instanceof ConstraintViolationException constraintEx) {
-            String constraint = constraintEx.getConstraintName();
-
-            if (constraint != null) {
-                switch (constraint) {
-
-                    case "uk_username" -> {
-                        message = "Username already taken";
-                        fieldErrors = Map.of("username", "Username already taken");
-                    }
-
-                    case "uk_email" -> {
-                        message = "Email already registered";
-                        fieldErrors = Map.of("email", "Email already registered");
-                    }
-
-                    case "servers_name_key", "uk_server_name" -> {
-                        message = "Server name already exists";
-                        fieldErrors = Map.of("name", "Server name already exists");
-                    }
-
-                    default -> {
-                        message = "Duplicate or invalid data";
-                    }
-                }
-            }
-        }
-
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse(
-                        HttpStatus.CONFLICT.value(),
-                        "CONFLICT",
-                        message,
-                        request.getRequestURI(),
-                        fieldErrors
-                ));
+    ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Constraint violation: {}", ex.getMostSpecificCause().getMessage());
+        return problem(HttpStatus.CONFLICT, "The request conflicts with existing data");
     }
 
-    /* =========================
-       400 – Validation Errors
-    ========================= */
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
-            ResourceNotFoundException ex,
-            HttpServletRequest request
-    ) {
-        log.info("❌ Resource not found: {}", ex.getMessage());
-
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(
-                        HttpStatus.NOT_FOUND.value(),
-                        "RESOURCE_NOT_FOUND",
-                        ex.getMessage(),
-                        request.getRequestURI(),
-                        null
-                ));
+    @ExceptionHandler(ConstraintViolationException.class)
+    ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        ex.getConstraintViolations()
+                .forEach(v -> errors.put(v.getPropertyPath().toString(), v.getMessage()));
+        return invalid(errors);
     }
 
-    @ExceptionHandler({ChannelAccessDeniedException.class, AccessDeniedException.class})
-    public ResponseEntity<ErrorResponse> handleAccessDenied(
-            RuntimeException ex,
-            HttpServletRequest request
-    ) {
-        log.warn("❌ Access denied: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ErrorResponse(
-                        HttpStatus.FORBIDDEN.value(),
-                        "FORBIDDEN",
-                        ex.getMessage(),
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-    
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
-            MethodArgumentNotValidException ex,
-            HttpServletRequest request
-    ) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors()
-                .forEach(err -> errors.put(err.getField(), err.getDefaultMessage()));
-
-        log.info("❌ Validation failed: {}", errors);
-
-        return ResponseEntity.badRequest()
-                .body(new ErrorResponse(
-                        HttpStatus.BAD_REQUEST.value(),
-                        "VALIDATION_FAILED",
-                        "Validation failed for request",
-                        request.getRequestURI(),
-                        errors
-                ));
-    }
-
-    /* =========================
-       405 – Method Not Allowed
-    ========================= */
-
-    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
-            HttpRequestMethodNotSupportedException ex,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(new ErrorResponse(
-                        HttpStatus.METHOD_NOT_ALLOWED.value(),
-                        "METHOD_NOT_ALLOWED",
-                        String.format(
-                                "Request method '%s' is not supported for this endpoint.",
-                                ex.getMethod()
-                        ),
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-
-    /* =========================
-       404 – No Handler Found
-    ========================= */
-
-    @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNoHandlerFound(
-            NoHandlerFoundException ex,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse(
-                        HttpStatus.NOT_FOUND.value(),
-                        "NOT_FOUND",
-                        String.format(
-                                "No endpoint %s %s found.",
-                                ex.getHttpMethod(),
-                                ex.getRequestURL()
-                        ),
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-
-    /* =========================
-       401 – JWT Errors
-    ========================= */
-
-    @ExceptionHandler({
-            ExpiredJwtException.class,
-            MalformedJwtException.class,
-            SignatureException.class,
-            UnsupportedJwtException.class,
-            JwtAuthenticationException.class
-    })
-    public ResponseEntity<ErrorResponse> handleJwtExceptions(
-            Exception ex,
-            HttpServletRequest request
-    ) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(new ErrorResponse(
-                        HttpStatus.UNAUTHORIZED.value(),
-                        "UNAUTHORIZED",
-                        getJwtErrorMessage(ex),
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-
-    /* =========================
-       503 – WebSocket / Messaging
-    ========================= */
-
-    @ExceptionHandler(MessageDeliveryException.class)
-    public ResponseEntity<ErrorResponse> handleMessageDeliveryException(
-            MessageDeliveryException ex,
-            HttpServletRequest request
-    ) {
-        log.error("Message delivery failed", ex);
-
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(new ErrorResponse(
-                        HttpStatus.SERVICE_UNAVAILABLE.value(),
-                        "SERVICE_UNAVAILABLE",
-                        "Message delivery failed",
-                        request.getRequestURI(),
-                        null
-                ));
-    }
-
-    /* =========================
-       500 – Fallback
-    ========================= */
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ErrorResponse> handleRuntimeException(
-            Exception ex,
-            HttpServletRequest request
-    ) {
-        log.error("Unhandled exception", ex);
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(
-                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                        "INTERNAL_SERVER_ERROR",
-                        ex.getMessage(),
-                        request.getRequestURI(),
-                        null
-                ));
-    }
+    /** Anything unexpected: logged in full, described to the client in no detail. */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
-            Exception ex,
-            HttpServletRequest request
-    ) {
+    ProblemDetail handleUnexpected(Exception ex) {
         log.error("Unhandled exception", ex);
-
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(
-                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                        "INTERNAL_SERVER_ERROR",
-                        "Something went wrong",
-                        request.getRequestURI(),
-                        null
-                ));
+        return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
     }
 
-    private String getJwtErrorMessage(Exception ex) {
-        if (ex instanceof ExpiredJwtException) {
-            return "JWT token has expired. Please log in again.";
-        } else if (ex instanceof MalformedJwtException) {
-            return "Invalid JWT token format.";
-        } else if (ex instanceof SignatureException) {
-            return "Invalid JWT signature.";
-        } else if (ex instanceof UnsupportedJwtException) {
-            return "JWT token is not supported.";
-        } else {
-            return "Invalid JWT token.";
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        Map<String, String> errors = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors()
+                .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
+        return ResponseEntity.badRequest().body(invalid(errors));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex, Object body, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        ResponseEntity<Object> response = super.handleExceptionInternal(ex, body, headers, status, request);
+        if (response != null && response.getBody() instanceof ProblemDetail detail) {
+            detail.setProperty("message", detail.getDetail());
         }
+        return response;
+    }
+
+    private static ProblemDetail invalid(Map<String, String> fieldErrors) {
+        ProblemDetail detail = problem(HttpStatus.BAD_REQUEST, "Validation failed for request");
+        detail.setProperty("fieldErrors", fieldErrors);
+        return detail;
+    }
+
+    private static ProblemDetail problem(HttpStatus status, String message) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(status, message);
+        detail.setProperty("message", message);
+        return detail;
     }
 }

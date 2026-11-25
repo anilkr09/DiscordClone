@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import com.discordclone.payload.UpdateRoleRequest;
 import com.discordclone.payload.UpdateServerRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.Valid;
@@ -23,7 +24,7 @@ public class ServerController {
 
     @PostMapping
     public ResponseEntity<ServerDTO> createServer(
-            @RequestBody ServerPayload server,
+            @Valid @RequestBody ServerPayload server,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         return ResponseEntity.ok(ServerDTO.fromEntity(serverService.createServer(server, currentUser.getId())));
@@ -78,14 +79,14 @@ public class ServerController {
                 serverService.updateServer(serverId, request, currentUser.getId())));
     }
 
-    @PutMapping("/{serverId}/roles/{roleId}")
+    @PutMapping("/{serverId}/members/{userId}/role")
     @PreAuthorize("@perm.isServerOwner(#serverId, principal.id)")
     public ResponseEntity<ServerDTO> updateRole(
             @PathVariable Long serverId,
             @PathVariable Long userId,
-            @PathVariable Long roleId,
+            @Valid @RequestBody UpdateRoleRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
         return ResponseEntity.ok(ServerDTO.fromEntity(
-                serverService.updateRole(serverId, userId, roleId, currentUser.getId())));
+                serverService.updateRole(serverId, userId, request.role(), currentUser.getId())));
     }
 }

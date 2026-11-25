@@ -1,5 +1,7 @@
 package com.discordclone.controller;
 
+import com.discordclone.exception.ValidationException;
+import java.util.Locale;
 import com.discordclone.dto.SelfStatusResponse;
 import com.discordclone.model.User;
 import com.discordclone.model.UserStatus;
@@ -40,7 +42,7 @@ public class UserStatusController {
     // GET CURRENT USER STATUS
     // =========================
     @GetMapping("/me/status")
-    public ResponseEntity<?> getCurrentUserStatus() {
+    public ResponseEntity<SelfStatusResponse> getCurrentUserStatus() {
 
         UserPrincipal user = getCurrentUser();
 
@@ -73,41 +75,46 @@ public class UserStatusController {
     // SET CUSTOM STATUS
     // =========================
     @PostMapping("/status/custom")
-    public ResponseEntity<?> setCustomStatus(@RequestParam String status) {
+    public ResponseEntity<Void> setCustomStatus(@RequestParam String status) {
 
         UserPrincipal user = getCurrentUser();
 
-        UserStatus custom = UserStatus.valueOf(status.toUpperCase());
+        UserStatus custom;
+        try {
+            custom = UserStatus.valueOf(status.strip().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ValidationException("Unknown status: " + status);
+        }
 
         userStatusService.updateCustomStatus(user.getId(), custom);
 
-        return ResponseEntity.ok("Custom status set");
+        return ResponseEntity.ok().build();
     }
 
     // =========================
     // CLEAR CUSTOM STATUS
     // =========================
     @DeleteMapping("/status/custom")
-    public ResponseEntity<?> clearCustomStatus() {
+    public ResponseEntity<Void> clearCustomStatus() {
 
         UserPrincipal currentUser = getCurrentUser();
 
         userStatusService.clearCustomStatus(currentUser.getId());
 
-        return ResponseEntity.ok("Custom status cleared");
+        return ResponseEntity.ok().build();
     }
 
     // =========================
     // RESET PRESENCE (OPTIONAL)
     // =========================
     @DeleteMapping("/status/reset")
-    public ResponseEntity<?> resetPresence() {
+    public ResponseEntity<Void> resetPresence() {
 
         UserPrincipal currentUser = getCurrentUser();
 
         userStatusService.resetPresence(currentUser.getId());
 
-        return ResponseEntity.ok("Presence reset");
+        return ResponseEntity.ok().build();
     }
 
     // =========================

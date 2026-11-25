@@ -56,6 +56,9 @@ class UserStatusServiceTest {
     @Mock
     private ValueOperations<String, String> valueOps;
 
+    @Mock
+    private LastSeenRecorder lastSeenRecorder;
+
     @InjectMocks
     private UserStatusServiceImpl userStatusService;
 

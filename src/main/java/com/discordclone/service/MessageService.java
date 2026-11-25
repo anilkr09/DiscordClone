@@ -3,7 +3,7 @@ package com.discordclone.service;
 import com.discordclone.dto.MessagePage;
 import com.discordclone.dto.MessageResp;
 import com.discordclone.repository.ChannelMemberRepository;
-import com.discordclone.exception.ChannelAccessDeniedException;
+import com.discordclone.exception.ForbiddenException;
 import com.discordclone.exception.ResourceNotFoundException;
 import com.discordclone.model.ChannelType;
 import com.discordclone.model.FriendshipStatus;
@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.data.domain.Limit;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +39,7 @@ public class MessageService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final MessageRepository messageRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher events;
     private  final UserRepository userRepository;
     private final ChannelRepository channelRepository;
     private final MessagePersistenceService persistenceService;
@@ -57,7 +57,7 @@ public class MessageService {
         Channel channel = findChannel(request.getChannelId());
 
         if (!permissions.hasAccess(channel, userId)) {
-            throw new ChannelAccessDeniedException("You don't have permission to access this channel");
+            throw new ForbiddenException("You don't have permission to access this channel");
         }
         resolveDelivery(request, channel, userId);
 
@@ -119,8 +119,8 @@ public class MessageService {
         message.setContent(content);
         message.setEdited(true);
         MessageResp response = MessageResp.fromEntity(messageRepository.save(message));
-        messagingTemplate.convertAndSend(
-                "/topic/channels/" + response.getChannelId() + "/messages", response);
+        events.publishEvent(ChatBroadcast.toTopic(
+                "/topic/channels/" + response.getChannelId() + "/messages", response));
         return response;
     }
 
@@ -128,9 +128,9 @@ public class MessageService {
     public void deleteMessage(String messageId) {
         Message message = findMessage(messageId);
         messageRepository.delete(message);
-        messagingTemplate.convertAndSend(
+        events.publishEvent(ChatBroadcast.toTopic(
                 "/topic/channels/" + message.getChannel().getId() + "/messages/delete",
-                message.getId());
+                message.getId()));
     }
 
     private Message findMessage(String messageId) {
@@ -161,7 +161,7 @@ public class MessageService {
         User sender = findUser(senderId);
         User recipient = findUser(recipientId);
         if (isBlocked(sender, recipient) || isBlocked(recipient, sender)) {
-            throw new ChannelAccessDeniedException("You cannot send messages to this user");
+            throw new ForbiddenException("You cannot send messages to this user");
         }
         request.setDm(true);
         request.setReceiver(recipient.getUsername());

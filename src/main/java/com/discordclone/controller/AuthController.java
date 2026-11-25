@@ -1,5 +1,6 @@
 package com.discordclone.controller;
 
+import com.discordclone.exception.ValidationException;
 import com.discordclone.model.User;
 import com.discordclone.payload.*;
 import com.discordclone.security.JwtService;
@@ -30,7 +31,7 @@ public class AuthController {
     private final UserService userService;
 
     @PostMapping("/register")
-    public ResponseEntity<?>  registerUser( @Valid @RequestBody RegistrationRequest request) {
+    public ResponseEntity<JwtAuthResponse>  registerUser( @Valid @RequestBody RegistrationRequest request) {
         log.info("➡️ POST /register | username={}", request.getUsername());
 
         User user = new User();
@@ -44,7 +45,7 @@ public class AuthController {
         Authentication authentication = authenticationManager.authenticate(
 
                         new UsernamePasswordAuthenticationToken(
-                                request.getUsername(),
+                                result.getUsername(),
                                 request.getPassword()   // ✅ RAW password
                         )
 
@@ -68,7 +69,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<JwtAuthResponse> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
         log.info("➡️ POST /login | username={}", loginRequest.getUsername());
 
         Authentication authentication = authenticationManager.authenticate(
@@ -95,11 +96,11 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+    public ResponseEntity<JwtAuthResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
         Long userId = tokenProvider.getUserIdFromJWT(request.getRefreshToken());
         
         if (!tokenProvider.validateToken(request.getRefreshToken())) {
-            return ResponseEntity.badRequest().body("Invalid refresh token");
+            throw new ValidationException("Invalid refresh token");
         }
 
         String accessToken = tokenProvider.generateToken(userId);

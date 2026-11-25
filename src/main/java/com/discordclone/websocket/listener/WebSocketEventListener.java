@@ -1,5 +1,6 @@
 package com.discordclone.websocket.listener;
 
+import com.discordclone.service.LastSeenRecorder;
 import com.discordclone.security.UserPrincipal;
 import com.discordclone.service.UserStatusService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 public class WebSocketEventListener {
 
     private final UserStatusService userStatusService;
+    private final LastSeenRecorder lastSeenRecorder;
 
     // =========================
     // CONNECT
@@ -56,6 +58,6 @@ public class WebSocketEventListener {
         // Let Redis TTL handle it
 
         // OPTIONAL: persist last seen
-        userStatusService.persistLastSeen(user.getId());
+        lastSeenRecorder.record(user.getId());
     }
 }

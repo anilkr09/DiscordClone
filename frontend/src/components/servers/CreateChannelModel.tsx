@@ -1,24 +1,22 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   Box,
-  Typography,
   Button,
   TextField,
   Avatar,
   IconButton
 } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
-import { ChannelType, ServerType } from "../../types/server";
+import { ChannelPayload } from "../../types/server";
 
-type Step = "entry" | "customize" | "join";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onCreate: (data: { name: string ;description:string;type:ChannelType;icon?: File}) => void;
+  onCreate: (data: ChannelPayload) => void;
 }
 
 export default function CreateChannelModel({
@@ -27,9 +25,8 @@ export default function CreateChannelModel({
   onCreate
 }: Props) {
   const [name, setName] = useState("");
-  const [type,setType] = useState<ChannelType>(ChannelType.TEXT);
   const [description,setDescription] = useState("");
-  const [icon, setIcon] = useState<File | undefined>();
+  const [, setIcon] = useState<File | undefined>();
 
   // 🔑 Reset state whenever modal opens
   useEffect(() => {
@@ -90,15 +87,6 @@ export default function CreateChannelModel({
               fullWidth
               autoFocus
             />
-            <TextField
-              label="Type"
-              placeholder="My Awesome Channel"
-              value={type}
-              onChange={(e) => setType(ChannelType.TEXT)}
-              fullWidth
-              autoFocus
-            />
-
 
             <Box display="flex" justifyContent="space-between">
 
@@ -106,7 +94,7 @@ export default function CreateChannelModel({
                 variant="contained"
                 disabled={!name.trim()}
                 onClick={() => {
-                  onCreate({ name,description,type});
+                  onCreate({ name, description });
                   onClose();
                 }}
               >

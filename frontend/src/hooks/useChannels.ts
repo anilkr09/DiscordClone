@@ -35,7 +35,7 @@ export const useChannels = (serverId: number) => {
 
   // ❌ Delete channel
   const deleteMutation = useMutation({
-    mutationFn: channelService.deleteChannel,
+    mutationFn: (channelId: number) => channelService.deleteChannel(serverId, channelId),
     onSuccess: (_, channelId) => {
       queryClient.setQueryData(queryKey, (old: any[] = []) =>
         old.filter((c) => c.id !== channelId)

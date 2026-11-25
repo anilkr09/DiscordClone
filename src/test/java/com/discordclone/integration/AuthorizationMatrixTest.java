@@ -51,6 +51,8 @@ class AuthorizationMatrixTest extends IntegrationTest {
                 new Endpoint(HttpMethod.POST, "/api/servers/{server}/members/{outsider}", null, OWNER),
                 new Endpoint(HttpMethod.DELETE, "/api/servers/{server}/members/{bystander}", null, OWNER),
                 new Endpoint(HttpMethod.DELETE, "/api/servers/{server}/members/{member}", null, MEMBERS),
+                new Endpoint(HttpMethod.PUT, "/api/servers/{server}/members/{bystander}/role",
+                        "{\"role\":\"ADMIN\"}", OWNER),
                 new Endpoint(HttpMethod.POST, "/api/channels/{server}", named, OWNER),
                 new Endpoint(HttpMethod.GET, "/api/channels/{server}", null, MEMBERS),
                 new Endpoint(HttpMethod.GET, "/api/channels/{server}/{channel}", null, MEMBERS),

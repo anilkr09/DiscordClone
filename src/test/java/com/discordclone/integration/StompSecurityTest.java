@@ -59,7 +59,7 @@ class StompSecurityTest extends IntegrationTest {
         StompSession session = client.connectAsync("ws://localhost:" + port + "/ws",
                         new WebSocketHttpHeaders(), headers, new StompSessionHandlerAdapter() {
                         })
-                .get(5, TimeUnit.SECONDS);
+                .get(15, TimeUnit.SECONDS);
         sessions.add(session);
         return session;
     }

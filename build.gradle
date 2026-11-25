@@ -54,6 +54,7 @@ dependencies {
 	implementation project(':contract')
 	implementation 'org.postgresql:postgresql:42.7.3'
 	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-api:2.3.0'
 
 	implementation 'org.springframework.security:spring-security-messaging'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
@@ -78,6 +79,11 @@ dependencies {
 
 test {
 	useJUnitPlatform()
+	// -PupdateOpenApi rewrites frontend/openapi.json from the running API.
+	if (project.hasProperty('updateOpenApi')) {
+		systemProperty 'updateOpenApi', 'true'
+		outputs.upToDateWhen { false }
+	}
 	finalizedBy jacocoTestReport
 }
 

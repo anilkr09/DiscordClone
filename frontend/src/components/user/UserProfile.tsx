@@ -1,8 +1,5 @@
 import { useState } from 'react';
 import { Box, Avatar, Typography, IconButton } from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
-import MicIcon from '@mui/icons-material/Mic';
-import HeadsetIcon from '@mui/icons-material/Headset';
 import StatusIndicator from './StatusIndicator';
 import UserStatusSelector from './UserStatusSelector';
 import { UserStatus } from '../../types/status';

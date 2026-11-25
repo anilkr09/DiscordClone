@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ServerService from "../services/server.service";
+import userService from "../services/user.service";
 import { Server, ServerPayload } from "../types/server";
 
 export function useServers() {
@@ -46,7 +47,7 @@ export function useServers() {
   // Leave server
   const leaveServer = useMutation({
     mutationFn: (serverId: number) =>
-      ServerService.leaveServer(serverId),
+      ServerService.removeMember(serverId, userService.getCurrentUser().id),
 
     onSuccess: (_, serverId) => {
       queryClient.setQueryData<Server[]>(["servers"], old =>

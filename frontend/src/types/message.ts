@@ -1,23 +1,17 @@
-import { User } from './auth';
+import type { Schemas } from "../api/client";
 
+/** A chat message, as returned by history requests and pushed over the WebSocket. */
 export interface Message {
-    id: string;
-    content: string;
-    timestamp: string;
-    author: User;
-    channelId: string;
-    attachments?: string[];
+  id: string;
+  content: string;
+  timestamp: string;
+  channelId: number | string;
+  author: Schemas["Author"] & { avatarUrl?: string };
+  edited?: boolean;
 }
 
+/** Sent over STOMP to /app/chat.send, so it is not part of the REST contract. */
 export interface MessageRequest {
-    dm: boolean;
-    content: string;
-    channelId: string;
-    receiver?:string;
-    attachments?: string[];
-}
-
-export interface MessageResponse extends Message {
-    edited: boolean;
-    editedAt?: string;
+  content: string;
+  channelId: number;
 }

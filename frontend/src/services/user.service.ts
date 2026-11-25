@@ -1,37 +1,15 @@
-import api from './api';
-import { User } from '../types/auth';
-import authService from './auth.service';
+import { api, unwrap } from "../api/client";
+import type { User } from "../types/auth";
 
 class UserService {
-  private currentUser: User | null = null;
-
-  /**
-   * Get the current user's information
-   */
+  /** The signed-in user, as remembered at login. */
   getCurrentUser(): User {
     return JSON.parse(localStorage.getItem("currentUser") || "{}");
-}
-
-  /**
-   * Search users by username
-   */
-  async searchUsers(query: string): Promise<User[]> {
-    try {
-      const response = await api.get<User[]>(`/users/search?prefix=${encodeURIComponent(query)}`);
-      return response.data;
-      console.log("users -"+response.data);
-    } catch (error: any) {
-      console.error('Error searching users:', error);
-      throw new Error(error.response?.data?.message || 'Failed to search users');
-    }
   }
 
-  /**
-   * Clear the cached current user
-   */
-  clearCurrentUser(): void {
-    this.currentUser = null;
+  searchUsers(prefix: string): Promise<User[]> {
+    return unwrap(api.GET("/api/users/search", { params: { query: { prefix } } }));
   }
 }
 
-export default new UserService(); 
+export default new UserService();

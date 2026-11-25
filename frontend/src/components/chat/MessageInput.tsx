@@ -8,14 +8,12 @@ interface MessageInputProps {
   channelId: string;
   channelName: string;
   isDM: boolean;
-  receiver?: string;
 }
 
 export default function MessageInput({
   channelId,
   channelName,
   isDM,
-  receiver,
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -32,10 +30,8 @@ export default function MessageInput({
     try {
       setIsSending(true);
       const messageRequest: MessageRequest = {
-        dm: isDM,
         content: message,
-        channelId,
-        receiver: isDM ? receiver : '',
+        channelId: Number(channelId),
       };
       sendMessage(messageRequest);
       setMessage('');

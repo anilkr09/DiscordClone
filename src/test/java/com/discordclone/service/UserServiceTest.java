@@ -46,8 +46,8 @@ class UserServiceTest {
 
     @Test
     void createUser_Success() {
-        when(userRepository.existsByUsername(anyString())).thenReturn(false);
-        when(userRepository.existsByEmail(anyString())).thenReturn(false);
+        when(userRepository.existsByUsernameIgnoreCase(anyString())).thenReturn(false);
+        when(userRepository.existsByEmailIgnoreCase(anyString())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
@@ -60,7 +60,7 @@ class UserServiceTest {
 
     @Test
     void createUser_UsernameExists_ThrowsException() {
-        when(userRepository.existsByUsername(anyString())).thenReturn(true);
+        when(userRepository.existsByUsernameIgnoreCase(anyString())).thenReturn(true);
 
         assertThrows(RuntimeException.class, () -> userService.createUser(testUser));
         verify(userRepository, never()).save(any(User.class));
@@ -85,7 +85,7 @@ class UserServiceTest {
 
     @Test
     void getUserByUsername_Success() {
-        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
+        when(userRepository.findByName(testUser.getUsername())).thenReturn(Optional.of(testUser));
 
         User result = userService.getUserByUsername(testUser.getUsername());
 
@@ -108,7 +108,7 @@ class UserServiceTest {
     @Test
     void getUsersByPrefix_Success() {
         List<User> users = Arrays.asList(testUser);
-        when(userRepository.findByUsernameStartingWith(anyString())).thenReturn(users);
+        when(userRepository.findByUsernameStartingWithIgnoreCase(anyString())).thenReturn(users);
 
         List<User> result = userService.getUsersByPrefix("test");
 

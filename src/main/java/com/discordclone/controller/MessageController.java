@@ -25,7 +25,7 @@ public class MessageController {
     private final MessageService messageService;
 
     @MessageMapping("/chat.send")
-    public void sendMessage(@Payload MessageRequest message, SimpMessageHeaderAccessor headerAccessor) {
+    public void sendMessage(@Payload @Valid MessageRequest message, SimpMessageHeaderAccessor headerAccessor) {
         Authentication authentication = (Authentication) headerAccessor.getUser();
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal currentUser) {
             // MessageService checks that the sender may write to the channel.

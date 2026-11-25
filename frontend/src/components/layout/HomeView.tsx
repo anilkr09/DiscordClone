@@ -4,17 +4,11 @@ import { Outlet, useNavigate, useParams } from 'react-router-dom';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
 import DirectMessageList from '../friends/DirectMessageList';
-import UserProfile from '../user/UserProfile';
-import { UserStatus } from '../../types/status';
-import { User } from '../../types/auth';
-import authService from '../../services/auth.service';
-import { useStatus } from '../../hooks/useStatus';
 
 export default function HomeView() {
   const navigate = useNavigate();
   const { friendId } = useParams();
   const theme = useTheme();
-  const { friendStatuses } = useStatus();
 
   // md and below (< 900px) → sidebar collapses into a Drawer
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -26,9 +20,6 @@ export default function HomeView() {
   useEffect(() => {
     if (isMobile && friendId) setSidebarOpen(false);
   }, [friendId, isMobile]);
-
-  const getUserStatus = (id: number) =>
-    friendStatuses[id] || UserStatus.OFFLINE;
 
   const Sidebar = (
     <Box sx={{

@@ -1,26 +1,29 @@
-import api from './api';
-import { Channel, ChannelPayload } from '../types/server';
+import { api, unwrap } from "../api/client";
+import type { Channel, ChannelPayload } from "../types/server";
 
 class ChannelService {
-    async createChannel(data: { serverId: number; channel: ChannelPayload }): Promise<Channel> {
-        const { serverId, channel } = data;
-        const response = await api.post<Channel>(`/channels/${serverId}`, channel);
-        return response.data;
-    }
+  createChannel({ serverId, channel }: { serverId: number; channel: ChannelPayload }): Promise<Channel> {
+    return unwrap(api.POST("/api/channels/{serverId}", { params: { path: { serverId } }, body: channel }));
+  }
 
-    async getChannels(serverId: number): Promise<Channel[]> {
-        const response = await api.get<Channel[]>(`/channels/${serverId}`);
-        return response.data;
-    }
+  getChannels(serverId: number): Promise<Channel[]> {
+    return unwrap(api.GET("/api/channels/{serverId}", { params: { path: { serverId } } }));
+  }
 
-    async updateChannel(channelId: number, channel: Channel): Promise<Channel> {
-        const response = await api.put<Channel>(`/channels/${channelId}`, channel);
-        return response.data;
-    }
+  updateChannel(serverId: number, channelId: number, channel: ChannelPayload): Promise<Channel> {
+    return unwrap(
+      api.PUT("/api/channels/{serverId}/{channelId}", {
+        params: { path: { serverId, channelId } },
+        body: channel,
+      }),
+    );
+  }
 
-    async deleteChannel(channelId: number): Promise<void> {
-        await api.delete(`/channels/${channelId}`);
-    }
+  async deleteChannel(serverId: number, channelId: number): Promise<void> {
+    await unwrap(
+      api.DELETE("/api/channels/{serverId}/{channelId}", { params: { path: { serverId, channelId } } }),
+    );
+  }
 }
 
 export default new ChannelService();

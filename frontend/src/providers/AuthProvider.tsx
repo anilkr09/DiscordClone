@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import AuthService from "../services/auth.service";
 
 // Define the authentication context type

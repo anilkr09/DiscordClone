@@ -1,11 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Box, IconButton, List, ListItem, Tooltip, Divider } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
-import serverService from '../../services/server.service';
-import { Server } from '../../types/server';
 import { useServers } from '../../hooks/useServers';
-import{useFriends} from"../../hooks/useFriends";
 
 
 
@@ -22,10 +18,8 @@ export default function ServerList() {
     const navigate = useNavigate();
     const { serverId } = useParams();
     
-      const { friends } = useFriends();
       
     
-            const loading = servers.isLoading;
     
     
     

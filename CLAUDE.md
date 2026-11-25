@@ -39,13 +39,13 @@ SPRING_PROFILES_ACTIVE=kafka ./gradlew :bootRun    # Kafka path
 cd frontend
 npm install
 npm run dev
-npm run build      # note: `tsc --noEmit || true` — type errors never fail the build
+npm run build      # generates the API types, type-checks, then builds
 npm run lint   # existing errors are baselined in eslint-suppressions.json; new ones fail
 ```
 
 `VITE_API_BASE_URL` comes from the committed `frontend/.env.development` (`http://localhost:8080`)
-and `.env.production` (a Render URL). It must be the origin **without** `/api`, because
-`services/api.ts` appends `/api` itself. `config/api.ts` derives `WS_BASE_URL` by rewriting the
+and `.env.production` (a Render URL). It must be the origin **without** `/api`, because the
+generated paths already start with it. `config/api.ts` derives `WS_BASE_URL` by rewriting the
 scheme, and throws if the variable is unset.
 
 ### Infrastructure
@@ -177,6 +177,18 @@ this.
 Frontend token refresh is broken. `services/api.ts` posts to `/api/refresh-token` with no body,
 while the backend route is `/api/auth/refresh` with `{refreshToken}`.
 
+## API conventions
+
+- Errors are `ProblemDetail`. Throw a subclass of `ApiException` (`NotFoundException`,
+  `ForbiddenException`, `ConflictException`, `ValidationException`); anything else becomes a generic
+  500. STOMP handler errors go to `/user/queue/errors`.
+- Broadcast through `ChatBroadcast` events or `WebSocketPublisher`, so frames are sent only after the
+  transaction commits.
+- The frontend client is generated: after changing an endpoint or DTO, run
+  `./gradlew test -PupdateOpenApi` and commit `frontend/openapi.json`. `npm run build` regenerates
+  `src/api/schema.d.ts` and type-checks against it. Call the API through `src/api/client.ts`.
+- Some services are interfaces with `service/impl/` implementations; others are concrete classes.
+
 ## Conventions and gotchas
 
 - **Port is 8080** (`application.properties`), not 8082 as the root README claims.
@@ -184,26 +196,12 @@ while the backend route is `/api/auth/refresh` with `{refreshToken}`.
   explicit via `StringRedisTemplate`.
 - **`UserController` and `UserStatusController` share `/api/users`.** Spring resolves the overlap by
   preferring literal segments over templates; adding a `GET /{id}/{x}` route to either will break it.
-- **Service layering is inconsistent.** Some services are interfaces with `service/impl/`
-  implementations; others are concrete classes in `service/`. `UserService` is a concrete `@Service`
-  **and** `UserServiceImpl extends` it as a second `@Service`, so there are two `UserService` beans.
-  Injection works only because every parameter is named `userService` (Spring falls back to name
-  matching, which relies on `-parameters`). `UserServiceImpl` is never injected. Renaming such a
-  parameter will fail startup with `NoUniqueBeanDefinitionException`.
-- **Business errors are often bare `RuntimeException`**, which `GlobalExceptionHandler` maps to a
-  500 and whose message it echoes to the client. Throw the specific exception types
-  (`ResourceNotFoundException`, `ConflictException`, …) that the handler already maps to 4xx.
-- **Several `{serverId}` path variables are ignored** in `ChannelController`. The channel's real
-  server comes from the database. `PUT /api/servers/{id}/roles/{roleId}` declares a `userId` path
-  variable that is not in the route, so it always fails.
 - **`dto/` and `payload/` both exist** and both contain a `UserDTO`. `MessageService` uses the
   `payload` one.
 - `presence:last_seen:{id}` is written but never read and has no TTL. The variable named `lastSeen`
   in `resolveStatus` actually reads the *heartbeat* key.
 - `DataInitializer` runs only with `app.seed.enabled=true` and `SEED_PASSWORD`. To test locally you
   can also register through `/api/auth/register`.
-- **Dead frontend files:** `components/chat/ChatArea copy.tsx` and `services/StatusProvider.tsx`.
-  Nothing imports them, so ignore them when tracing behaviour.
 - **`/user/queue/errors` has no frontend subscriber.** Server-side error pushes (Kafka send failure,
   STOMP JWT errors) are invisible to users.
 

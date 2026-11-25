@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserStatus } from "../types/status";
 import { useWebSocketTopic } from "./WebSocketProvider";
-import api from "../services/api";
+import { api, unwrap } from "../api/client";
 import { useAuth } from "./AuthProvider";
 
 interface FriendStatusMap {
@@ -25,9 +25,9 @@ export const FriendStatusProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!isLoggedIn) return;
 
     (async () => {
-      const { data } = await api.get("/users/friends/status");
+      const data = await unwrap(api.GET("/api/users/friends/status"));
       const map: FriendStatusMap = {};
-      data.forEach((s: any) => (map[s.userId] = s.status));
+      data.forEach((s) => (map[s.userId] = s.status as UserStatus));
       setFriendStatuses(map);
     })();
   }, [isLoggedIn]);

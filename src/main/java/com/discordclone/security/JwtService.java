@@ -1,10 +1,10 @@
 package com.discordclone.security;
 
+import java.nio.charset.StandardCharsets;
 import com.discordclone.exception.JwtAuthenticationException;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,34 +16,27 @@ import java.util.Date;
 public class JwtService {
     private final CustomUserDetailsService customUserDetailsService;
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
-
-    @Value("${app.jwt.expiration}")
-    private int jwtExpirationInMs;
-
-    @Value("${app.jwt.refresh-expiration}")
-    private int refreshExpirationInMs;
+    private final JwtProperties properties;
 
     private Key key;
 
-    public JwtService(CustomUserDetailsService customUserDetailsService) {
+    public JwtService(CustomUserDetailsService customUserDetailsService, JwtProperties properties) {
         this.customUserDetailsService = customUserDetailsService;
+        this.properties = properties;
     }
 
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        this.key = Keys.hmacShaKeyFor(properties.secret().getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         return generateToken(userPrincipal.getId());
     }
-///asfasafs
     public String generateToken(Long userId) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+        Date expiryDate = new Date(now.getTime() + properties.expiration().toMillis());
 
         return Jwts.builder()
                 .setSubject(Long.toString(userId))
@@ -55,7 +48,7 @@ public class JwtService {
 
     public String generateRefreshToken(Long userId) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + refreshExpirationInMs);
+        Date expiryDate = new Date(now.getTime() + properties.refreshExpiration().toMillis());
 
         return Jwts.builder()
                 .setSubject(Long.toString(userId))

@@ -135,7 +135,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           // ✅ OPTIONAL SAFETY: deduplicate last message
           setMessageStore((prev) => {
             const prevMessages = prev[topic] || [];
-            const last = prevMessages[prevMessages.length - 1];
 
             // prevent exact duplicate entries
             // if (
