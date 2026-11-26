@@ -20,19 +20,14 @@
     "@stomp/stompjs": "^7.0.0",
     "@tanstack/react-query": "^5.90.20",
     "@types/lodash": "^4.17.16",
-    "framer-motion": "^12.4.10",
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.21",
     "openapi-fetch": "^0.13.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
-    "react-icons": "^5.5.0",
-    "react-query": "^3.39.3",
     "react-router-dom": "^7.2.0",
-    "socket.io-client": "^4.8.1",
-    "sockjs": "^0.3.24",
-    "sockjs-client": "^1.6.1"
+    "react-virtuoso": "^4.18.24"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

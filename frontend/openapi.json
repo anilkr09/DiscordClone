@@ -76,6 +76,7 @@
       "FriendRequestPayload" : {
         "properties" : {
           "username" : {
+            "minLength" : 1,
             "type" : "string"
           }
         },
@@ -176,9 +177,11 @@
       "LoginRequest" : {
         "properties" : {
           "password" : {
+            "minLength" : 1,
             "type" : "string"
           },
           "username" : {
+            "minLength" : 1,
             "type" : "string"
           }
         },
@@ -233,6 +236,8 @@
       "RegistrationRequest" : {
         "properties" : {
           "email" : {
+            "format" : "email",
+            "minLength" : 1,
             "type" : "string"
           },
           "password" : {
@@ -392,7 +397,7 @@
     "title" : "OpenAPI definition",
     "version" : "v0"
   },
-  "openapi" : "3.0.1",
+  "openapi" : "3.1.0",
   "paths" : {
     "/api/auth/login" : {
       "post" : {
@@ -1519,31 +1524,6 @@
         },
         "tags" : [ "user-status-controller" ]
       }
-    },
-    "/health" : {
-      "get" : {
-        "operationId" : "health",
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "additionalProperties" : {
-                    "type" : "string"
-                  },
-                  "type" : "object"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "home-controller" ]
-      }
     }
-  },
-  "servers" : [ {
-    "description" : "Generated server url",
-    "url" : "http://localhost"
-  } ]
+  }
 }

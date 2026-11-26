@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -33,9 +32,6 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Presence and channel events end to end, against real Redis and the default timings. */
-// Its own Redis database: other cached test contexts sweep the default one, and with an in-memory
-// broker a departure claimed by another instance is announced only to that instance's sockets.
-@TestPropertySource(properties = "spring.data.redis.database=3")
 class RealtimeTest extends IntegrationTest {
 
     @LocalServerPort

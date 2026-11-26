@@ -25,7 +25,9 @@ import java.util.UUID;
 /** Runs the whole application against real PostgreSQL and Redis containers. Needs Docker. */
 // Tests register and sign in far faster than any person does; RateLimitTest switches limits back on.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "app.rate-limit.enabled=false")
+        properties = {"app.rate-limit.enabled=false",
+                // Cached contexts would otherwise collide on one management port.
+                "management.server.port=0"})
 public abstract class IntegrationTest {
 
     // Started once and shared by every integration test class; Testcontainers removes them afterwards.

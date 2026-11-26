@@ -112,7 +112,7 @@ class SessionTest extends IntegrationTest {
         HttpHeaders forwarded = new HttpHeaders();
         forwarded.add("X-Forwarded-Proto", "https");
 
-        var response = rest.exchange("/health", HttpMethod.GET, new HttpEntity<>(forwarded), String.class);
+        var response = rest.exchange("/livez", HttpMethod.GET, new HttpEntity<>(forwarded), String.class);
 
         assertNotNull(response.getHeaders().getFirst("Strict-Transport-Security"));
     }

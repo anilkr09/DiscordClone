@@ -1,5 +1,7 @@
 package com.discordclone.security;
 
+import com.discordclone.cluster.ClusterBus;
+import org.springframework.context.annotation.Lazy;
 import com.discordclone.exception.JwtAuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -43,14 +45,14 @@ public class LoginSessions {
     private final JwtService jwtService;
     private final JwtProperties properties;
     private final StringRedisTemplate redis;
-    private final StompSessionRegistry sockets;
+    private final ClusterBus bus;
 
     public LoginSessions(JwtService jwtService, JwtProperties properties, StringRedisTemplate redis,
-                         StompSessionRegistry sockets) {
+                         @Lazy ClusterBus bus) {
         this.jwtService = jwtService;
         this.properties = properties;
         this.redis = redis;
-        this.sockets = sockets;
+        this.bus = bus;
     }
 
     public Tokens open(Long userId) {
@@ -69,7 +71,7 @@ public class LoginSessions {
         if (result == null || result != 1) {
             if (result != null && result == -1) {
                 log.warn("A replaced refresh token was used for user {}; the login is revoked", claims.userId());
-                sockets.closeLogin(claims.sessionId());
+                bus.closeLogin(claims.sessionId());
             }
             throw new JwtAuthenticationException("This session has ended");
         }
@@ -80,7 +82,7 @@ public class LoginSessions {
     public void close(String refreshToken) {
         TokenClaims claims = jwtService.verify(refreshToken, TokenType.REFRESH);
         redis.delete(PREFIX + claims.sessionId());
-        sockets.closeLogin(claims.sessionId());
+        bus.closeLogin(claims.sessionId());
     }
 
     public boolean isActive(String sessionId) {

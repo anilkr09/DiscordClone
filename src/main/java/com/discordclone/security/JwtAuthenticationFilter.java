@@ -1,5 +1,7 @@
 package com.discordclone.security;
 
+import com.discordclone.config.LogContext;
+import org.slf4j.MDC;
 import com.discordclone.exception.JwtAuthenticationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -34,13 +36,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Authentication authentication = jwtService.authentication(
                         jwtService.verify(jwt, TokenType.ACCESS));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+                MDC.put(LogContext.USER_ID, String.valueOf(((UserPrincipal) authentication.getPrincipal()).getId()));
             } catch (JwtAuthenticationException | UsernameNotFoundException ex) {
                 // Left anonymous: the authorization rules decide whether that is enough.
                 logger.debug("Ignoring an unusable token: " + ex.getMessage());
             }
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            MDC.remove(LogContext.USER_ID);
+        }
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

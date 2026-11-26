@@ -516,22 +516,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["health"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -623,6 +607,7 @@ export interface components {
             timestamp: string;
         };
         RegistrationRequest: {
+            /** Format: email */
             email: string;
             password: string;
             username: string;
@@ -1618,28 +1603,6 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["StatusResponse"];
-                };
-            };
-        };
-    };
-    health: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": {
-                        [key: string]: string;
-                    };
                 };
             };
         };

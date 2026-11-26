@@ -1,5 +1,6 @@
 package com.discordclone.integration;
 
+import com.discordclone.cluster.ClusterBus;
 import com.discordclone.model.Server;
 import com.discordclone.model.User;
 import com.discordclone.service.ChatBroadcast;
@@ -8,11 +9,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -35,8 +35,8 @@ class ApiContractTest extends IntegrationTest {
     TransactionTemplate transactions;
     @Autowired
     ApplicationEventPublisher events;
-    @SpyBean
-    SimpMessagingTemplate messagingTemplate;
+    @MockitoSpyBean
+    ClusterBus bus;
 
     @ParameterizedTest(name = "{0} {1} -> {3}")
     @CsvSource(delimiter = '|', textBlock = """
@@ -119,10 +119,10 @@ class ApiContractTest extends IntegrationTest {
         });
         transactions.executeWithoutResult(tx -> {
             events.publishEvent(ChatBroadcast.toTopic("/topic/committed", "y"));
-            verify(messagingTemplate, never()).convertAndSend(eq("/topic/committed"), any(Object.class));
+            verify(bus, never()).toTopic(eq("/topic/committed"), any());
         });
 
-        verify(messagingTemplate, never()).convertAndSend(eq("/topic/rolled-back"), any(Object.class));
-        verify(messagingTemplate).convertAndSend("/topic/committed", (Object) "y");
+        verify(bus, never()).toTopic(eq("/topic/rolled-back"), any());
+        verify(bus).toTopic("/topic/committed", "y");
     }
 }

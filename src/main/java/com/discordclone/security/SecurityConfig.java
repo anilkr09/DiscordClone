@@ -11,7 +11,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -75,7 +74,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/ws/**",
                                 "/error",
-                                "/health",
+                                "/livez",
+                                "/readyz",
+                                "/actuator/**",
                                 "/v3/api-docs/**",
                                 "/api/auth/**"
                         ).permitAll()
@@ -96,11 +97,6 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-    @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        return web -> web.ignoring().requestMatchers("/error");
-    }
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 

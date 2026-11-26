@@ -1,31 +1,16 @@
-# Build stage
-FROM node:20-alpine as build
-
-# Set working directory
+FROM node:22-alpine AS build
 WORKDIR /app
-
-# Copy package files and TypeScript configs first
 COPY package*.json ./
-COPY tsconfig*.json ./
-COPY vite.config.ts ./
-
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the source code
+RUN npm ci --no-audit --no-fund
 COPY . .
-
-# Build the application
+# The API's origin, as the browser will reach it. Overrides .env.production.
+ARG VITE_API_BASE_URL=http://localhost:8080
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
-# Production stage
 FROM nginx:alpine
-
-# Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Expose port 80
 EXPOSE 80
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"] 
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 CMD wget -q --spider http://127.0.0.1/ || exit 1
+CMD ["nginx", "-g", "daemon off;"]

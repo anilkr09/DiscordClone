@@ -8,7 +8,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -50,7 +50,7 @@ class KafkaPipelineTest extends IntegrationTest {
 
     @Autowired
     JdbcTemplate jdbc;
-    @SpyBean
+    @MockitoSpyBean
     SimpMessagingTemplate messaging;
 
     @Test

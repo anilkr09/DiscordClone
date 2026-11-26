@@ -112,8 +112,11 @@ Timings are `app.presence.*`; time comes from an injected `Clock`.
 ### WebSocket layer
 
 STOMP endpoint `/ws`, **in-memory simple broker** (`/topic`, `/queue`), app prefix `/app`, user
-prefix `/user`. The in-memory broker means **the app cannot run more than one instance** —
-subscriptions are process-local heap state.
+prefix `/user`. The broker is local to each instance, so pushes and sign-outs go
+through `cluster/ClusterBus`: they are published to Redis and every instance delivers to its own
+sockets. Push through `ChatBroadcaster` or `ClusterBus`, not `SimpMessagingTemplate`, or only one
+instance's clients receive it
+(the exception is `kafka/MessageFanOut`, which already runs on every instance).
 
 Every pushed frame is a `WsEvent{type, version, payload}`; destinations are listed in
 `WsDestinations`, and the client's type names are generated from `WsEventType`.
@@ -130,6 +133,13 @@ A refused frame ends the STOMP session.
 On the client, `src/realtime/` owns the one connection. Subscribe with `useStompSubscription`, which
 is reference-counted and cleans up; apply events in `realtime/events.ts`. Server state lives only in
 React Query (there is no Redux); message history is `features/messages/`.
+
+### Running and observing
+
+`docker compose --profile app up -d --build` runs two backend replicas behind nginx
+(`ops/nginx/lb.conf`, API on 8080) and the web client on 3000. Liveness and readiness are `/livez`
+and `/readyz` on the main port; Prometheus metrics are on the management port 9091, which stays
+private. Logs are JSON (`LOG_FORMAT=` for plain text); traces are exported when `TRACING_EXPORT=true`.
 
 ### DMs
 

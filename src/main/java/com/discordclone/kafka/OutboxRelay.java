@@ -1,5 +1,7 @@
 package com.discordclone.kafka;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import com.discordclone.contract.MessageCreatedV1;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +47,10 @@ public class OutboxRelay {
     private final AtomicBoolean requested = new AtomicBoolean();
 
     public OutboxRelay(JdbcTemplate jdbc, TransactionTemplate transactions,
-                       KafkaTemplate<Object, Object> kafka, ObjectMapper json) {
+                       KafkaTemplate<Object, Object> kafka, ObjectMapper json, MeterRegistry meters) {
+        Gauge.builder("outbox.backlog", () -> jdbc.queryForObject("SELECT COUNT(*) FROM outbox", Long.class))
+                .description("Events not yet acknowledged by Kafka")
+                .register(meters);
         this.jdbc = jdbc;
         this.transactions = transactions;
         this.kafka = kafka;

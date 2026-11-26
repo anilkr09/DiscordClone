@@ -11,7 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
+import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -26,7 +26,7 @@ public class JwtService {
 
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtProperties properties;
-    private final Key key;
+    private final SecretKey key;
 
     public JwtService(CustomUserDetailsService customUserDetailsService, JwtProperties properties) {
         this.customUserDetailsService = customUserDetailsService;
@@ -38,13 +38,13 @@ public class JwtService {
         Instant now = Instant.now();
         Duration lifetime = type == TokenType.ACCESS ? properties.expiration() : properties.refreshExpiration();
         return Jwts.builder()
-                .setSubject(Long.toString(userId))
+                .subject(Long.toString(userId))
                 // Unique per token, so that two issued in the same second still differ.
-                .setId(UUID.randomUUID().toString())
+                .id(UUID.randomUUID().toString())
                 .claim(TYPE, type.name())
                 .claim(SESSION, sessionId)
-                .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(now.plus(lifetime)))
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(now.plus(lifetime)))
                 .signWith(key)
                 .compact();
     }
@@ -54,7 +54,7 @@ public class JwtService {
      */
     public TokenClaims verify(String token, TokenType expected) {
         try {
-            Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+            Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
             String sessionId = claims.get(SESSION, String.class);
             if (!expected.name().equals(claims.get(TYPE, String.class)) || sessionId == null) {
                 throw new JwtAuthenticationException("Wrong kind of token");

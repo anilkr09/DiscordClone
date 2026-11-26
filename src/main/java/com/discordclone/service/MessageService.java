@@ -1,5 +1,6 @@
 package com.discordclone.service;
 
+import io.micrometer.core.instrument.Metrics;
 import com.discordclone.dto.DeletedMessage;
 import com.discordclone.websocket.destination.WsDestinations;
 import com.discordclone.websocket.event.WsEvent;
@@ -91,6 +92,7 @@ public class MessageService {
                 .build();
         // 🔥 Delegate everything to profile-based publisher
         eventPublisher.publish(message, messageResponse, request, user);
+        Metrics.counter("messages.sent").increment();
 
         return message;
     }

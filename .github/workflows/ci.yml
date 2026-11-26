@@ -72,7 +72,7 @@ jobs:
         run: |
           ./gradlew :bootJar
           nohup java -jar build/libs/*.jar > app.log 2>&1 &
-          timeout 90 sh -c 'until curl -sf localhost:8080/health; do sleep 2; done'
+          timeout 90 sh -c 'until curl -sf localhost:8080/readyz; do sleep 2; done'
       - run: npm ci
         working-directory: frontend
       - run: npx playwright install --with-deps chromium
@@ -82,3 +82,30 @@ jobs:
       - name: Show the application log
         if: failure()
         run: tail -200 app.log
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - {name: backend, context: ., file: Dockerfile}
+          - {name: consumer, context: ., file: consumer/Dockerfile}
+          - {name: frontend, context: frontend, file: frontend/Dockerfile}
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t discordclone/${{ matrix.name }}:ci -f ${{ matrix.file }} ${{ matrix.context }}
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: discordclone/${{ matrix.name }}:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'

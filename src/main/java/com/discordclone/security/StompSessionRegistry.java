@@ -69,6 +69,10 @@ public class StompSessionRegistry {
         });
     }
 
+    public int size() {
+        return sockets.size();
+    }
+
     private void close(String socketId, String reason) {
         WebSocketSession session = sockets.get(socketId);
         if (session == null) {
